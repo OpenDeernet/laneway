@@ -631,6 +631,9 @@ func (c *Client) attempt(ctx context.Context, method, path, what string, body an
 		return nil, -1, fmt.Errorf("call jira: %w", err)
 	}
 	defer resp.Body.Close()
+	if access != "" {
+		learnClock(resp) // proofs carry the laneway-server's time
+	}
 
 	respBody, err := io.ReadAll(io.LimitReader(resp.Body, 8<<20))
 	if err != nil {

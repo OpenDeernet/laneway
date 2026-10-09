@@ -121,6 +121,12 @@ func LoopbackLogin(ctx context.Context, base string, open func(url string) error
 			http.NotFound(w, r)
 			return
 		}
+		// Only the sign-in under way ends it: a stray or hostile local
+		// request leaves it waiting.
+		if subtle.ConstantTimeCompare([]byte(r.URL.Query().Get("state")), []byte(l.state)) != 1 {
+			http.Error(w, "This isn't the sign-in laneway is waiting for.", http.StatusBadRequest)
+			return
+		}
 		msg := "Signed in to laneway. You can close this tab."
 		if e := r.URL.Query().Get("error"); e != "" {
 			msg = "The sign-in didn't work: " + e
@@ -160,17 +166,9 @@ func DeviceLogin(ctx context.Context, base string, show func(code, uri, complete
 		return Credentials{}, err
 	}
 	hc := &http.Client{Timeout: 30 * time.Second}
-	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, base+"/oauth/device/code",
-		strings.NewReader(url.Values{"client_id": {ClientID}, "scope": {Scopes}}.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	p, err := dpopProof(key, http.MethodPost, base+"/oauth/device/code", "")
+	_, raw, err := formPost(ctx, hc, base+"/oauth/device/code", key, url.Values{"client_id": {ClientID}, "scope": {Scopes}})
 	if err != nil {
 		return Credentials{}, err
-	}
-	req.Header.Set("DPoP", p)
-	resp, err := hc.Do(req)
-	if err != nil {
-		return Credentials{}, fmt.Errorf("call laneway: %w", err)
 	}
 	var dev struct {
 		Device   string `json:"device_code"`
@@ -182,8 +180,7 @@ func DeviceLogin(ctx context.Context, base string, show func(code, uri, complete
 		Error    string `json:"error"`
 		Desc     string `json:"error_description"`
 	}
-	json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&dev)
-	resp.Body.Close()
+	json.Unmarshal(raw, &dev)
 	if dev.Device == "" {
 		return Credentials{}, fmt.Errorf("laneway: no device sign-in: %s", strings.TrimSpace(dev.Error+" "+dev.Desc))
 	}
@@ -216,7 +213,8 @@ func DeviceLogin(ctx context.Context, base string, show func(code, uri, complete
 }
 
 // SignOut ends the client's laneway sign-in: the server revokes it and
-// the stored one is cleared. Not signed in: nothing to do.
+// the stored one is cleared, also when the revoke fails (offline): that
+// comes back as a RevokeError. Not signed in: nothing to do.
 func (c *Client) SignOut(ctx context.Context) error {
 	if c.oauth == nil {
 		return nil
@@ -232,18 +230,31 @@ func (c *Client) SignOut(ctx context.Context) error {
 		}
 	}
 	o.load()
+	var revoke error
 	if o.refresh != "" {
 		a, err := oauthPost(ctx, o.http, o.base+"/oauth/revoke", nil, o.client.form(url.Values{"token": {o.refresh}}))
-		if err != nil {
-			return err
-		}
-		if a.Error != "" {
-			return fmt.Errorf("laneway: signing out: %s %s", a.Error, a.Desc)
+		switch {
+		case err != nil:
+			revoke = RevokeError{err}
+		case a.Error != "":
+			revoke = RevokeError{fmt.Errorf("%s %s", a.Error, a.Desc)}
 		}
 	}
 	o.key, o.refresh, o.access, o.account = nil, "", "", ""
-	return o.store.Save(nil)
+	if err := o.store.Save(nil); err != nil {
+		return err
+	}
+	return revoke
 }
+
+// RevokeError is a sign-out the server didn't take: the sign-in is
+// cleared here but may live on there until it ends.
+type RevokeError struct{ Err error }
+
+func (e RevokeError) Error() string {
+	return "laneway: the server didn't end the sign-in: " + e.Err.Error()
+}
+func (e RevokeError) Unwrap() error { return e.Err }
 
 // ProbeLaneway reports whether base is a laneway-server that signs the
 // laneway app in: its OAuth metadata (RFC 8414) names it as issuer and

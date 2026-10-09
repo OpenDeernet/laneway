@@ -92,9 +92,19 @@ func (s *SignInStore) path() (string, error) {
 	return filepath.Join(d, "laneway", "sign-in", s.file), nil
 }
 
-// Load reads the sign-in: the keyring's, else the file's; nothing when
-// there is none.
+// Load reads the sign-in: the file's, else the keyring's; nothing when
+// there is none. A file is the newer one: each save to the keyring
+// removes it, and a process without a working keyring (over SSH) keeps
+// its rotated tokens there, the keyring's then ended.
 func (s *SignInStore) Load() ([]byte, error) {
+	p, err := s.path()
+	if err != nil {
+		return nil, err
+	}
+	raw, err := os.ReadFile(p)
+	if err == nil || !errors.Is(err, os.ErrNotExist) {
+		return raw, err
+	}
 	if lookup, _, _, _ := s.keyring(); lookup != nil {
 		if out, err := exec.Command(lookup[0], lookup[1:]...).Output(); err == nil {
 			if raw, err := base64.StdEncoding.DecodeString(strings.TrimSpace(string(out))); err == nil && len(raw) > 0 {
@@ -102,15 +112,7 @@ func (s *SignInStore) Load() ([]byte, error) {
 			}
 		}
 	}
-	p, err := s.path()
-	if err != nil {
-		return nil, err
-	}
-	raw, err := os.ReadFile(p)
-	if errors.Is(err, os.ErrNotExist) {
-		return nil, nil
-	}
-	return raw, err
+	return nil, nil
 }
 
 // Save keeps the sign-in (nothing: removes it), in the keyring when there
@@ -140,9 +142,13 @@ func (s *SignInStore) Save(raw []byte) error {
 			cmd.Stdin = strings.NewReader(`add-generic-password -U -a "sign-in" -s "` + s.service + `" -w "` + encode(raw) + "\"\n")
 		}
 		if cmd.Run() == nil {
-			os.Remove(p) // an older copy without the keyring
-			return nil
+			// An older copy without the keyring; one that won't go is
+			// written over below, as Load takes the file first.
+			if err := os.Remove(p); err == nil || errors.Is(err, os.ErrNotExist) {
+				return nil
+			}
 		}
+		exec.Command(clear[0], clear[1:]...).Run() // the keyring's copy is older now
 	}
 	if err := os.MkdirAll(filepath.Dir(p), 0o700); err != nil {
 		return err

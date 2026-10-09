@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 	"net/http"
@@ -31,16 +32,19 @@ func (m *memStore) Save(b []byte) error   { m.mu.Lock(); defer m.mu.Unlock(); m.
 // every proof (signature, htm, htu, ath, key binding) as the server does.
 type fakeLaneway struct {
 	*httptest.Server
-	t        *testing.T
-	mu       sync.Mutex
-	codes    map[string]string // code -> jkt (dpop_jkt)
-	access   map[string]string // access token -> jkt
-	refresh  map[string]string // refresh token -> jkt
-	devices  map[string]string // device code -> "pending" or "allowed"
-	jtis     map[string]bool
-	n        int
-	refreshs int
-	revoked  []string
+	t         *testing.T
+	mu        sync.Mutex
+	codes     map[string]string // code -> jkt (dpop_jkt)
+	access    map[string]string // access token -> jkt
+	refresh   map[string]string // refresh token -> jkt
+	devices   map[string]string // device code -> "pending" or "allowed"
+	jtis      map[string]bool
+	n         int
+	refreshs  int
+	revoked   []string
+	clock     time.Duration // how far its clock is ahead
+	noRevoke  bool          // the revoke call fails
+	badProofs bool          // every proof is refused
 }
 
 func newFakeLaneway(t *testing.T) *fakeLaneway {
@@ -53,6 +57,9 @@ func newFakeLaneway(t *testing.T) *fakeLaneway {
 // proofKey checks r's DPoP proof for the request (and access, if not
 // "") and returns the key's thumbprint, "" when it doesn't hold.
 func (f *fakeLaneway) proofKey(r *http.Request, access string) string {
+	if f.badProofs {
+		return ""
+	}
 	parts := strings.Split(r.Header.Get("DPoP"), ".")
 	if len(parts) != 3 {
 		return ""
@@ -80,7 +87,7 @@ func (f *fakeLaneway) proofKey(r *http.Request, access string) string {
 	if len(sig) != 64 || !ecdsa.Verify(pub, sum[:], new(big.Int).SetBytes(sig[:32]), new(big.Int).SetBytes(sig[32:])) {
 		return ""
 	}
-	if c.HTM != r.Method || c.HTU != f.URL+r.URL.Path || time.Since(time.Unix(c.IAT, 0)) > time.Minute || f.jtis[c.JTI] {
+	if c.HTM != r.Method || c.HTU != f.URL+r.URL.Path || time.Now().Add(f.clock).Sub(time.Unix(c.IAT, 0)).Abs() > time.Minute || f.jtis[c.JTI] {
 		return ""
 	}
 	f.jtis[c.JTI] = true
@@ -104,6 +111,7 @@ func (f *fakeLaneway) issue(w http.ResponseWriter, jkt string) {
 func (f *fakeLaneway) serve(w http.ResponseWriter, r *http.Request) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	w.Header().Set("Date", time.Now().Add(f.clock).UTC().Format(http.TimeFormat))
 	fail := func(code string) {
 		w.WriteHeader(400)
 		json.NewEncoder(w).Encode(map[string]string{"error": code})
@@ -172,6 +180,10 @@ func (f *fakeLaneway) serve(w http.ResponseWriter, r *http.Request) {
 			"verification_uri_complete": f.URL + "/device?user_code=BCDF-GHJK", "expires_in": 600, "interval": 0})
 	case "/oauth/revoke":
 		r.ParseForm()
+		if f.noRevoke {
+			w.WriteHeader(503)
+			return
+		}
 		f.revoked = append(f.revoked, r.PostForm.Get("token"))
 		delete(f.refresh, r.PostForm.Get("token"))
 	default:
@@ -340,4 +352,106 @@ func shortPolls(t *testing.T) {
 	old := devicePollMin
 	devicePollMin = 10 * time.Millisecond
 	t.Cleanup(func() { devicePollMin = old })
+}
+
+// signedInClient is a client on a device sign-in to f, and its store.
+func signedInClient(t *testing.T, f *fakeLaneway) (*Client, *memStore) {
+	t.Helper()
+	shortPolls(t)
+	creds, err := DeviceLogin(context.Background(), f.URL, func(string, string, string) {})
+	if err != nil {
+		t.Fatal(err)
+	}
+	st := &memStore{}
+	raw, _ := json.Marshal(creds)
+	st.Save(raw)
+	return New(Config{BaseURL: f.URL, SignIn: st}), st
+}
+
+// A clock minutes off: proofs carry the server's time, from its Date.
+func TestDPoPClockSkew(t *testing.T) {
+	f := newFakeLaneway(t)
+	f.clock = 10 * time.Minute
+	c, _ := signedInClient(t, f)
+	if _, err := c.Myself(context.Background()); err != nil {
+		t.Fatalf("with the server's clock 10 minutes ahead: %v", err)
+	}
+	f.mu.Lock()
+	f.clock = -10 * time.Minute
+	f.mu.Unlock()
+	c.oauth.expire(c.oauth.access)
+	c.mu.Lock()
+	c.myself = nil
+	c.mu.Unlock()
+	if _, err := c.Myself(context.Background()); err != nil {
+		t.Fatalf("after the server's clock moved: %v", err)
+	}
+}
+
+// A proof the server refuses isn't a sign-in that ended.
+func TestInvalidProofIsNotSignedOut(t *testing.T) {
+	f := newFakeLaneway(t)
+	c, st := signedInClient(t, f)
+	f.mu.Lock()
+	f.badProofs = true
+	f.mu.Unlock()
+	_, err := c.Myself(context.Background())
+	if err == nil || errors.Is(err, ErrSignedOut) {
+		t.Fatalf("a refused proof: %v", err)
+	}
+	var kept Credentials
+	json.Unmarshal(st.raw, &kept)
+	if kept.Refresh == "" {
+		t.Error("the sign-in was dropped")
+	}
+	f.mu.Lock()
+	f.badProofs = false
+	f.mu.Unlock()
+	c.mu.Lock()
+	c.myself = nil
+	c.mu.Unlock()
+	if _, err := c.Myself(context.Background()); err != nil {
+		t.Errorf("once proofs pass again: %v", err)
+	}
+}
+
+// A stray request to the loopback listener doesn't end the sign-in.
+func TestLoopbackLoginIgnoresStrayCallback(t *testing.T) {
+	f := newFakeLaneway(t)
+	_, err := LoopbackLogin(context.Background(), f.URL, func(u string) error {
+		au, _ := url.Parse(u)
+		redirect := au.Query().Get("redirect_uri")
+		go func() {
+			if resp, err := http.Get(redirect + "?code=evil&state=nope"); err == nil {
+				resp.Body.Close()
+				if resp.StatusCode != http.StatusBadRequest {
+					t.Errorf("stray callback: %d", resp.StatusCode)
+				}
+			}
+			if resp, err := http.Get(u); err == nil {
+				resp.Body.Close()
+			}
+		}()
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("after a stray callback: %v", err)
+	}
+}
+
+// Signing out clears the sign-in here also when the server can't be told.
+func TestSignOutWhenRevokeFails(t *testing.T) {
+	f := newFakeLaneway(t)
+	c, st := signedInClient(t, f)
+	f.mu.Lock()
+	f.noRevoke = true
+	f.mu.Unlock()
+	err := c.SignOut(context.Background())
+	var re RevokeError
+	if !errors.As(err, &re) {
+		t.Errorf("sign-out with the revoke failing: %v", err)
+	}
+	if len(st.raw) != 0 {
+		t.Errorf("sign-in kept: %s", st.raw)
+	}
 }

@@ -154,7 +154,7 @@ func dpopProof(key *ecdsa.PrivateKey, method, target, access string) (string, er
 	u.RawQuery, u.Fragment = "", ""
 	jti := make([]byte, 16)
 	rand.Read(jti)
-	claims := map[string]any{"jti": b64(jti), "htm": method, "htu": u.String(), "iat": time.Now().Unix()}
+	claims := map[string]any{"jti": b64(jti), "htm": method, "htu": u.String(), "iat": serverNow(u.Host).Unix()}
 	if access != "" {
 		h := sha256.Sum256([]byte(access))
 		claims["ath"] = b64(h[:])
@@ -188,32 +188,80 @@ func tokenCall(ctx context.Context, hc *http.Client, base string, key *ecdsa.Pri
 
 func oauthPost(ctx context.Context, hc *http.Client, target string, key *ecdsa.PrivateKey, form url.Values) (tokenAnswer, error) {
 	var a tokenAnswer
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, target, strings.NewReader(form.Encode()))
+	code, raw, err := formPost(ctx, hc, target, key, form)
 	if err != nil {
 		return a, err
 	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("Accept", "application/json")
-	if key != nil {
-		p, err := dpopProof(key, http.MethodPost, target, "")
-		if err != nil {
-			return a, err
-		}
-		req.Header.Set("DPoP", p)
-	}
-	resp, err := hc.Do(req)
-	if err != nil {
-		return a, fmt.Errorf("call laneway: %w", err)
-	}
-	defer resp.Body.Close()
-	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-	if len(raw) > 0 && json.Unmarshal(raw, &a) != nil && resp.StatusCode == http.StatusOK {
+	if len(raw) > 0 && json.Unmarshal(raw, &a) != nil && code == http.StatusOK {
 		return a, fmt.Errorf("laneway: unreadable answer from %s", target)
 	}
-	if resp.StatusCode != http.StatusOK && a.Error == "" {
-		a.Error = http.StatusText(resp.StatusCode)
+	if code != http.StatusOK && a.Error == "" {
+		a.Error = http.StatusText(code)
 	}
 	return a, nil
+}
+
+// formPost posts form to target with a proof of key (nil: none). A proof
+// refused while this machine's clock is off goes once more with the
+// server's time.
+func formPost(ctx context.Context, hc *http.Client, target string, key *ecdsa.PrivateKey, form url.Values) (int, []byte, error) {
+	for try := 0; ; try++ {
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, target, strings.NewReader(form.Encode()))
+		if err != nil {
+			return 0, nil, err
+		}
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("Accept", "application/json")
+		if key != nil {
+			p, err := dpopProof(key, http.MethodPost, target, "")
+			if err != nil {
+				return 0, nil, err
+			}
+			req.Header.Set("DPoP", p)
+		}
+		resp, err := hc.Do(req)
+		if err != nil {
+			return 0, nil, fmt.Errorf("call laneway: %w", err)
+		}
+		raw, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+		resp.Body.Close()
+		var e struct {
+			Error string `json:"error"`
+		}
+		json.Unmarshal(raw, &e)
+		if learnClock(resp) && key != nil && e.Error == "invalid_dpop_proof" && try == 0 {
+			continue
+		}
+		return resp.StatusCode, raw, nil
+	}
+}
+
+// clockSkew is how far each laneway-server's clock (by host) is ahead of
+// this machine's, from the Date of its answers: a proof's iat must be
+// within a minute of the server's time.
+var clockSkew sync.Map
+
+// learnClock keeps the skew resp's Date shows; it reports whether it
+// changed. Under 5 seconds counts as none: Date has whole seconds.
+func learnClock(resp *http.Response) bool {
+	date, err := http.ParseTime(resp.Header.Get("Date"))
+	if err != nil || resp.Request == nil {
+		return false
+	}
+	d := time.Until(date)
+	if d.Abs() < 5*time.Second {
+		d = 0
+	}
+	old, _ := clockSkew.Swap(resp.Request.URL.Host, d)
+	was, _ := old.(time.Duration)
+	return was != d
+}
+
+// serverNow is the time on host's clock as far as it is known.
+func serverNow(host string) time.Time {
+	d, _ := clockSkew.Load(host)
+	skew, _ := d.(time.Duration)
+	return time.Now().Add(skew)
 }
 
 // token is a valid access token, refreshed when it ends within a minute,
@@ -244,9 +292,13 @@ func (o *oauthSession) token(ctx context.Context) (string, *ecdsa.PrivateKey, er
 		return "", nil, err
 	}
 	switch {
-	case a.Error == "invalid_grant" || a.Error == "invalid_dpop_proof":
+	case a.Error == "invalid_grant":
 		o.access, o.refresh = "", ""
 		return "", nil, ErrSignedOut
+	case a.Error == "invalid_dpop_proof":
+		// Any proof it refuses, also one from a clock far off: the sign-in
+		// may well hold.
+		return "", nil, fmt.Errorf("laneway: the server refused this app's proof of its key (%s); check this machine's clock", strings.TrimSpace(a.Desc))
 	case a.Error != "":
 		return "", nil, fmt.Errorf("laneway: refreshing the sign-in: %s %s", a.Error, a.Desc)
 	case a.Type != "DPoP" || a.Refresh == "":

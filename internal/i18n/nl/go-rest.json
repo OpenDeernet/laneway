@@ -312,6 +312,7 @@
   "open %s on any device and enter %s": "open %s op een willekeurig apparaat en vul %s in",
   "sign in with a code on another device instead of this machine's browser": "aanmelden met een code op een ander apparaat in plaats van de browser op deze machine",
   "signed out of %s": "afgemeld bij %s",
+  "signed out of %s here, but the server didn't end the sign-in (%s); end it under signed-in apps there": "hier afgemeld bij %s, maar de server beëindigde de aanmelding niet (%s); beëindig hem daar onder aangemelde apps",
   "signing in in your browser; if it didn't open, open this:": "aanmelden in je browser; ging die niet open, open dan dit:",
   "waiting… ": "wachten… ",
   "Start the sign-in first.": "Begin eerst met aanmelden.",

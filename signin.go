@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -77,7 +78,13 @@ func logoutCmd(args []string, out, errOut io.Writer) int {
 		fmt.Fprintln(errOut, "laneway: "+i18n.Tf("%s signs in with an API token; revoke it on the site", j.BaseURL))
 		return 1
 	}
-	if err := jira.New(jira.Config{BaseURL: j.BaseURL, SignIn: j.Credentials()}).SignOut(context.Background()); err != nil {
+	err = jira.New(jira.Config{BaseURL: j.BaseURL, SignIn: j.Credentials()}).SignOut(context.Background())
+	var re jira.RevokeError
+	if errors.As(err, &re) {
+		fmt.Fprintln(errOut, "laneway: "+i18n.Tf("signed out of %s here, but the server didn't end the sign-in (%s); end it under signed-in apps there", j.BaseURL, re.Err))
+		return 1
+	}
+	if err != nil {
 		fmt.Fprintln(errOut, "laneway:", err)
 		return 1
 	}

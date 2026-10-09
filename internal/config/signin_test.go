@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/base64"
 	"os"
 	"path/filepath"
 	"testing"
@@ -74,4 +75,45 @@ func TestSignInLock(t *testing.T) {
 		unlock3()
 	}
 	unlock2()
+}
+
+// A process without a working keyring keeps the rotated sign-in in the
+// file; one with the keyring then loads that, not the keyring's older one.
+func TestSignInStaleKeyring(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("HOME", t.TempDir())
+	kr := filepath.Join(t.TempDir(), "keyring")
+	working := true
+	old := signInKeyring
+	defer func() { signInKeyring = old }()
+	signInKeyring = func(string) (lookup, store, clear []string, encode func([]byte) string) {
+		if !working { // no D-Bus: every keyring command fails
+			return []string{"false"}, []string{"false"}, []string{"false"}, func(b []byte) string { return string(b) }
+		}
+		return []string{"cat", kr}, []string{"sh", "-c", `cat > "$0"`, kr}, []string{"rm", "-f", kr},
+			func(b []byte) string { return base64.StdEncoding.EncodeToString(b) }
+	}
+	st := JiraConfig{BaseURL: "https://lw.example", SignIn: SignInLaneway}.Credentials()
+	if err := st.Save([]byte(`{"refresh":"lwr_1"}`)); err != nil {
+		t.Fatal(err)
+	}
+	working = false
+	if err := st.Save([]byte(`{"refresh":"lwr_2"}`)); err != nil {
+		t.Fatal(err)
+	}
+	working = true
+	if raw, _ := st.Load(); string(raw) != `{"refresh":"lwr_2"}` {
+		t.Errorf("loaded %s, want the newer lwr_2", raw)
+	}
+	// Kept in the keyring again: the file goes, the keyring's is loaded.
+	if err := st.Save([]byte(`{"refresh":"lwr_3"}`)); err != nil {
+		t.Fatal(err)
+	}
+	p, _ := st.(*SignInStore).path()
+	if _, err := os.Stat(p); !os.IsNotExist(err) {
+		t.Errorf("file kept next to the keyring: %v", err)
+	}
+	if raw, _ := st.Load(); string(raw) != `{"refresh":"lwr_3"}` {
+		t.Errorf("loaded %s, want lwr_3", raw)
+	}
 }

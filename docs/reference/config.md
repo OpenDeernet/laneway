@@ -340,7 +340,10 @@ can sign in the way its web pages do (password and two-step, passkey,
 SSO, GitLab) instead of with an API token: `laneway setup` and the setup
 page offer it, `laneway login` does it later. The config then says
 `sign_in: laneway`; the sign-in itself (a key made for it and a refresh
-token) lives in the system keyring, or without one in
-`~/.config/laneway/sign-in/` readable only by you. Its tokens last 15
-minutes, renew themselves and only work with that key (OAuth with DPoP),
-so a copied one is of no use. `laneway logout` ends it on the server too.
+token) lives in the system keyring, or without one (over SSH) in
+`~/.config/laneway/sign-in/` readable only by you; the file, when there,
+is the newer one. Its tokens last 15 minutes, renew themselves and only
+work with that key (OAuth with DPoP), so a copied one is of no use; its
+proofs carry the server's time, so a clock that is off doesn't matter.
+`laneway logout` ends it on the server too, and here also when the server
+can't be reached.
