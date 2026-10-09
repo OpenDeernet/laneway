@@ -132,15 +132,23 @@ func TestHostedGateway(t *testing.T) {
 			t.Errorf("signed-out answer %v", b)
 		}
 	}
-	// No service worker: one that unregisters, served signed out too.
+	// The app's files and service worker come without a session; pages
+	// don't, and the worker leaves /auth/ to the server.
 	if res, _ := anon.Get(gw.URL + "/sw.js"); res.StatusCode != 200 {
 		t.Errorf("sw.js signed out: %d", res.StatusCode)
 	} else {
 		b, _ := io.ReadAll(res.Body)
 		res.Body.Close()
-		if !strings.Contains(string(b), "unregister()") || strings.Contains(string(b), "respondWith") {
-			t.Errorf("sw.js %s", b)
+		if !strings.Contains(string(b), "'/auth/'") {
+			t.Errorf("the worker doesn't leave /auth/ alone")
 		}
+	}
+	if res, _ := anon.Get(gw.URL + "/js/app.js"); res.StatusCode != 200 {
+		t.Errorf("app.js signed out: %d", res.StatusCode)
+	}
+	noRedirect := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	if res, _ := noRedirect.Get(gw.URL + "/board/ABC/1"); res.StatusCode != http.StatusFound {
+		t.Errorf("a page signed out: %d, want the sign-in", res.StatusCode)
 	}
 	via := browserFor()
 	if res, err := via.Get(gw.URL + "/auth/login?next=" + url.QueryEscape("/board/ABC/2?x=1")); err != nil || res.Request.URL.RequestURI() != "/board/ABC/2?x=1" {

@@ -48,15 +48,32 @@ func serviceWorker() []byte {
 	return swBody
 }
 
+func serveWorker(w http.ResponseWriter, r *http.Request) {
+	b := serviceWorker()
+	if b == nil {
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-cache")
+	_, _ = w.Write(b)
+}
+
 func init() {
-	handle("GET /sw.js", func(s *Server, w http.ResponseWriter, r *http.Request) {
-		b := serviceWorker()
-		if b == nil {
-			http.NotFound(w, r)
+	handle("GET /sw.js", func(s *Server, w http.ResponseWriter, r *http.Request) { serveWorker(w, r) })
+}
+
+// Static serves the app's own files and its service worker, the same for
+// everyone: laneway web for many people hands them out before a sign-in,
+// so the worker can keep the shell, and a page from it signs in (api.js).
+func Static() http.Handler {
+	sub, _ := fs.Sub(staticFS, "static")
+	files := assets(sub)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/sw.js" {
+			serveWorker(w, r)
 			return
 		}
-		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
-		w.Header().Set("Cache-Control", "no-cache")
-		_, _ = w.Write(b)
+		files.ServeHTTP(w, r)
 	})
 }

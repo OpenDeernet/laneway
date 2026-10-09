@@ -12,8 +12,7 @@ export function install(app) {
 }
 
 function worker(app) {
-  // Not on a laneway web shared by many people: a cached page would skip its sign-in.
-  if (!('serviceWorker' in navigator) || (app.session && app.session.hosted)) return;
+  if (!('serviceWorker' in navigator)) return;
   const sw = navigator.serviceWorker;
   let told = false;
   const ready = w => {

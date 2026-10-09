@@ -1,4 +1,4 @@
-// Caches the app shell (this binary's files) so a reload is instant; never touches /api.
+// Caches the app shell (this binary's files) so a reload is instant; never touches /api or /auth.
 // The server fills in VERSION (a hash of the embedded files) and FILES: a new binary is a new cache.
 const VERSION = '__VERSION__';
 const FILES = __FILES__;
@@ -16,7 +16,8 @@ self.addEventListener('activate', e => {
 const FONTS = 'fonts-lw'; // not lw-*: activate prunes those
 self.addEventListener('fetch', e => {
   const r = e.request, u = new URL(r.url);
-  if (r.method !== 'GET' || u.origin !== location.origin || u.pathname.startsWith('/api/')) return;
+  // /auth/ is laneway web -hosted's sign-in (and its way back): always the server's.
+  if (r.method !== 'GET' || u.origin !== location.origin || u.pathname.startsWith('/api/') || u.pathname.startsWith('/auth/')) return;
   if (u.pathname.startsWith('/fonts/') && !u.pathname.startsWith('/fonts/custom/')) {
     e.respondWith(caches.open(FONTS).then(c => c.match(r).then(hit => hit || fetch(r).then(res => { if (res.ok) c.put(r, res.clone()); return res; }))));
     return;
