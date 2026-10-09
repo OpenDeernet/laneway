@@ -90,6 +90,7 @@
   "Is: mine, overdue, flagged…": "Is: mine, overdue, flagged…",
   "JQL search": "JQL-zoekopdracht",
   "Jira lets no one edit %s on %s now": "Jira laat nu niemand %s op %s bewerken",
+  "a field rule lets you only read %s": "met een veldregel mag je %s alleen lezen",
   "Jira's · ctrl+r shows yours · ctrl+s saves this": "die van Jira · ctrl+r toont de jouwe · ctrl+s slaat deze op",
   "Label": "Label",
   "Link": "Koppeling",

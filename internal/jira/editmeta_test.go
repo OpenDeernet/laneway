@@ -2,6 +2,7 @@ package jira
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -14,6 +15,10 @@ import (
 // whether the field configuration requires them.
 func TestEditMeta(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/rest/api/3/serverInfo" {
+			io.WriteString(w, `{"deploymentType":"Cloud"}`)
+			return
+		}
 		if r.URL.Path != "/rest/api/3/issue/ABC-1" || r.URL.Query().Get("expand") != "editmeta" {
 			t.Errorf("%s %s", r.Method, r.URL)
 		}
@@ -84,6 +89,41 @@ func TestEditMetaHidden(t *testing.T) {
 	f, _, err := c.EditMeta(context.Background(), "ABC-2")
 	if err != nil || len(f) != 1 || f[0].Name != "Shown" {
 		t.Fatalf("hidden: %+v %v", f, err)
+	}
+}
+
+// TestEditMetaReadByRule: on laneway-server a custom field the issue has a
+// value for but editmeta lacks is one a field rule lets the person only
+// read: it shows, read-only. Empty ones and system fields don't.
+func TestEditMetaReadByRule(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/rest/api/3/serverInfo":
+			io.WriteString(w, `{"lanewayServerVersion":"0.1.0"}`)
+		case "/rest/api/3/field":
+			io.WriteString(w, `[{"id":"customfield_1","name":"Shown","schema":{"type":"string"}},
+			  {"id":"customfield_2","name":"Locked","schema":{"type":"string"}},
+			  {"id":"customfield_3","name":"Empty","schema":{"type":"string"}},
+			  {"id":"customfield_4","name":"Size","schema":{"type":"option"}},
+			  {"id":"environment","name":"Environment","schema":{"type":"string","system":"environment"}}]`)
+		default:
+			io.WriteString(w, `{"fields":{"project":{"key":"ABC"},"issuetype":{"id":"1"},"customfield_1":"x","customfield_2":"y","customfield_3":null,
+			  "customfield_4":{"id":"7","value":"Large"},"environment":"prod"},
+			  "editmeta":{"fields":{"customfield_1":{"name":"Shown","schema":{"type":"string"}}}}}`)
+		}
+	}))
+	defer srv.Close()
+	c := New(Config{BaseURL: srv.URL, Email: "me@x.test", APIToken: "tok"})
+	fields, _, err := c.EditMeta(context.Background(), "ABC-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, f := range fields {
+		got = append(got, fmt.Sprintf("%s:%s:%v", f.Name, f.Kind, f.ByRule && f.ReadOnly))
+	}
+	if strings.Join(got, " ") != "Locked:text:true Shown:text:false Size:option:true" {
+		t.Errorf("fields %v", got)
 	}
 }
 

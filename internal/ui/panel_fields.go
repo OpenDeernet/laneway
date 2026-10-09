@@ -403,6 +403,10 @@ func (m *Model) editPanelField() tea.Cmd {
 		m.status = i18n.T("a moment: asking Jira what can be edited…")
 		return nil
 	}
+	if ff.ByRule {
+		m.status = i18n.Tf("a field rule lets you only read %s", ff.Name)
+		return nil
+	}
 	if ff.ReadOnly {
 		m.status = i18n.Tf("Jira lets no one edit %s on %s now", ff.Name, m.jiraIssue.Key)
 		return nil

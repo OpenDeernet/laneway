@@ -55,6 +55,9 @@ type FieldMeta struct {
 	// ReadOnly is a field the issue's edit screen has, which Jira lets no
 	// one edit on this issue now (layout.go).
 	ReadOnly bool `json:",omitempty"`
+	// ByRule is ReadOnly for this person alone: a laneway-server field
+	// rule lets them read it, not edit it (EditMeta).
+	ByRule bool `json:",omitempty"`
 	// Required is a field the edit screen's field configuration (editmeta)
 	// won't let be emptied; create and transition screens say their own
 	// (CreateField, TransitionRule).

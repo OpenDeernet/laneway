@@ -291,7 +291,7 @@ export function mountIssue(el, key, { app, full, card }) {
   function fieldCell(cell, f) {
     const v = valueText(fieldMeta().Values[f.ID]);
     let c;
-    if (f.ReadOnly) { c = cell(null, f.Name, v); c.title = T('Jira lets no one edit this issue now'); }
+    if (f.ReadOnly) { c = cell(null, f.Name, v); c.title = f.ByRule ? T('A field rule lets you only read it') : T('Jira lets no one edit this issue now'); }
     else if (f.Kind === 'doc') c = h('button.fld', { title: T('Write %s', f.Name.toLowerCase()), onclick: () => editDoc(f) }, h('span.k' + (required(f.ID) ? '.req' : ''), f.Name), h('span.v', dash()));
     else c = cell(f.ID, f.Name, v);
     return c;

@@ -95,7 +95,10 @@ type apiField struct {
 	Name             string `json:"name"`
 	UntranslatedName string `json:"untranslatedName"`
 	Schema           struct {
+		Type   string `json:"type"`
+		Items  string `json:"items"`
 		Custom string `json:"custom"`
+		System string `json:"system"`
 	} `json:"schema"`
 }
 
