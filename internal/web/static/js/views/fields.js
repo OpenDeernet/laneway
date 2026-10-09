@@ -124,6 +124,7 @@ async function duedate(app, key) {
   const m = await app.api.get(`/issues/${key}/editmeta`, { fresh: true });
   const v = await app.ui.prompt({ title: T('%s due date (2026-10-01, today, +3d, fri; empty clears)', key), value: m.Due || '' });
   if (v === null || v.trim() === (m.Due || '')) return;
+  if (!v.trim() && (m.Fields || []).some(f => f.ID === 'duedate' && f.Required)) return app.ui.toast(T('%s is required', T('Due')), { kind: 'err' });
   await write(app, key, 'duedate', { Text: v.trim() }, T('%s due → %s', key, v.trim() || T('none')), v.trim());
 }
 
@@ -185,9 +186,10 @@ async function custom(app, key, id) {
   const m = await app.api.get(`/issues/${key}/editmeta`, { fresh: true });
   const fm = (m.Fields || []).find(f => f.ID === id || f.Name.toLowerCase() === id.toLowerCase());
   if (!fm) return app.ui.toast(T('%s has no editable “%s”', key, id), { kind: 'err' });
-  const w = fieldInput(app, fm, { issue: key, project: projectOf(key), value: (m.Values || {})[fm.ID] });
+  const required = fm.Required && !fm.ReadOnly; // the field configuration's: the form won't send it empty
+  const w = fieldInput(app, fm, { issue: key, project: projectOf(key), value: (m.Values || {})[fm.ID], required });
   formDialog(app, {
-    title: T('%s %s', key, fm.Name), rows: [{ label: fm.Name, widget: w }],
+    title: T('%s %s', key, fm.Name), rows: [{ label: fm.Name, required, widget: w }],
     submit: async () => {
       const r = await app.api.put(`/issues/${key}/field/${fm.ID}`, { Kind: fm.Kind, Value: w.get() });
       app.bus.emit('issue:changed', { key, what: T('%s %s changed', key, fm.Name) });

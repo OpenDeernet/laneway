@@ -115,6 +115,29 @@ test('a custom field: Team, under More fields', async ({ page }) => {
   await expect(team).toContainText('Platform');
 });
 
+// Team is required (the demo's field configuration): marked *, and its form won't send it empty.
+test('a required field: Team stays set', async ({ page }) => {
+  await page.getByRole('button', { name: /^More fields/ }).click();
+  const team = page.locator('.iss').getByRole('button', { name: /^Team/ });
+  await expect(team.locator('.k.req')).toBeVisible();
+  await expect(page.locator('.iss').getByRole('button', { name: /^Legacy ref/ }).locator('.k.req')).toHaveCount(0);
+  await team.click();
+  let dialog = page.getByRole('dialog', { name: 'DEMO-4 Team' });
+  await expect(dialog.locator('.form-label.req')).toHaveText('Team');
+  await dialog.getByRole('combobox').selectOption('Platform');
+  await dialog.getByRole('button', { name: 'Save' }).click();
+  await expect(team).toContainText('Platform');
+  await team.click();
+  dialog = page.getByRole('dialog', { name: 'DEMO-4 Team' });
+  await dialog.getByRole('combobox').selectOption('');
+  await dialog.getByRole('button', { name: 'Save' }).click();
+  await expect(dialog.getByRole('alert')).toHaveText('Fill in Team');
+  await expect(dialog.getByRole('combobox')).toHaveValue('');
+  await dialog.getByRole('button', { name: 'Cancel' }).click();
+  await page.reload();
+  await expect(team).toContainText('Platform');
+});
+
 test('a rich-text custom field: Test notes', async ({ page }) => {
   const head = page.locator('.iss .sec-head', { hasText: 'Test notes' });
   await head.getByRole('button', { name: 'Edit' }).click();

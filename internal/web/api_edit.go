@@ -258,6 +258,9 @@ func editOther(ctx context.Context, c *jira.Client, key string, e edit) (*edit, 
 	case "duedate":
 		var prev string
 		_ = json.Unmarshal(ic.Values["duedate"], &prev)
+		if err := required(ctx, c, key, "duedate", jira.Value{Text: e.Text}); err != nil {
+			return nil, err
+		}
 		var v any
 		if strings.TrimSpace(e.Text) != "" {
 			d, err := jira.ParseDate(e.Text, time.Now())
@@ -285,6 +288,9 @@ func editOther(ctx context.Context, c *jira.Client, key string, e edit) (*edit, 
 	case "parent":
 		var prev struct{ Key string }
 		_ = json.Unmarshal(ic.Values["parent"], &prev)
+		if err := required(ctx, c, key, "parent", jira.Value{Text: e.Text}); err != nil {
+			return nil, err
+		}
 		var v any // no parent: cleared
 		if k := strings.TrimSpace(e.Text); k != "" {
 			if !jira.ValidKey(k) {
@@ -331,10 +337,30 @@ func editOther(ctx context.Context, c *jira.Client, key string, e edit) (*edit, 
 	if !ok {
 		return nil, badRequest(i18n.Tf("can't write a %s field", e.Kind))
 	}
+	if err := required(ctx, c, key, e.Field, e.Value); err != nil {
+		return nil, err
+	}
 	if err := c.SetField(ctx, key, e.Field, v); err != nil {
 		return nil, err
 	}
 	return &edit{Field: e.Field, Kind: e.Kind, Value: jira.DecodeValue(e.Kind, ic.Values[e.Field])}, nil
+}
+
+// required refuses v where it would empty a field key's edit screen
+// requires (editmeta), as the page does: a stale page can't skip it. When
+// editmeta fails, Jira's own check stands.
+func required(ctx context.Context, c *jira.Client, key, id string, v jira.Value) error {
+	if !v.Clears() {
+		return nil
+	}
+	fields, _, err := c.EditMeta(ctx, key)
+	if err != nil {
+		return nil
+	}
+	if i := slices.IndexFunc(fields, func(f jira.FieldMeta) bool { return f.ID == id }); i >= 0 && fields[i].Required && !fields[i].ReadOnly {
+		return badRequest(i18n.Tf("%s is required", fields[i].Name))
+	}
+	return nil
 }
 
 // labelClause is a custom labels field's JQL name.

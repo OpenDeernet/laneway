@@ -118,7 +118,7 @@ func (m *Model) fetchPanelExtra() tea.Cmd {
 		metas, values, err := c.EditMeta(ctx, key)
 		fields := make([]jiraFormField, len(metas))
 		for i, fm := range metas {
-			fields[i] = jiraFormField{FieldMeta: fm, val: jira.DecodeValue(fm.Kind, values[fm.ID]), raw: values[fm.ID]}
+			fields[i] = jiraFormField{FieldMeta: fm, required: fm.Required, val: jira.DecodeValue(fm.Kind, values[fm.ID]), raw: values[fm.ID]}
 		}
 		return panelExtraMsg{key: key, fields: fields, facts: jira.IssueFacts(values), err: err, webLinks: <-links, children: <-kids}
 	}
@@ -134,7 +134,7 @@ func (m *Model) earlyExtra() {
 	}
 	fields := make([]jiraFormField, len(iss.Screen))
 	for i, fm := range iss.Screen {
-		fields[i] = jiraFormField{FieldMeta: fm, val: iss.ScreenValues[fm.ID]}
+		fields[i] = jiraFormField{FieldMeta: fm, required: fm.Required, val: iss.ScreenValues[fm.ID]}
 	}
 	m.panelExtra, m.panelExtraKey, m.panelExtraEarly = fields, iss.Key, true
 }
@@ -442,6 +442,18 @@ func (m *Model) panelEditField() jiraFormField {
 	return jiraFormField{}
 }
 
+// extraField is key's editmeta field id, while the panel shows key.
+func (m *Model) extraField(key, id string) (jiraFormField, bool) {
+	if id == "" || m.panelExtraKey != key {
+		return jiraFormField{}, false
+	}
+	i := slices.IndexFunc(m.panelExtra, func(ff jiraFormField) bool { return ff.ID == id })
+	if i < 0 {
+		return jiraFormField{}, false
+	}
+	return m.panelExtra[i], true
+}
+
 // applyPanelExtraText writes the field input's text to the edited field.
 func (m Model) applyPanelExtraText(raw string) (tea.Model, tea.Cmd) {
 	ff := m.panelEditField()
@@ -454,6 +466,9 @@ func (m Model) applyPanelExtraText(raw string) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	ff.val = jira.Value{Text: strings.TrimSpace(raw)}
+	if m.refuseEmpty(ff) {
+		return m, nil
+	}
 	cmd, err := m.writePanelExtra(m.jiraFieldKey, ff)
 	if err != nil {
 		m.fail(ff.Name + ": " + err.Error())
@@ -475,11 +490,25 @@ func (m *Model) pickPanelExtra(key string, kind jiraPickerKind, it jiraPickerIte
 	ff.val.Users = append([]jira.User(nil), ff.val.Users...)
 	ff.val.Options = append([]jira.Option(nil), ff.val.Options...)
 	pickFieldValue(&ff, kind, it)
+	if m.refuseEmpty(ff) {
+		return nil
+	}
 	cmd, err := m.writePanelExtra(key, ff)
 	if err != nil {
 		m.fail(ff.Name + ": " + err.Error())
 	}
 	return cmd
+}
+
+// refuseEmpty says so on the status line when ff's value would empty a
+// field the field configuration requires; nothing is sent and the edit
+// stays open.
+func (m *Model) refuseEmpty(ff jiraFormField) bool {
+	if !ff.required || !ff.val.Clears() {
+		return false
+	}
+	m.fail(i18n.Tf("%s is required", ff.Name))
+	return true
 }
 
 // writePanelExtra sends ff's value; the reload after shows it.

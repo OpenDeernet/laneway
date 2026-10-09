@@ -143,6 +143,45 @@ func TestEditRoutes(t *testing.T) {
 	}
 }
 
+// TestEditRequired: editmeta's required reaches the page, and the field
+// route refuses emptying a required field itself, a stale page or not;
+// another field still clears.
+func TestEditRequired(t *testing.T) {
+	base, stop, err := demo.New(time.Now()).Start()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(stop)
+	ts := issueServer(t, base)
+	iu := ts.URL + "/api/issues/DEMO-5"
+	var em struct{ Fields []jira.FieldMeta }
+	issueCall(t, "GET", iu+"/editmeta", nil, &em)
+	i := slices.IndexFunc(em.Fields, func(f jira.FieldMeta) bool { return f.Name == "Team" })
+	if i < 0 || !em.Fields[i].Required || slices.ContainsFunc(em.Fields, func(f jira.FieldMeta) bool { return f.Required && f.Name != "Team" }) {
+		t.Fatalf("editmeta: %+v", em.Fields)
+	}
+	team := em.Fields[i]
+	put := func(id, kind string, v jira.Value) (int, string) {
+		var out struct{ Error string }
+		code := issueCall(t, "PUT", iu+"/field/"+id, edit{Kind: kind, Value: v}, &out)
+		return code, out.Error
+	}
+	if code, msg := put(team.ID, team.Kind, jira.Value{Options: team.Options[:1]}); code != 200 {
+		t.Fatalf("set team: %d %s", code, msg)
+	}
+	if code, msg := put(team.ID, team.Kind, jira.Value{}); code != 400 || msg != "Team is required" {
+		t.Errorf("empty team: %d %q", code, msg)
+	}
+	var after struct{ Values map[string]jira.Value }
+	if issueCall(t, "GET", iu+"/editmeta", nil, &after); len(after.Values[team.ID].Options) != 1 {
+		t.Errorf("team after a refused clear: %+v", after.Values[team.ID])
+	}
+	legacy := slices.IndexFunc(em.Fields, func(f jira.FieldMeta) bool { return f.Name == "Legacy ref" })
+	if code, msg := put(em.Fields[legacy].ID, em.Fields[legacy].Kind, jira.Value{}); code != 200 {
+		t.Errorf("empty legacy ref: %d %s", code, msg)
+	}
+}
+
 func TestEditMetaAndCreate(t *testing.T) {
 	base, stop, err := demo.New(time.Now()).Start()
 	if err != nil {

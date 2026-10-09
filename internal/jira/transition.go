@@ -55,6 +55,10 @@ type FieldMeta struct {
 	// ReadOnly is a field the issue's edit screen has, which Jira lets no
 	// one edit on this issue now (layout.go).
 	ReadOnly bool `json:",omitempty"`
+	// Required is a field the edit screen's field configuration (editmeta)
+	// won't let be emptied; create and transition screens say their own
+	// (CreateField, TransitionRule).
+	Required bool `json:",omitempty"`
 	// Hint is the screen's help text for the field (its description);
 	// Default the value it starts with when the issue has none
 	// (defaultValue). Jira rarely sends either; laneway-server's
@@ -94,6 +98,12 @@ type Value struct {
 // Empty reports whether the value holds nothing.
 func (v Value) Empty() bool {
 	return strings.TrimSpace(v.Text) == "" && len(v.Users) == 0 && len(v.Options) == 0 && !hasContent(v.Doc)
+}
+
+// Clears reports whether writing v leaves a field empty: nothing, or the
+// none a sprint offers.
+func (v Value) Clears() bool {
+	return v.Empty() || len(v.Options) == 1 && v.Options[0].ID == ""
 }
 
 // hasContent reports whether doc is an ADF document with content.
@@ -149,6 +159,7 @@ type rawFieldMeta struct {
 		Value string `json:"value"`
 	} `json:"allowedValues"`
 	Description     string          `json:"description"`
+	Required        bool            `json:"required"`
 	HasDefaultValue bool            `json:"hasDefaultValue"`
 	DefaultValue    json.RawMessage `json:"defaultValue"`
 }

@@ -293,7 +293,7 @@ func optionID(names []string, name string) string {
 }
 
 // editMetaJSON is the edit screen's fields besides the panel's own: the
-// components and the team.
+// components and the team, which the field configuration requires.
 func editMetaJSON() map[string]any {
 	opts := func(names []string, key string) []any {
 		out := []any{}
@@ -303,10 +303,10 @@ func editMetaJSON() map[string]any {
 		return out
 	}
 	return map[string]any{"fields": map[string]any{
-		"components": map[string]any{"name": "Components", "schema": map[string]any{"type": "array", "items": "component", "system": "components"}, "allowedValues": opts(components, "name")},
-		testField:    map[string]any{"name": "Test notes", "schema": map[string]any{"type": "string", "custom": "com.atlassian.jira.plugin.system.customfieldtypes:textarea"}},
-		legacyField:  map[string]any{"name": "Legacy ref", "schema": map[string]any{"type": "string", "custom": "com.atlassian.jira.plugin.system.customfieldtypes:textfield"}},
-		teamField:    map[string]any{"name": "Team", "schema": map[string]any{"type": "option", "custom": "com.atlassian.jira.plugin.system.customfieldtypes:select"}, "allowedValues": opts(teams, "value")},
+		"components": map[string]any{"name": "Components", "required": false, "schema": map[string]any{"type": "array", "items": "component", "system": "components"}, "allowedValues": opts(components, "name")},
+		testField:    map[string]any{"name": "Test notes", "required": false, "schema": map[string]any{"type": "string", "custom": "com.atlassian.jira.plugin.system.customfieldtypes:textarea"}},
+		legacyField:  map[string]any{"name": "Legacy ref", "required": false, "schema": map[string]any{"type": "string", "custom": "com.atlassian.jira.plugin.system.customfieldtypes:textfield"}},
+		teamField:    map[string]any{"name": "Team", "required": true, "schema": map[string]any{"type": "option", "custom": "com.atlassian.jira.plugin.system.customfieldtypes:select"}, "allowedValues": opts(teams, "value")},
 	}}
 }
 

@@ -79,11 +79,11 @@ func TestCustomField(t *testing.T) {
 		s.keys("Tab")
 	}
 	s.keys("Enter")
-	s.wait("Team:        —")
+	s.wait("Team *:      —")
 	s.keys("Tab", "Tab", "Tab", "Enter") // Components, Legacy ref, Team
 	s.wait("Platform")
 	s.typ("Plat")
 	s.gone("Web")
 	s.keys("Enter")
-	s.wait("Team:        Platform")
+	s.wait("Team *:      Platform")
 }

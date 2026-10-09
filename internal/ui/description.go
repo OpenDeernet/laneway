@@ -313,6 +313,12 @@ func (m Model) handleDescEditKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.descEdit, m.status = nil, ""
 		return m, nil
 	case "ctrl+s":
+		if ff, ok := m.extraField(d.key, d.field); ok && d.comment == "" {
+			ff.val = jira.Value{Text: d.input.Value()}
+			if m.refuseEmpty(ff) {
+				return m, nil
+			}
+		}
 		m.dropDraft(d.draftID()) // a failed save keeps the text in a file
 		m.descEdit = nil
 		return m.saveDesc(descEditedMsg{key: d.key, comment: d.comment, field: d.field, before: d.before, base: d.base, kept: d.kept}, d.input.Value())

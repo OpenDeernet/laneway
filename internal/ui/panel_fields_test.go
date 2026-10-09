@@ -218,6 +218,48 @@ func TestPanelExtraText(t *testing.T) {
 	}
 }
 
+// TestPanelExtraRequired: a field the field configuration requires is
+// marked *; emptying it, typed or picked, is refused on the status line
+// with nothing sent, the input still open with what was typed.
+func TestPanelExtraRequired(t *testing.T) {
+	var bodies []string
+	m := withExtra(t, &bodies)
+	m.panelExtra[1].required, m.panelExtra[1].val = true, jira.Value{Text: "T-1"}
+	m.panelExtra = append(m.panelExtra, jiraFormField{FieldMeta: jira.FieldMeta{ID: "components", Name: "Components", Kind: jira.KindOptions,
+		Options: []jira.Option{{ID: "1", Name: "Web"}}}, required: true, val: jira.Value{Options: []jira.Option{{ID: "1", Name: "Web"}}}})
+	m.renderRef()
+	if view := ansi.Strip(m.View().Content); !strings.Contains(view, "Ticket ref *:") || !strings.Contains(view, "Components *:") || strings.Contains(view, "Team *") {
+		t.Fatalf("marks:\n%s", view)
+	}
+	m.fieldCursor, m.fieldCursorKey = rowNamed(m, "Ticket ref"), "ABC-1"
+	out, _ := m.handleRefKey(keyMsg(t, "enter"))
+	m = out.(Model)
+	m.jiraFieldInput.SetValue("  ")
+	out, cmd := m.applyJiraField()
+	m = out.(Model)
+	if cmd != nil || !m.jiraFieldActive || m.jiraFieldInput.Value() != "  " || m.status != "Ticket ref is required" {
+		t.Fatalf("emptied text: cmd %v, active %v, status %q", cmd != nil, m.jiraFieldActive, m.status)
+	}
+	m.closeJiraField()
+	m.fieldCursor = rowNamed(m, "Components")
+	out, _ = m.handleRefKey(keyMsg(t, "enter"))
+	m = out.(Model)
+	m.jiraPicker.idx = 0 // unticks the only one
+	out, cmd = m.applyJiraPick()
+	if m = out.(Model); cmd != nil || m.status != "Components is required" {
+		t.Fatalf("emptied options: cmd %v, status %q", cmd != nil, m.status)
+	}
+	m.panelExtra = append(m.panelExtra, jiraFormField{FieldMeta: jira.FieldMeta{ID: "customfield_9", Name: "Test notes", Kind: jira.KindDoc}, required: true})
+	m.openDescEdit(&descEdit{key: "ABC-1", field: "customfield_9", before: "old"}, "\n")
+	out, cmd = m.handleDescEditKey(keyMsg(t, "ctrl+s"))
+	if m = out.(Model); cmd != nil || m.descEdit == nil || m.status != "Test notes is required" {
+		t.Fatalf("emptied doc: cmd %v, open %v, status %q", cmd != nil, m.descEdit != nil, m.status)
+	}
+	if len(bodies) != 0 {
+		t.Errorf("requests = %q", bodies)
+	}
+}
+
 // TestPanelExtraDate: a date field takes a typed day; a bad one keeps the
 // input with the reason.
 func TestPanelExtraDate(t *testing.T) {
