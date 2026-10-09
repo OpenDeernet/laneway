@@ -556,5 +556,10 @@
   "it has what markdown can’t write": "het bevat wat markdown niet kan schrijven",
   "redo": "opnieuw",
   "underline": "onderstrepen",
-  "undo": "ongedaan maken"
+  "undo": "ongedaan maken",
+  "%s · account": "%s · account",
+  "My sign-in and passkeys": "Mijn aanmelding en passkeys",
+  "My sign-in and passkeys on laneway-server": "Mijn aanmelding en passkeys op laneway-server",
+  "Server admin": "Serverbeheer",
+  "laneway-server admin": "laneway-server-beheer"
 }

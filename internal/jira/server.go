@@ -66,3 +66,23 @@ func (c *Client) siteInfo(ctx context.Context) (siteInfo, error) {
 	})
 	return v.(siteInfo), err
 }
+
+// AdminPage is laneway-server's admin.
+func (c *Client) AdminPage() string { return c.baseURL + "/admin" }
+
+// Administers reports whether the account administers the site or a
+// project on it: the admin has something for it then.
+func (c *Client) Administers(ctx context.Context) (bool, error) {
+	if !c.Enabled() {
+		return false, errNotConfigured
+	}
+	var resp struct {
+		Permissions map[string]struct {
+			Have bool `json:"havePermission"`
+		} `json:"permissions"`
+	}
+	if err := c.do(ctx, http.MethodGet, "/rest/api/3/mypermissions?permissions=ADMINISTER,ADMINISTER_PROJECTS", "permissions", nil, &resp); err != nil {
+		return false, err
+	}
+	return resp.Permissions["ADMINISTER"].Have || resp.Permissions["ADMINISTER_PROJECTS"].Have, nil
+}

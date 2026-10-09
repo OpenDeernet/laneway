@@ -277,6 +277,11 @@ func (s *Server) read(p string, q map[string][]string) (any, bool) {
 			return map[string]any{"deploymentType": "Cloud", "lanewayServerVersion": "demo"}, true
 		}
 		return map[string]any{"deploymentType": "Cloud"}, true
+	case "/rest/api/3/mypermissions":
+		if s.lw != nil { // the account menu's Server admin: the demo account administers its project
+			have := func(b bool) map[string]any { return map[string]any{"havePermission": b} }
+			return map[string]any{"permissions": map[string]any{"ADMINISTER": have(false), "ADMINISTER_PROJECTS": have(true)}}, true
+		}
 	case "/rest/api/3/project/search":
 		return map[string]any{"isLast": true, "total": 1, "values": []any{projectJSON()}}, true
 	case "/rest/api/3/project/" + project:

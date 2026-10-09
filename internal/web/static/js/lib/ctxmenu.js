@@ -1,7 +1,7 @@
 // Context menu at the pointer (a right-click), the TUI's card menu: it flips at the screen's edges,
 // ↑↓ move, enter or → opens a submenu or runs, ← or esc closes a submenu, esc or a click outside closes it.
 //
-//   ctxMenu(items, x, y)  items: [{label, hint, current, run(), sub: () => items | Promise<items>}, '-' …]
+//   ctxMenu(items, x, y[, {head}])  items: [{label, hint, current, run(), sub: () => items | Promise<items>}, '-' …]; head: an element above them
 //
 // A submenu's items load when it opens; `current` marks the value the issue has.
 import { h } from './dom.js';
@@ -10,7 +10,7 @@ import { T } from './i18n.js';
 
 let shown = null;
 
-export function ctxMenu(items, x, y) {
+export function ctxMenu(items, x, y, { head = null } = {}) {
   if (shown) shown.close();
   const levels = [], back = document.activeElement;
   let dead = false;
@@ -29,9 +29,9 @@ export function ctxMenu(items, x, y) {
   const pick = it => it && it !== '-' && !it.disabled;
 
   // open shows items as level d, at x, y; a submenu flips to the left of its parent when it would leave the screen.
-  function open(list, d, px, py, parent) {
+  function open(list, d, px, py, parent, head = null) {
     while (levels.length > d) levels.pop().el.remove();
-    const lv = { items: list, sel: -1, el: h('div.ctx', { role: 'menu', tabindex: -1 }) };
+    const lv = { items: list, sel: -1, head, el: h('div.ctx', { role: 'menu', tabindex: -1 }) };
     levels.push(lv);
     paint(lv);
     document.body.append(lv.el);
@@ -39,7 +39,7 @@ export function ctxMenu(items, x, y) {
     return lv;
   }
   function paint(lv) {
-    lv.el.replaceChildren(...lv.items.map((it, i) => (it === '-' ? h('div.ctx-sep', { role: 'separator' })
+    lv.el.replaceChildren(...(lv.head ? [lv.head] : []), ...lv.items.map((it, i) => (it === '-' ? h('div.ctx-sep', { role: 'separator' })
       : h('div.ctx-item' + (i === lv.sel ? '.sel' : '') + (it.disabled ? '.off' : ''), { role: 'menuitem', 'aria-haspopup': it.sub ? 'menu' : null, dataset: { i },
         onpointerenter: () => hover(lv, i), onclick: e => { e.stopPropagation(); activate(lv, i, false); } },
       h('span.ctx-check', it.current ? icon('check') : ''), h('span.ctx-label', it.label), it.hint ? h('span.ctx-hint', it.hint) : null, it.sub ? h('span.ctx-more', icon('chevron-right')) : null))));
@@ -110,7 +110,7 @@ export function ctxMenu(items, x, y) {
   function onDown(e) { if (!levels.some(l => l.el.contains(e.target))) close(); }
   function onScroll(e) { if (!levels.some(l => l.el.contains(e.target))) close(); }
 
-  open(items, 0, x, y, null);
+  open(items, 0, x, y, null, head);
   document.addEventListener('keydown', onKey, true);
   document.addEventListener('pointerdown', onDown, true);
   window.addEventListener('resize', close);

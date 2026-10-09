@@ -318,6 +318,7 @@ async function boot() {
   import('./lib/keybar.js').then(m => m.install(app)).catch(e => console.error('keybar', e));
   import('./lib/timer.js').then(m => m.install(app)).catch(e => console.error('timer', e));
   import('./lib/tools.js').then(m => m.install(app)).catch(e => console.error('tools', e));
+  import('./lib/account.js').then(m => m.install(app)).catch(e => console.error('account', e));
   import('./lib/sites.js').then(m => m.install(app)).catch(e => console.error('sites', e)).finally(() => $('#top').classList.remove('boot'));
   api.get('/update').then(u => { // as the TUI's ↑ v1.2: a newer release, copy its command or open its page
     if (!u.Tag) return;

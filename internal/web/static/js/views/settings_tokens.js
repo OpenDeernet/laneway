@@ -84,7 +84,7 @@ export function tokenOptions(app, refresh) {
         h('span.st-tok-name', g.App), g.Current && h('span.chip.st-tok-self', T('this app')), scopes(g.Scopes), ...when(g), h('span.spacer'),
         h('button.btn.ghost', { onclick: () => signOut(g) }, T('Revoke')))) : h('div.faint', T('none')));
   }
-  return [{ name: T('API tokens and apps'), section: 'Jira site', wide: true,
+  return [{ name: T('API tokens and apps'), section: 'Jira site', wide: true, row: 'tokens',
     desc: T('your tokens for scripts and the apps you signed in with; revoke what you no longer use'),
     render, change: () => { if (info && info.Laneway) make(); else if (info) window.open(info.TokenURL, '_blank', 'noopener'); } }];
 }

@@ -19,6 +19,7 @@ on  DELETE /api/site/tokens
 on  DELETE /api/site/tokens/{id}
 on  DELETE /api/worklog/{key}
 on  DELETE /api/worklog/{key}/{id}
+on  GET /api/account
 off GET /api/actions
 off GET /api/agents
 off GET /api/agents/events

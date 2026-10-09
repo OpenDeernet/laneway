@@ -31,6 +31,15 @@
 .nav-more.dot::before { content: ""; position: absolute; top: .643rem; right: .286rem; width: .429rem; height: .429rem; border-radius: 50%; background: var(--accent); }
 #nav .nav-badge { line-height: 1.143rem; }
 
+/* who is signed in (lib/account.js); empty (setup, booting) it keeps its place unseen */
+.me-btn { flex: none; display: flex; align-items: center; justify-content: center; width: 1.714rem; height: 1.714rem; padding: 0; margin-left: calc(var(--pad) * -.5); background: none; border: 0; border-radius: 50%; cursor: pointer; }
+.me-btn:empty { visibility: hidden; }
+.me-btn:hover .avatar { box-shadow: 0 0 0 2px var(--bg-4); }
+.me-btn:focus-visible { outline-offset: 2px; }
+.ctx-head { display: flex; align-items: center; gap: .643rem; padding: .429rem .714rem .643rem; margin-bottom: .286rem; border-bottom: 1px solid var(--border); }
+.ctx-who { min-width: 0; line-height: 1.35; } .ctx-who > div { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ctx-name { font-weight: 600; color: var(--fg); }
+
 /* the tray: sync, agents, timer, queue; each hides when quiet */
 #tray { flex: none; display: flex; align-items: center; gap: .429rem; }
 #tray:not(:has(> :not([hidden]))) { display: none; }

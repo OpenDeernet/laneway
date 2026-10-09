@@ -121,7 +121,7 @@ type Client struct {
 	// cached (used for "Assign to me"). Both are behind mu and nil until first
 	// resolved. See Priorities / Myself.
 	priorities []Option
-	myself     *User
+	myself     *Me
 	// site is what serverInfo said of the site (Laneway), behind mu;
 	// nil until read.
 	site *siteInfo
@@ -288,6 +288,14 @@ type Option struct {
 type User struct {
 	AccountID   string
 	DisplayName string
+}
+
+// Me is the signed-in account as /myself says it, with what the web app's
+// account menu shows besides.
+type Me struct {
+	User
+	Email     string
+	AvatarURL string
 }
 
 // apiIssue mirrors the slice of the REST response we read. Optional objects are
@@ -1147,8 +1155,14 @@ func (c *Client) KnownMyself() string {
 
 // Myself returns the authenticated account (for "Assign to me"), cached.
 func (c *Client) Myself(ctx context.Context) (User, error) {
+	me, err := c.Me(ctx)
+	return me.User, err
+}
+
+// Me is Myself with the account's email and avatar.
+func (c *Client) Me(ctx context.Context) (Me, error) {
 	if !c.Enabled() {
-		return User{}, errNotConfigured
+		return Me{}, errNotConfigured
 	}
 	c.mu.Lock()
 	if c.myself != nil {
@@ -1160,19 +1174,21 @@ func (c *Client) Myself(ctx context.Context) (User, error) {
 
 	v, err, _ := c.shared.Do("myself", func() (any, error) {
 		var resp struct {
-			AccountID   string `json:"accountId"`
-			DisplayName string `json:"displayName"`
+			AccountID   string            `json:"accountId"`
+			DisplayName string            `json:"displayName"`
+			Email       string            `json:"emailAddress"`
+			Avatars     map[string]string `json:"avatarUrls"`
 		}
 		if err := c.do(ctx, http.MethodGet, "/rest/api/3/myself", "current user", nil, &resp); err != nil {
-			return User{}, err
+			return Me{}, err
 		}
-		u := User{AccountID: resp.AccountID, DisplayName: resp.DisplayName}
+		u := Me{User: User{AccountID: resp.AccountID, DisplayName: resp.DisplayName}, Email: resp.Email, AvatarURL: resp.Avatars["48x48"]}
 		c.mu.Lock()
 		c.myself = &u
 		c.mu.Unlock()
 		return u, nil
 	})
-	return v.(User), err
+	return v.(Me), err
 }
 
 // SetAssignee assigns the issue to accountID, or unassigns it when accountID is

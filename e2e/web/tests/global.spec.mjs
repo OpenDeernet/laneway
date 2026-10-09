@@ -41,3 +41,34 @@ test('g and a view key go there', async ({ page }) => {
     await expect(page).toHaveURL(url);
   }
 });
+
+// Your avatar at the bar's right opens the account menu; a click on it again closes it. On Jira no server links.
+test('the account menu', async ({ page }) => {
+  const me = page.getByRole('button', { name: 'Jamie Rivers · account' });
+  await me.click();
+  const menu = page.getByRole('menu');
+  await expect(menu).toContainText('demo@example.com');
+  await expect(menu.getByRole('menuitem', { name: /^Settings/ })).toBeVisible();
+  await expect(menu.getByRole('menuitem', { name: /^My sign-in/ })).toHaveCount(0);
+  await expect(menu.getByRole('menuitem', { name: /^Sign out/ })).toHaveCount(0);
+  await me.click();
+  await expect(menu).toHaveCount(0);
+  await me.click();
+  await menu.getByRole('menuitem', { name: /^Settings/ }).click();
+  await expect(page).toHaveURL(/\/settings$/);
+});
+
+test.describe('on laneway-server', () => {
+  test.use({ flavour: 'laneway' });
+
+  // The server's sign-in page, its admin (the demo account administers a project), and tokens in Settings.
+  test('the account menu links the server', async ({ page }) => {
+    await page.getByRole('button', { name: 'Jamie Rivers · account' }).click();
+    const menu = page.getByRole('menu');
+    await expect(menu.getByRole('menuitem', { name: /^My sign-in and passkeys/ })).toBeVisible();
+    await expect(menu.getByRole('menuitem', { name: /^Server admin/ })).toBeVisible();
+    await menu.getByRole('menuitem', { name: /^API tokens and apps/ }).click();
+    await expect(page).toHaveURL(/\/settings\?row=tokens$/);
+    await expect(page.locator('.st-row.sel')).toHaveAttribute('aria-label', 'API tokens and apps');
+  });
+});

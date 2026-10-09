@@ -83,7 +83,7 @@ func session(ctx context.Context, s *Server, r *http.Request) (any, error) {
 		return setupSession(s), nil
 	}
 	o := s.opt
-	me, err := s.Client().Myself(ctx)
+	me, err := s.Client().Me(ctx)
 	if errors.Is(err, jira.ErrSignedOut) && o.SignedOut != nil {
 		return nil, err
 	}

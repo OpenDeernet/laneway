@@ -49,7 +49,7 @@ const slug = sec => 'st-' + sec.replace(/\W+/g, '-');
 
 const cycle = (list, cur, d) => list[(Math.max(0, list.indexOf(cur)) + d + list.length) % list.length];
 
-export default function mount(el, { app, scope, toolbar }) {
+export default function mount(el, { app, scope, toolbar, query }) {
   const pref = (k, d) => app.prefs.get(k, d);
   const setPref = (k, v) => { app.prefs.set(k, v); app.bus.emit('prefs', { key: k, value: String(v) }); };
   const ui = (app.session && app.session.ui) || {};
@@ -316,6 +316,8 @@ export default function mount(el, { app, scope, toolbar }) {
 
   draw();
   el.focus();
+  // ?row= starts on that option (the account menu's API tokens and apps: row 'tokens').
+  if (query.row) { const i = rows.findIndex(o => o.row === query.row); if (i >= 0) { sel = i; mark(); } }
   let dead = false, offCards = null, offJQL = null, offLanes = null;
   keyRows = keyOptions(app, host); options.push(...keyRows); draw();
   loadConfig(app, host).then(c => {
