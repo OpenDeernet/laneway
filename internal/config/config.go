@@ -36,7 +36,10 @@ type JiraConfig struct {
 	APITokenCmd []string `yaml:"api_token_cmd,omitempty"`
 	// SignIn "laneway" signs in to a laneway-server through its own
 	// sign-in (laneway login) instead of email and api_token (signin.go).
-	SignIn           string            `yaml:"sign_in,omitempty"`
+	SignIn string `yaml:"sign_in,omitempty"`
+	// CredentialsFile keeps the sign-in in that file (never from YAML:
+	// laneway web for many people sets it per person).
+	CredentialsFile  string            `yaml:"-"`
 	Projects         []string          `yaml:"projects"`
 	StoryPointsField string            `yaml:"story_points_field"`
 	Repos            map[string]string `yaml:"repos,omitempty"`

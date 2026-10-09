@@ -271,6 +271,9 @@ func putSetting(ctx context.Context, s *Server, r *http.Request) (any, error) {
 	if s.opt.Token != "" && config.SettingsCommand[name] {
 		return nil, httpError{http.StatusForbidden, i18n.Tf("ui.%s runs commands: edit it in the config file, not over -remote", name)}
 	}
+	if s.opt.Hosted && !hostedSetting(name) {
+		return nil, httpError{http.StatusForbidden, i18n.Tf("ui.%s acts on the machine laneway runs on: not on a laneway web shared by many people", name)}
+	}
 	s.sites.uiMu.Lock()
 	defer s.sites.uiMu.Unlock()
 	next, value, err := editUI(s.sites.ui, name, raw)

@@ -31,6 +31,29 @@ const ClientID = "laneway"
 // Scopes are what the app asks for: what a person does with it.
 const Scopes = "read:jira-work write:jira-work read:jira-user manage:jira-project read:servicedesk-request write:servicedesk-request read:me offline_access"
 
+// OAuthClient is who the app signs in as: the built-in public client
+// (the zero value), or an app an administrator registered with a secret
+// (laneway web serving many people, which keeps the secret).
+type OAuthClient struct {
+	ID, Secret string
+}
+
+func (c OAuthClient) id() string {
+	if c.ID == "" {
+		return ClientID
+	}
+	return c.ID
+}
+
+// form adds the client's credentials to a token or revocation request.
+func (c OAuthClient) form(v url.Values) url.Values {
+	v.Set("client_id", c.id())
+	if c.Secret != "" {
+		v.Set("client_secret", c.Secret)
+	}
+	return v
+}
+
 // ErrSignedOut means the sign-in ended (revoked, expired, or the key is
 // gone): sign in again with `laneway login`.
 var ErrSignedOut = errors.New("jira: signed out of laneway · sign in again with laneway login")
@@ -63,9 +86,10 @@ type Locker interface {
 // oauthSession holds a site's sign-in while the client runs. The access
 // token lives only here, in memory.
 type oauthSession struct {
-	base  string
-	store CredentialStore
-	http  *http.Client
+	base   string
+	client OAuthClient
+	store  CredentialStore
+	http   *http.Client
 
 	mu      sync.Mutex
 	key     *ecdsa.PrivateKey
@@ -215,7 +239,7 @@ func (o *oauthSession) token(ctx context.Context) (string, *ecdsa.PrivateKey, er
 	if o.access != "" && time.Until(o.expires) > time.Minute {
 		return o.access, o.key, nil
 	}
-	a, err := tokenCall(ctx, o.http, o.base, o.key, url.Values{"grant_type": {"refresh_token"}, "client_id": {ClientID}, "refresh_token": {o.refresh}})
+	a, err := tokenCall(ctx, o.http, o.base, o.key, o.client.form(url.Values{"grant_type": {"refresh_token"}, "refresh_token": {o.refresh}}))
 	if err != nil {
 		return "", nil, err
 	}

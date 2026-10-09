@@ -73,6 +73,9 @@ type Options struct {
 	Restart func()
 	// UpgradeCmd updates this binary ("" when unknown: the release page).
 	UpgradeCmd string
+	// Hosted is laneway web for many people (hosted.go): only the routes
+	// that act through the person's own Jira client serve.
+	Hosted bool
 	// GitLab are the GitLab instances (nil: none, as in the demo), and
 	// GitLabRepos their projects' checkouts by path (gitlab: repos:).
 	GitLab      *gitlab.Sites
@@ -265,9 +268,9 @@ func New(ctx context.Context, opt Options) *Server {
 	s := &Server{opt: opt, mux: http.NewServeMux(), ctx: ctx, sites: newSiteSet(opt)}
 	routesMu.Lock()
 	for _, rt := range routes {
-		h := rt.h
+		h, pattern := rt.h, rt.pattern
 		s.mux.HandleFunc(rt.pattern, func(w http.ResponseWriter, r *http.Request) {
-			if ss := s.at(r); !setupOnly(ss, w, r) && !demoGate(ss, w, r) {
+			if ss := s.at(r); !hostedGate(ss, pattern, w) && !setupOnly(ss, w, r) && !demoGate(ss, w, r) {
 				h(ss, w, r)
 			}
 		})

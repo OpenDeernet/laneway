@@ -326,5 +326,18 @@
   "this sign-in can't make tokens; make one on %s": "met deze aanmelding kun je geen tokens maken; maak er een op %s",
   "usage: laneway apps list\n       laneway apps revoke ID\n\nThe apps you signed in to a laneway-server site with; revoke signs one\nout. -config and -site go after apps.": "gebruik: laneway apps list\n         laneway apps revoke ID\n\nDe apps waarmee je bent ingelogd op een laneway-server-site; revoke logt\ner een uit. -config en -site komen na apps.",
   "usage: laneway token list\n       laneway token create [-days N] LABEL\n       laneway token revoke ID\n       laneway token revoke-all\n\nYour API tokens on a laneway-server site: list them, make one (its secret\nis printed once), revoke one or all. -days is how long it lives (default\nthe site's). -config and -site go after token.": "gebruik: laneway token list\n         laneway token create [-days N] LABEL\n         laneway token revoke ID\n         laneway token revoke-all\n\nJe API-tokens op een laneway-server-site: toon ze, maak er een (het geheim\nwordt één keer getoond), trek er een of alle in. -days is hoe lang het\ngeldig is (standaard die van de site). -config en -site komen na token.",
-  "laneway: unknown command %q (list, view, create, move, web, rules, setup, login, logout, prompt, hook, index, token, apps, completion)": "laneway: onbekend commando %q (list, view, create, move, web, rules, setup, login, logout, prompt, hook, index, token, apps, completion)"
+  "laneway: unknown command %q (list, view, create, move, web, rules, setup, login, logout, prompt, hook, index, token, apps, completion)": "laneway: onbekend commando %q (list, view, create, move, web, rules, setup, login, logout, prompt, hook, index, token, apps, completion)",
+  "-hosted needs -server, -url, -data and -client-id, and LANEWAY_WEB_CLIENT_SECRET in the environment": "-hosted heeft -server, -url, -data en -client-id nodig, en LANEWAY_WEB_CLIENT_SECRET in de omgeving",
+  "-url %q is not an address like https://laneway.example.com": "-url %q is geen adres zoals https://laneway.example.com",
+  "LANEWAY_WEB_CLIENT_SECRET is not set: the app's secret from laneway-server": "LANEWAY_WEB_CLIENT_SECRET is niet gezet: het geheim van de app uit laneway-server",
+  "directory for each person's config, state and sign-in": "map voor de configuratie, staat en aanmelding van ieder persoon",
+  "laneway web for %s on %s": "laneway web voor %s op %s",
+  "laneway-server didn't say who signed in": "laneway-server zei niet wie zich aanmeldde",
+  "not on a laneway web shared by many people": "niet op een laneway web dat veel mensen delen",
+  "signed out; reload the page to sign in": "afgemeld; laad de pagina opnieuw om je aan te melden",
+  "the app's client id, registered in laneway-server (OAuth apps)": "de client-id van de app, geregistreerd in laneway-server (OAuth-apps)",
+  "the laneway-server people sign in to (its URL)": "de laneway-server waar mensen zich aanmelden (de URL)",
+  "the sign-in took too long or didn't start here; open the page again": "het aanmelden duurde te lang of begon niet hier; open de pagina opnieuw",
+  "this server's own address as browsers reach it (https://…); its /auth/callback is the app's redirect URI": "het eigen adres van deze server zoals browsers het bereiken (https://…); /auth/callback daarvan is de redirect-URI van de app",
+  "ui.%s acts on the machine laneway runs on: not on a laneway web shared by many people": "ui.%s werkt op de machine waar laneway draait: niet op een laneway web dat veel mensen delen"
 }

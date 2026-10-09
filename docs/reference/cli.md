@@ -24,6 +24,11 @@ the command; a command's flags go before its arguments.
 | `laneway login` | sign in to a laneway-server site through its own sign-in (`-device`: with a code on another device; over SSH it does that anyway) |
 | `laneway logout` | end a laneway-server site's sign-in, on the server too |
 
+`laneway web -hosted` serves many people next to a laneway-server (see [In
+the browser](../guide/09-in-the-browser.md#for-many-people-next-to-a-laneway-server)):
+`-server`, `-url` (its own public address), `-client-id`, `-data`, `-addr`,
+`-cert`, `-key`; the app's secret in `LANEWAY_WEB_CLIENT_SECRET`.
+
 `laneway web` flags: `-addr` (`127.0.0.1:8484`), `-remote` (allow an
 address that is not loopback; needs `-cert` and `-key`), `-cert`, `-key`
 (TLS certificate and key, PEM), `-no-open` (don't open the browser),

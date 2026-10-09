@@ -299,7 +299,9 @@ async function boot() {
     return;
   }
   chrome(); globalKeys();
-  import('./lib/agents.js').then(m => m.install(app)).catch(e => console.error('agents', e));
+  // A laneway web shared by many people runs no agents (nor commands) on its machine.
+  if (session.hosted) for (const n of ['agents', 'mrs', 'review']) { const a = document.querySelector(`#nav a[data-name=${n}]`); if (a) a.hidden = true; }
+  if (!session.hosted) import('./lib/agents.js').then(m => m.install(app)).catch(e => console.error('agents', e));
   import('./views/plan_cmds.js').then(m => m.register(app));
   import('./lib/pwa.js').then(m => m.install(app)).catch(e => console.error('pwa', e));
   try {
@@ -325,6 +327,10 @@ async function boot() {
     $('#site').append(h('button.site-chip', { type: 'button', title: T('laneway %s is out · %s', u.Tag, desk ? T('click updates the app') : u.Command ? T('click copies %s', u.Command) : T('click opens the release page')), onclick: up }, '↑ ' + u.Tag));
     commands.register({ id: 'update', title: T('Update laneway to %s: %s', u.Tag, what), group: 'App', run: up });
   }).catch(() => {});
+  if (app.session.hosted) commands.register({ id: 'signout', title: T('Sign out of laneway'), group: 'App', run: async () => { // the gateway's, which ends the sign-in on laneway-server too
+    await fetch('/auth/logout', { method: 'POST' }).catch(() => {});
+    location.reload();
+  } });
   api.get('/branch').then(b => { if (b.Key) commands.register({ id: 'branch', title: '⎇ ' + b.Key + '  ' + (b.Summary || ''), group: 'Branch', run: () => app.panel.open(b.Key) }); }).catch(() => {}); // the cwd's, as the TUI: first in the palette
   $('.brand').title = 'laneway · ' + app.session.baseURL + (app.session.demo ? ' (demo)' : '');
   if (app.session.demo) $('#site').append(h('span.demo-badge', { title: T('Demo data, no Jira behind it') }, T('demo')));

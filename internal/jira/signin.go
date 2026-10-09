@@ -28,6 +28,7 @@ import (
 type Login struct {
 	AuthURL  string
 	Redirect string
+	client   OAuthClient
 	base     string
 	state    string
 	verifier string
@@ -37,6 +38,11 @@ type Login struct {
 // BeginLogin starts a browser sign-in to base that comes back to redirect
 // (a loopback address).
 func BeginLogin(base, redirect string) (*Login, error) {
+	return BeginLoginAs(OAuthClient{}, base, redirect)
+}
+
+// BeginLoginAs is BeginLogin as client, whose redirect it registered.
+func BeginLoginAs(client OAuthClient, base, redirect string) (*Login, error) {
 	key, err := newDPoPKey()
 	if err != nil {
 		return nil, err
@@ -46,9 +52,9 @@ func BeginLogin(base, redirect string) (*Login, error) {
 		rand.Read(b)
 		return b64(b)
 	}
-	l := &Login{Redirect: redirect, base: strings.TrimRight(base, "/"), state: rnd(), verifier: rnd(), key: key}
+	l := &Login{Redirect: redirect, client: client, base: strings.TrimRight(base, "/"), state: rnd(), verifier: rnd(), key: key}
 	sum := sha256.Sum256([]byte(l.verifier))
-	q := url.Values{"client_id": {ClientID}, "redirect_uri": {redirect}, "response_type": {"code"}, "scope": {Scopes}, "state": {l.state},
+	q := url.Values{"client_id": {client.id()}, "redirect_uri": {redirect}, "response_type": {"code"}, "scope": {Scopes}, "state": {l.state},
 		"code_challenge": {b64(sum[:])}, "code_challenge_method": {"S256"}, "dpop_jkt": {thumbprint(key)}}
 	l.AuthURL = l.base + "/oauth/authorize?" + q.Encode()
 	return l, nil
@@ -63,8 +69,8 @@ func (l *Login) Finish(ctx context.Context, back url.Values) (Credentials, error
 		return Credentials{}, fmt.Errorf("laneway: sign-in refused: %s", strings.TrimSpace(e+" "+back.Get("error_description")))
 	}
 	hc := &http.Client{Timeout: 30 * time.Second}
-	a, err := tokenCall(ctx, hc, l.base, l.key, url.Values{"grant_type": {"authorization_code"}, "client_id": {ClientID}, "code": {back.Get("code")},
-		"redirect_uri": {l.Redirect}, "code_verifier": {l.verifier}})
+	a, err := tokenCall(ctx, hc, l.base, l.key, l.client.form(url.Values{"grant_type": {"authorization_code"}, "code": {back.Get("code")},
+		"redirect_uri": {l.Redirect}, "code_verifier": {l.verifier}}))
 	if err != nil {
 		return Credentials{}, err
 	}
@@ -222,7 +228,7 @@ func (c *Client) SignOut(ctx context.Context) error {
 		o.load()
 	}
 	if o.refresh != "" {
-		a, err := oauthPost(ctx, o.http, o.base+"/oauth/revoke", nil, url.Values{"client_id": {ClientID}, "token": {o.refresh}})
+		a, err := oauthPost(ctx, o.http, o.base+"/oauth/revoke", nil, o.client.form(url.Values{"token": {o.refresh}}))
 		if err != nil {
 			return err
 		}

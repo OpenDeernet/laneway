@@ -39,12 +39,17 @@ func (j JiraConfig) Credentials() CredentialStore {
 	if u, err := url.Parse(strings.TrimSpace(j.BaseURL)); err == nil && u.Host != "" {
 		host = u.Host + strings.TrimRight(u.Path, "/")
 	}
+	if j.CredentialsFile != "" {
+		return &SignInStore{at: j.CredentialsFile}
+	}
 	return &SignInStore{service: "laneway sign-in " + host, file: strings.NewReplacer("/", "_", ":", "_").Replace(host) + ".json"}
 }
 
-// SignInStore is where a site's sign-in lives.
+// SignInStore is where a site's sign-in lives: the keyring (service) or
+// a file; at is a file of its own instead (laneway web for many people:
+// one per person, never the server's keyring).
 type SignInStore struct {
-	service, file string
+	service, file, at string
 }
 
 // keyring commands for the store; nil without a keyring tool. Tests swap
@@ -65,10 +70,21 @@ var signInKeyring = func(service string) (lookup, store, clear []string, encode 
 	return nil, nil, nil, nil
 }
 
+// keyring is signInKeyring for the store, none for a file of its own.
+func (s *SignInStore) keyring() (lookup, store, clear []string, encode func([]byte) string) {
+	if s.at != "" {
+		return nil, nil, nil, nil
+	}
+	return signInKeyring(s.service)
+}
+
 func have(tool string) bool { _, err := exec.LookPath(tool); return err == nil }
 
 // path is the file the sign-in is kept in without a keyring.
 func (s *SignInStore) path() (string, error) {
+	if s.at != "" {
+		return s.at, nil
+	}
 	d, err := os.UserConfigDir()
 	if err != nil {
 		return "", err
@@ -79,7 +95,7 @@ func (s *SignInStore) path() (string, error) {
 // Load reads the sign-in: the keyring's, else the file's; nothing when
 // there is none.
 func (s *SignInStore) Load() ([]byte, error) {
-	if lookup, _, _, _ := signInKeyring(s.service); lookup != nil {
+	if lookup, _, _, _ := s.keyring(); lookup != nil {
 		if out, err := exec.Command(lookup[0], lookup[1:]...).Output(); err == nil {
 			if raw, err := base64.StdEncoding.DecodeString(strings.TrimSpace(string(out))); err == nil && len(raw) > 0 {
 				return raw, nil
@@ -104,7 +120,7 @@ func (s *SignInStore) Save(raw []byte) error {
 	if err != nil {
 		return err
 	}
-	lookup, store, clear, encode := signInKeyring(s.service)
+	lookup, store, clear, encode := s.keyring()
 	if len(raw) == 0 {
 		if lookup != nil {
 			exec.Command(clear[0], clear[1:]...).Run()

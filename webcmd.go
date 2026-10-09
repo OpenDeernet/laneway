@@ -35,6 +35,9 @@ import (
 
 // webCmd is `laneway web` (alias serve): the board in a browser.
 func webCmd(args []string, cfgPath, site string, errOut io.Writer) int {
+	if len(args) > 0 && (args[0] == "-hosted" || args[0] == "--hosted") {
+		return hostedCmd(args[1:], errOut)
+	}
 	fs := flag.NewFlagSet("web", flag.ContinueOnError)
 	fs.SetOutput(errOut)
 	addr := fs.String("addr", "127.0.0.1:8484", i18n.T("address to listen on"))

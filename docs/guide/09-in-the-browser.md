@@ -145,6 +145,40 @@ refresh.
   `ui.work_args`, `ui.work_create`) are read-only: edit them in the config
   file. Configured actions still run.
 
+## For many people, next to a laneway-server
+
+`laneway web -hosted` serves the browser app to everyone who signs in to
+a [laneway-server](https://github.com/cornedor/laneway-server): one server
+for a team, nothing to install for them. Jira can't be served this way; it
+needs laneway-server's sign-in.
+
+1. In laneway-server, under OAuth apps, register an app with the redirect
+   URI `https://<this server>/auth/callback` and the scopes
+   `read:jira-work write:jira-work read:jira-user manage:jira-project
+   read:servicedesk-request write:servicedesk-request read:me`. Keep its
+   secret.
+2. Start it, behind a TLS proxy or with `-cert` and `-key`:
+
+   ```sh
+   LANEWAY_WEB_CLIENT_SECRET=… laneway web -hosted \
+     -server https://laneway.example.com -url https://board.example.com \
+     -client-id <the app's id> -data /var/lib/laneway-web -addr 127.0.0.1:8484
+   ```
+
+Opening it sends people to laneway-server's own sign-in (password and
+two-step, passkey, SSO, GitLab) and back. The browser gets only an
+HttpOnly session cookie (12 hours idle, 7 days at most); their tokens,
+bound to a key the server made for them (DPoP), stay in `-data`, a
+directory per person with their settings and state. *Sign out of laneway*
+in the palette ends the session and the sign-in on laneway-server.
+
+What would act as the server's own user is off: actions, asking an LLM,
+coding agents and their terminal, starting work and pull requests in
+checkouts, worklog proposals from commands and calendars, GitLab, rules,
+start at login, adding sites; settings that run commands or name files
+(`ui.calendar`, `ui.download_dir`) can't be set. `internal/web/hosted-routes.txt`
+lists which routes serve; any other answers 403.
+
 ## Tips
 
 - Views draw from the last answer at once and refresh behind it; the

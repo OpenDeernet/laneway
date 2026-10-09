@@ -69,6 +69,8 @@ type Config struct {
 	// SignIn keeps a laneway-server sign-in (oauth.go): set, it is used
 	// instead of Email and APIToken.
 	SignIn CredentialStore
+	// OAuthClient is who SignIn's sign-in renews as; zero: the laneway app.
+	OAuthClient OAuthClient
 }
 
 // Client fetches and caches issues for one instance. The zero value is not
@@ -163,7 +165,7 @@ func New(cfg Config) *Client {
 	}
 	switch {
 	case cfg.SignIn != nil:
-		c.oauth = &oauthSession{base: c.baseURL, store: cfg.SignIn, http: &http.Client{Timeout: c.timeout}}
+		c.oauth = &oauthSession{base: c.baseURL, client: cfg.OAuthClient, store: cfg.SignIn, http: &http.Client{Timeout: c.timeout}}
 	case cfg.Email != "" && cfg.APIToken != "":
 		raw := cfg.Email + ":" + cfg.APIToken
 		c.auth = "Basic " + base64.StdEncoding.EncodeToString([]byte(raw))
