@@ -37,6 +37,7 @@ type boardMetaCache struct {
 	status map[string]map[string]string // "" → status id → name
 	saved  map[string][]QuickFilter     // "" → your favourite filters
 	jql    map[string][]JQLWords        // "" → the JQL autocomplete data
+	desks  map[string][]ServiceDesk     // "" → the site's service desks (servicedesk.go)
 }
 
 // StatusNames maps every status id to its name, cached for the session. A

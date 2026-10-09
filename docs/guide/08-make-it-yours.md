@@ -14,8 +14,9 @@ values after an operator.
 
 - `ctrl+s` stars the query: it becomes a view (`★ …`) on every board.
 - `ctrl+f` saves it as a real Jira filter under a name you type, to share
-  or subscribe to in Jira. Your starred Jira filters show as views too
-  (`ui.saved_filters: off` hides them).
+  or subscribe to in Jira. Your starred Jira filters show as views too,
+  and the queues of the site's service desks (`ui.saved_filters: off`
+  hides them).
 
 === "Terminal"
 

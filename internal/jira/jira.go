@@ -707,6 +707,14 @@ func (e unauthorized) Error() string {
 }
 func (e unauthorized) Is(t error) bool { return t == ErrUnauthorized }
 
+// ErrForbidden is a 403 (no permission), for errors.Is.
+var ErrForbidden = errors.New("jira: no permission")
+
+type forbidden struct{ msg string }
+
+func (e forbidden) Error() string   { return e.msg }
+func (e forbidden) Is(t error) bool { return t == ErrForbidden }
+
 // statusError turns a non-2xx into a message the panel can show, saying
 // what to do where a user can: sign in, ask for permission, wait, raise a
 // limit. what labels the request (an issue key, or e.g. "priorities");
@@ -720,9 +728,9 @@ func statusError(code int, what string, body []byte, retryAfter string) error {
 		return unauthorized{what}
 	case http.StatusForbidden:
 		if msg != "" {
-			return fmt.Errorf("jira: no permission for %s: %s", what, msg)
+			return forbidden{fmt.Sprintf("jira: no permission for %s: %s", what, msg)}
 		}
-		return fmt.Errorf("jira: no permission for %s · ask a Jira admin, or check the api_token", what)
+		return forbidden{fmt.Sprintf("jira: no permission for %s · ask a Jira admin, or check the api_token", what)}
 	case http.StatusNotFound:
 		return notFound{what, msg != ""}
 	case http.StatusTooManyRequests:
@@ -1303,9 +1311,11 @@ func (c *Client) AddCommentADFFor(ctx context.Context, key string, body json.Raw
 }
 
 // Visibility is who may read a comment: everyone (zero), a Service Desk
-// internal note, the members of a project role or of a group.
+// internal note or reply to the customer (PostComment), the members of a
+// project role or of a group.
 type Visibility struct {
 	Internal bool
+	Customer bool
 	Role     string
 	Group    string
 	GroupID  string
@@ -1347,6 +1357,8 @@ func (v Visibility) Label() string {
 	switch {
 	case v.Internal:
 		return "internal note"
+	case v.Customer:
+		return "reply to the customer"
 	case v.Role != "":
 		return "only " + v.Role
 	case v.Group != "":

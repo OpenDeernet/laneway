@@ -96,11 +96,13 @@ type Filter struct {
 // Counter is the Jira the filters widget reads.
 type Counter interface {
 	FavouriteFilters(ctx context.Context) ([]jira.QuickFilter, error)
+	DeskQueues(ctx context.Context) ([]jira.Queue, error)
 	Count(ctx context.Context, jql string) (int, error)
 }
 
 // Filters counts your starred Jira filters (when favourites) and the starred
-// searches, at once; the starred searches are named by their JQL.
+// searches, at once; the starred searches are named by their JQL. With the
+// favourites come the service desks' queues, counted by the desk.
 func Filters(ctx context.Context, c Counter, favourites bool, starred []string) ([]Filter, error) {
 	var out []Filter
 	if favourites {
@@ -117,7 +119,11 @@ func Filters(ctx context.Context, c Counter, favourites bool, starred []string) 
 			out = append(out, Filter{Name: q, JQL: q})
 		}
 	}
+	var queues []jira.Queue
 	var wg sync.WaitGroup
+	if favourites {
+		wg.Go(func() { queues, _ = c.DeskQueues(ctx) }) // a failure only leaves them out
+	}
 	for i := range out {
 		wg.Go(func() {
 			n, err := c.Count(ctx, out[i].JQL)
@@ -128,5 +134,8 @@ func Filters(ctx context.Context, c Counter, favourites bool, starred []string) 
 		})
 	}
 	wg.Wait()
+	for _, q := range queues {
+		out = append(out, Filter{Name: q.Label(), JQL: q.JQL, Count: q.Count})
+	}
 	return out, nil
 }

@@ -193,6 +193,8 @@ export function openPalette(app, mode = '') {
       const hist = readLS('jqlhist', []);
       const saved = app.jqlFilters || [];
       if (saved.length) { items.push({ type: 'hdr', text: T('Saved filters') }); saved.forEach(f => items.push({ type: 'fill', text: f.JQL, label: f.Name })); }
+      const queues = app.deskQueues || []; // a service desk's queues, with their counts
+      if (queues.length) { items.push({ type: 'hdr', text: T('Queues') }); queues.forEach(qu => items.push({ type: 'fill', text: qu.JQL, label: qu.Project + ' · ' + qu.Name + ' · ' + qu.Count })); }
       if (hist.length) { items.push({ type: 'hdr', text: T('Recent searches') }); hist.forEach(t => items.push({ type: 'fill', text: t })); }
       return;
     }
@@ -204,6 +206,7 @@ export function openPalette(app, mode = '') {
     words = { Fields: [], Functions: [], Reserved: [] };
     api.swr('/jql/words', d => { words = d; if (cur === 'jql') suggest(); }).catch(() => {});
     api.swr('/filters', d => { app.jqlFilters = d; if (cur === 'jql' && !q) build(); }).catch(() => {});
+    api.swr('/servicedesk/queues', d => { app.deskQueues = d; if (cur === 'jql' && !q) build(); }).catch(() => {});
   }
   function suggest() {
     const v = q;

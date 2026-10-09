@@ -63,7 +63,9 @@ fields, functions and keywords, and a field's values after an operator.
     keeps it. `ctrl+s` stars the query as a view on every board; `ctrl+f`
     saves it as a Jira filter.
 
-`ui.saved_filters` (on) shows your starred Jira filters as views too.
+`ui.saved_filters` (on) shows your starred Jira filters as views too, and
+the service desks' queues (`DEMO · Open requests`); in the browser `#`
+with nothing typed lists both.
 
 ## The palette
 

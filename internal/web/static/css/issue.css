@@ -118,6 +118,8 @@ a.issue-ref { font-family: var(--font-mono); font-size: .95em; }
 .cm .acts { display: flex; gap: .143rem; opacity: 0; } .cm:hover .acts, .cm.focus .acts { opacity: 1; }
 .composer { position: sticky; bottom: -2.857rem; margin: var(--pad) -.571rem -2.857rem; padding: var(--pad) .571rem; background: var(--bg-2); border-top: 1px solid var(--border); }
 .vis-row { display: flex; justify-content: flex-end; } .vis-chip { font-size: .85em; color: var(--fg-3); } .vis-chip.on { color: var(--warn); }
+.vis-chip.customer { color: var(--err); font-weight: 600; }
+.request .fld.breached .v { color: var(--err); font-weight: 600; }
 .reply-chip { display: flex; align-items: center; justify-content: space-between; font-size: .9em; color: var(--fg-2); }
 
 /* history */

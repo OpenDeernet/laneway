@@ -91,7 +91,7 @@ ui:
 | `quick_filters` | | `{name, jql}` presets before the board's own |
 | `board_quick_filters` | `on` | the board's own quick filters from Jira; `off`: only `quick_filters` |
 | `views` | | `{name, jql}` views of every board, after its own |
-| `saved_filters` | `on` | your starred Jira filters as views |
+| `saved_filters` | `on` | your starred Jira filters and service desk queues as views |
 | `remember_filters` | `on` | the assignee filter (mine) and each board's quick filters stay on next time |
 | `filters` | | `{name, query}`: named `/` queries, recalled from the palette |
 | `my_work_jql` | yours, open or resolved this week | the query of My work |

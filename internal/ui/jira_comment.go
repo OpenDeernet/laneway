@@ -48,6 +48,7 @@ func (m *Model) openJiraCommentInputFor(key string) {
 	m.jiraCommentReplyTo, m.jiraCommentReplyID = "", ""
 	m.jiraCommentInput = newCommentTextarea()
 	m.jiraCommentBefore, m.jiraCommentDiscard = "", false
+	m.jiraCommentVis = m.commentVisDefault(key)
 	if m.unsent.key == m.jiraCommentKey && m.unsent.text != "" {
 		m.jiraCommentInput.SetValue(m.unsent.text)
 		m.jiraCommentInput.CursorEnd()
@@ -99,6 +100,17 @@ func (m *Model) openJiraReplyFor(key string, c jira.Comment) {
 	ta.CursorEnd()
 	m.jiraCommentInput = ta
 	m.jiraCommentBefore, m.jiraCommentDiscard = ta.Value(), false
+	m.jiraCommentVis = m.commentVisDefault(key)
+}
+
+// commentVisDefault is who a new comment on key is for: an internal note
+// on a service desk's request, so nothing reaches a customer by
+// accident; everyone elsewhere.
+func (m *Model) commentVisDefault(key string) jira.Visibility {
+	if m.deskComment(key) {
+		return jira.Visibility{Internal: true}
+	}
+	return jira.Visibility{}
 }
 
 // replyQuote builds the editable reply seed: a markdown blockquote of c's
@@ -201,7 +213,7 @@ func (m Model) applyJiraComment() (tea.Model, tea.Cmd) {
 			}
 		}
 		doc := jira.CommentADF(text, mention, inline)
-		msg.err = client.AddCommentADFFor(ctx, key, doc, vis, parent)
+		msg.err = client.PostComment(ctx, key, doc, vis, parent)
 		if jira.TimedOut(msg.err) {
 			msg.maybe = doc
 		}
@@ -210,10 +222,11 @@ func (m Model) applyJiraComment() (tea.Model, tea.Cmd) {
 }
 
 // replyParent is the comment a reply goes under in Jira's thread (a reply's
-// own parent: threads are one level deep); "" for a comment, or with
-// ui.threaded_replies off (a new comment, quoting it).
+// own parent: threads are one level deep); "" for a comment, with
+// ui.threaded_replies off or on a service desk's request (a new comment,
+// quoting it).
 func (m *Model) replyParent() string {
-	if !m.opts.threaded || m.jiraCommentReplyID == "" {
+	if !m.opts.threaded || m.jiraCommentReplyID == "" || m.deskComment(m.jiraCommentKey) {
 		return ""
 	}
 	if m.jiraIssue != nil && m.jiraIssue.Key == m.jiraCommentKey {
@@ -241,6 +254,9 @@ func (m *Model) renderJiraCommentInput() string {
 		above = append(above, lipgloss.NewStyle().Foreground(dimColor).Italic(true).
 			Render(i18n.Tf("↩ replying to %s", m.jiraCommentReplyTo)))
 	}
+	if l := m.deskCommentLine(); l != "" {
+		above = append(above, l)
+	}
 	return m.renderModalComposer(titleTxt, above, i18n.T("ctrl+s post · @ mention · : emoji · ctrl+o who sees it · esc cancel"), &m.jiraCommentInput)
 }
 
@@ -252,8 +268,9 @@ type commentVisMsg struct {
 }
 
 // cycleCommentVis steps who the comment is for: everyone, an internal
-// note (Service Desk), each role and group the user is in. The first
-// press asks Jira.
+// note (Service Desk), each role and group the user is in; on a service
+// desk's request an internal note, a reply to the customer, then the
+// roles and groups. The first press asks Jira.
 func (m *Model) cycleCommentVis() tea.Cmd {
 	if m.replyParent() != "" {
 		m.status = i18n.T("a reply is for whoever its comment is for")
@@ -270,6 +287,9 @@ func (m *Model) cycleCommentVis() tea.Cmd {
 		}
 	}
 	all := append([]jira.Visibility{{}}, opts...)
+	if m.deskComment(m.jiraCommentKey) {
+		all = deskVisibilities(opts)
+	}
 	i := slices.Index(all, m.jiraCommentVis)
 	m.jiraCommentVis = all[(i+1)%len(all)]
 	m.status = i18n.Tf("the comment is for %s", m.jiraCommentVis.Label())
@@ -285,7 +305,7 @@ func (m Model) handleCommentVis(msg commentVisMsg) (tea.Model, tea.Cmd) {
 		m.commentVis = map[string][]jira.Visibility{}
 	}
 	m.commentVis[msg.project] = msg.vis
-	if len(msg.vis) == 0 {
+	if len(msg.vis) == 0 && !m.desks[msg.project] {
 		m.status = i18n.Tf("comments in %s are for everyone: you're in no role or group to limit them to", msg.project)
 		return m, nil
 	}

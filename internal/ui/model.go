@@ -430,9 +430,13 @@ type Model struct {
 	branchKey     string         // the issue of the git branch laneway started in
 	webLinks      []jira.WebLink // webLinksKey's remote links
 	webLinksKey   string
-	children      []jira.Child // webLinksKey's child issues, when it is an epic
-	showEmpty     bool         // the empty fields ui.empty_fields: hide folds, shown for the session
-	moreFields    bool         // the panel's More row open, for the session
+	children      []jira.Child  // webLinksKey's child issues, when it is an epic
+	request       *jira.Request // webLinksKey as a service desk request, nil in a project that is no desk
+	// desks is whether each project the panel showed is a service desk,
+	// whose comments are internal notes unless for the customer.
+	desks      map[string]bool
+	showEmpty  bool // the empty fields ui.empty_fields: hide folds, shown for the session
+	moreFields bool // the panel's More row open, for the session
 	// panelExtraEarly: panelExtra is the remembered screen (earlyExtra), editmeta not in yet.
 	panelExtraEarly bool
 	fieldPins       map[string]bool // the panel's field pins (jira.PinsMeta)

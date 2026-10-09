@@ -8,7 +8,7 @@ you were busy.
 
 Your day on one screen: your open work, unread inbox threads, the sprint
 (done against the time gone, *behind* when it trails), the running timer
-and a count per saved search. `enter` opens the
+and a count per saved search and service desk queue. `enter` opens the
 row; on a heading, its own screen. To start every day there:
 
 ```yaml

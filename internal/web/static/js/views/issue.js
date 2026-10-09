@@ -56,7 +56,7 @@ export function mountIssue(el, key, { app, full, card }) {
   const DF = (app.session.ui && app.session.ui.DateFormat) || '';
   const dateTime = t => (DF ? goDate(t, DF) : localDateTime(t));
   const me = () => (app.session && app.session.me) || {};
-  const st = { issue: null, card: card && card.Key === key ? card : null, tab: 'details', children: null, weblinks: null, hist: null, tis: null,
+  const st = { issue: null, card: card && card.Key === key ? card : null, tab: 'details', children: null, weblinks: null, req: null, hist: null, tis: null,
     focusId: null, reply: null, all: false, pending: [], descSig: null, editingDesc: false, editingComment: null };
   if (expect !== key) trail.length = 0;
   expect = null;
@@ -84,14 +84,14 @@ export function mountIssue(el, key, { app, full, card }) {
     history: h('section.pane.history'),
   };
   const box = {
-    fields: h('div.fields'), desc: h('div.desc'), docs: h('div.docs'), children: h('div.block.children'), links: h('div.block.links'), files: h('div.block.files'),
+    fields: h('div.fields'), request: h('div.block.request'), desc: h('div.desc'), docs: h('div.docs'), children: h('div.block.children'), links: h('div.block.links'), files: h('div.block.files'),
     list: h('div.cm-list'), more: h('div.cm-more'), composer: h('div.composer'),
   };
   const dev = mountDev(key, { app, el, full, card: () => st.card, details: () => setTab('details') });
   // .waiting shows only the fields (loading) till the issue is in: dev and notes answer sooner, and the
   // fields filling in above them pushed them down.
   panes.details.classList.add('waiting');
-  panes.details.append(box.fields, dev.el, box.desc, box.docs, box.children, box.links, box.files);
+  panes.details.append(box.fields, box.request, dev.el, box.desc, box.docs, box.children, box.links, box.files);
   panes.comments.append(box.more, box.list, box.composer);
   let offNotes = null;
   import('./issue_notes.js').then(m => { if (!dead) offNotes = m.mountNotes(panes.details, key, { app, el, full }); });
@@ -399,6 +399,17 @@ export function mountIssue(el, key, { app, full, card }) {
     return true;
   }
 
+  // ---- a service desk's request: its type, customer and SLAs' time left, red once breached (TUI renderRequest)
+  function renderRequest() {
+    const r = st.req && st.req.Request;
+    if (!r) return clear(box.request);
+    const sla = s => (s.Done ? (s.Breached ? T('breached') : T('met')) : s.Breached ? T('%s · breached', s.Remaining) : s.Paused ? T('%s left · paused', s.Remaining) : T('%s left', s.Remaining));
+    const cell = (k, v, cls = '') => h('div.fld' + cls, h('span.k', k), h('span.v', v));
+    fill(box.request, h('div.sec-head', h('h3', T('Request'))),
+      h('div.fields', cell(T('Type'), r.Type || '—'), cell(T('Customer'), [r.Customer || '—', r.CustomerEmail && h('span.dim', ' ' + r.CustomerEmail)]),
+        (r.SLAs || []).map(s => cell(s.Name, sla(s), s.Breached ? '.breached' : ''))));
+  }
+
   // ---- children, links, files
   function renderChildren() {
     const kids = st.children;
@@ -671,13 +682,13 @@ export function mountIssue(el, key, { app, full, card }) {
     save: async doc => {
       const snap = comp.snapshot(), text = await comp.markdown().catch(() => '');
       const tmp = { ID: 'tmp-' + Date.now(), Author: me().DisplayName || T('You'), AuthorID: me().AccountID, Body: text, Created: new Date(), pending: true };
-      const parent = st.reply && threaded() ? threadRoot(st.reply) : ''; // a real reply in Jira's thread
+      const parent = st.reply && threaded() && !desk() ? threadRoot(st.reply) : ''; // a real reply in Jira's thread; on a request a new comment
       st.pending.push(tmp); renderComments(); (newest() ? box.list.firstElementChild : box.list.lastElementChild)?.scrollIntoView({ block: 'nearest' });
       comp.clear(); drafts.delete(key); setReply(null);
       try {
         const found = await postComment(api, key, { Doc: doc, Visibility: parent ? everyone() : st.vis, Parent: parent });
         st.pending = st.pending.filter(p => p !== tmp);
-        st.vis = everyone(); paintVis(); // the next one is for everyone again
+        st.vis = visDefault(); paintVis(); // the next one is for everyone again (an internal note on a request)
         await reload(true); changed(T('%s comment added', key));
         if (found) ui.toast(T('Your comment was on %s already: not posted again', key));
       } catch (e) {
@@ -699,20 +710,26 @@ export function mountIssue(el, key, { app, full, card }) {
   // ui.threaded_replies (on by default): a reply goes under its comment in Jira's thread.
   const threaded = () => String((app.session.ui || {}).ThreadedReplies || 'on').trim().toLowerCase() !== 'off';
   // Who the comment is for: everyone, an internal note (Service Desk), a role or group the user is in; ctrl+o steps (TUI cycleCommentVis).
-  const everyone = () => ({ Internal: false, Role: '', Group: '', GroupID: '' });
+  // On a service desk's request: an internal note (the default, so nothing reaches a customer by accident), a reply to the customer, the roles and groups.
+  const everyone = () => ({ Internal: false, Customer: false, Role: '', Group: '', GroupID: '' });
+  const desk = () => !!(st.req && st.req.Desk);
+  const visDefault = () => (desk() ? { ...everyone(), Internal: true } : everyone());
   st.vis = everyone();
   const visBtn = h('button.btn.ghost.sm.vis-chip', { title: T('Who sees it  (ctrl+o)'), onclick: () => cycleVis() });
-  const paintVis = () => { visBtn.replaceChildren(icon('eye'), ' ' + visLabel(st.vis)); visBtn.classList.toggle('on', visLimited(st.vis)); };
+  const paintVis = () => {
+    visBtn.replaceChildren(icon('eye'), ' ' + (st.vis.Customer ? T('reply to the customer: they read this') : desk() && st.vis.Internal ? T('internal note: only agents see it') : visLabel(st.vis)));
+    visBtn.classList.toggle('on', visLimited(st.vis)); visBtn.classList.toggle('customer', !!st.vis.Customer);
+  };
   paintVis();
   let visOpts = null;
   async function cycleVis() {
-    if (st.reply && threaded()) return ui.toast(T('A reply is for whoever its comment is for'));
+    if (st.reply && threaded() && !desk()) return ui.toast(T('A reply is for whoever its comment is for'));
     if (!visOpts) {
       try { visOpts = await api.get('/projects/' + encodeURIComponent(key.slice(0, key.lastIndexOf('-'))) + '/commentvis'); } catch (e) { return fail(e); }
-      if (!visOpts.length) return ui.toast(T("Comments here are for everyone: you're in no role or group to limit them to"));
+      if (!visOpts.length && !desk()) return ui.toast(T("Comments here are for everyone: you're in no role or group to limit them to"));
     }
-    const all = [everyone(), ...visOpts];
-    const visKey = v => [!!v.Internal, v.Role || '', v.Group || ''].join('\n');
+    const all = desk() ? [{ Internal: true }, { Customer: true }, ...visOpts.filter(v => !v.Internal)] : [everyone(), ...visOpts];
+    const visKey = v => [!!v.Internal, !!v.Customer, v.Role || '', v.Group || ''].join('\n');
     const i = all.findIndex(v => visKey(v) === visKey(st.vis));
     st.vis = { ...everyone(), ...all[(i + 1) % all.length] };
     paintVis();
@@ -722,7 +739,7 @@ export function mountIssue(el, key, { app, full, card }) {
     st.reply = c;
     replyChip.hidden = !c;
     clear(replyChip);
-    const locked = !!c && threaded();
+    const locked = !!c && threaded() && !desk();
     visBtn.disabled = locked; visBtn.title = locked ? T('A reply is for whoever its comment is for') : T('Who sees it  (ctrl+o)');
     if (c) replyChip.append(h('span', T('Replying to'), ' ', h('b', c.Author)), h('button.btn.ghost.sm', { title: T('Not a reply'), onclick: () => { comp.unmention(c.Author); setReply(null); } }, icon('x')));
   }
@@ -834,21 +851,23 @@ export function mountIssue(el, key, { app, full, card }) {
       const [iss, card] = await Promise.all([api.get('/issues/' + key + '?fresh=1', { fresh: true }), api.get('/issues/' + key + '/card', { fresh: true }).catch(() => st.card)]);
       if (dead || g !== gen) return;
       st.issue = iss; if (!iss.Comments) iss.Comments = []; st.card = card; st.children = null; st.hist = null; st.weblinks = null; st.tis = null; st.meta = null;
-      paint(); loadExtras();
+      paint(); loadExtras(true);
       if (st.tab === 'history') loadHistory();
     } catch (e) { if (!quiet) fail(e); }
   }
-  async function loadExtras() {
-    const [kids, web, meta] = await Promise.all([st.children ? null : api.get('/issues/' + key + '/children').catch(() => []), st.weblinks ? null : api.get('/issues/' + key + '/weblinks').catch(() => []),
-      st.meta ? null : api.get('/issues/' + key + '/editmeta', { fresh: true }).catch(() => null)]);
+  // again: the request too, whose SLAs move (whether it is a desk's stays, and with it who the comment is for).
+  async function loadExtras(again) {
+    const [kids, web, meta, req] = await Promise.all([st.children ? null : api.get('/issues/' + key + '/children').catch(() => []), st.weblinks ? null : api.get('/issues/' + key + '/weblinks').catch(() => []),
+      st.meta ? null : api.get('/issues/' + key + '/editmeta', { fresh: true }).catch(() => null), st.req && !again ? null : api.get('/issues/' + key + '/request', { fresh: true }).catch(() => null)]);
     if (dead) return;
     if (meta) { st.meta = meta; renderFields(); renderDocs(); }
+    if (req) { const was = desk(); st.req = req; renderRequest(); if (desk() !== was) { st.vis = visDefault(); paintVis(); } }
     if (kids) { st.children = kids; renderChildren(); }
     if (web) { st.weblinks = web; renderLinks(); }
   }
   function paint() {
     panes.details.classList.remove('waiting');
-    renderHead(); renderTabs(); renderFields(); renderDesc(); renderDocs(); renderChildren(); renderLinks(); renderFiles(); renderComments();
+    renderHead(); renderTabs(); renderFields(); renderRequest(); renderDesc(); renderDocs(); renderChildren(); renderLinks(); renderFiles(); renderComments();
   }
 
   function loadFailed(e) {

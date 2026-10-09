@@ -9,9 +9,10 @@ import (
 )
 
 // The laneway flavour: the demo as laneway-server rather than Jira Cloud.
-// serverInfo names a version and the account's API tokens and signed-in
-// apps are served. Off (the default) none of it is, and the demo stays as
-// the contract recording has Jira.
+// serverInfo names a version, the account's API tokens and signed-in apps
+// are served, and the project is a service desk (servicedesk.go). Off (the
+// default) none of it is, and the demo stays as the contract recording has
+// Jira.
 
 type lanewayState struct {
 	tokens []demoToken

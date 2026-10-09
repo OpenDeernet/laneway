@@ -133,8 +133,11 @@ see theirs before you save yours over it.
   them.
 - `:` and two letters list emoji, the ones you use most first. In the
   description editor too.
-- `ctrl+o` limits a comment to one project role or group you're in, or
-  makes it an internal note in a Service Desk project.
+- `ctrl+o` limits a comment to one project role or group you're in.
+- On a service desk's request a comment is an *internal note* (agents
+  only) unless `ctrl+o` makes it a *reply to the customer*, which the
+  composer says in red. Both go through the Service Desk API as text; a
+  reply there is a new comment, quoting.
 - A post that fails keeps its text (in the terminal `c` brings it back).
   One Jira answered too late may have landed: posting it again looks for
   it among the newest comments first, so it isn't posted twice.

@@ -179,6 +179,9 @@ func commentJSON(c comment) map[string]any {
 	if c.vis != nil {
 		m["visibility"] = c.vis
 	}
+	if c.public != nil {
+		m["jsdPublic"] = *c.public
+	}
 	return m
 }
 

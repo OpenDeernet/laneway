@@ -60,7 +60,7 @@ export default function mount(el, { app, params, query, scope, context, toolbar,
   const S = {
     project: '', boards: [], board: null, bundle: null, people: new Map(),
     cards: [], total: 0, loaded: false, path: '', fetched: 0, busy: 0,
-    scope: query.sprint || 'active', saved: [],
+    scope: query.sprint || 'active', saved: [], queues: [],
     qf: new Set(), mine: false, who: null, text: '', textFn: null,
     mode: 'lanes', sort: 'rank', dir: 1, swim: 'none', fold: new Set(), compact: false, hideEmpty: false, hidden: 0, cols: DEFAULT_COLS, colw: readWidths(app.prefs.get('board.colw', '')),
     layout: '', layoutHidden: 0, secFold: new Set(), laneFold: new Set(),
@@ -120,7 +120,7 @@ export default function mount(el, { app, params, query, scope, context, toolbar,
   }
   const isScrum = () => !!S.board && S.board.Type !== 'kanban';
   const sprints = () => (S.bundle && S.bundle.sprints) || [];
-  // Everything [ ] walks through: sprints, backlog, whole board, then ui.views and starred filters.
+  // Everything [ ] walks through: sprints, backlog, whole board, then ui.views, starred filters and service desk queues.
   function viewItems() {
     const out = [];
     if (isScrum()) {
@@ -133,6 +133,7 @@ export default function mount(el, { app, params, query, scope, context, toolbar,
     }
     ((app.session.ui && app.session.ui.Views) || []).forEach((v, i) => { if (v.Name && v.JQL) out.push({ id: 'view:' + i, name: v.Name, info: T('view'), jql: v.JQL, kind: 'jql' }); });
     for (const f of S.saved) out.push({ id: 'filter:' + f.ID, name: f.Name, info: T('saved filter'), jql: f.JQL, kind: 'filter' });
+    for (const qu of S.queues) out.push({ id: 'queue:' + qu.Desk + ':' + qu.ID, name: qu.Project + ' · ' + qu.Name, info: T('queue · %d', qu.Count), jql: qu.JQL, kind: 'filter' });
     // A named query opened from elsewhere (a release's issues): ?sprint=jql:…&vname=…
     if (String(query.sprint || '').startsWith('jql:') && !out.some(i => i.id === query.sprint)) out.push({ id: query.sprint, name: query.vname || 'JQL', info: T('query'), jql: query.sprint.slice(4), kind: 'filter' });
     for (const q of S.starred) out.push({ id: 'star:' + q, name: '★ ' + (q.length > 30 ? q.slice(0, 29) + '…' : q), info: T('starred search'), jql: q, kind: 'filter' });
@@ -1662,7 +1663,11 @@ export default function mount(el, { app, params, query, scope, context, toolbar,
     const savedP = UI.SavedFilters === 'off' ? Promise.resolve() : new Promise(res => {
       api.swr('/filters/favourite', d => { S.saved = d || []; renderToolbar(); res(); }).catch(() => res());
     });
+    const queuesP = UI.SavedFilters === 'off' ? Promise.resolve() : new Promise(res => {
+      api.swr('/servicedesk/queues', d => { S.queues = d || []; renderToolbar(); res(); }).catch(() => res());
+    });
     if (S.scope.startsWith('filter:')) await savedP;
+    if (S.scope.startsWith('queue:')) await queuesP;
     if (S.scope.startsWith('star:')) await starredP;
     if (S.dead) return;
     if (!isScrum()) loadCards(); // kanban: no sprints to wait for

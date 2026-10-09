@@ -124,6 +124,7 @@ func (m *Model) renderJiraIssue(iss *jira.Issue, width int) string {
 	// Edit affordances: the field cursor (panel_fields.go), comments
 	// (jira_comment.go).
 	b.WriteString("\n" + refDimStyle.Render(m.panelHintLine()) + "\n")
+	m.renderRequest(&b, width)
 
 	if m.descEditOn("") {
 		b.WriteString(sectionHead(i18n.T("Description"), "  "+i18n.T(descEditHint), max(width, 1)))

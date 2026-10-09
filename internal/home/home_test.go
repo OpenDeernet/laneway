@@ -49,6 +49,9 @@ type fakeCounter struct{ favs []jira.QuickFilter }
 func (f fakeCounter) FavouriteFilters(context.Context) ([]jira.QuickFilter, error) {
 	return f.favs, nil
 }
+func (f fakeCounter) DeskQueues(context.Context) ([]jira.Queue, error) {
+	return []jira.Queue{{Project: "HELP", Name: "Open", JQL: `project = "HELP"`, Count: 4}}, nil
+}
 func (f fakeCounter) Count(_ context.Context, jql string) (int, error) {
 	if jql == "bad" {
 		return 0, errors.New("no")
@@ -59,11 +62,15 @@ func (f fakeCounter) Count(_ context.Context, jql string) (int, error) {
 func TestFilters(t *testing.T) {
 	c := fakeCounter{favs: []jira.QuickFilter{{Name: "Mine", JQL: "assignee = me"}}}
 	got, err := Filters(context.Background(), c, true, []string{"assignee = me", "bad", "x = 1"})
-	if err != nil || len(got) != 3 {
+	if err != nil || len(got) != 4 {
 		t.Fatalf("Filters = %+v, %v", got, err)
 	}
 	if got[0] != (Filter{Name: "Mine", JQL: "assignee = me", Count: 13}) || got[1].Err == "" || got[2] != (Filter{Name: "x = 1", JQL: "x = 1", Count: 5}) {
 		t.Errorf("Filters = %+v", got)
+	}
+	// A desk's queue, counted by the desk.
+	if got[3] != (Filter{Name: "HELP · Open", JQL: `project = "HELP"`, Count: 4}) {
+		t.Errorf("queue = %+v", got[3])
 	}
 	if got, _ = Filters(context.Background(), c, false, nil); len(got) != 0 {
 		t.Errorf("no favourites, nothing starred: %+v", got)

@@ -102,7 +102,10 @@ laneway remembers the mode and swimlanes per board.
 `enter` on a card opens its issue in the panel on the right; `tab` moves
 the keys between the board and the panel. The panel shows the fields at the
 top, then the description, links, subtasks (an epic's child issues, with
-how many are done), attachments and the activity.
+how many are done), attachments and the activity. An issue of a service
+desk (Jira Service Management, or laneway-server's) shows its *Request*
+under the fields: the request type, the customer, and each SLA's time left,
+red once breached.
 
 === "Terminal"
 

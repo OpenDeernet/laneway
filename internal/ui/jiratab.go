@@ -221,7 +221,8 @@ const (
 	jiraViewSprint
 	jiraViewBacklog
 	jiraViewJQL // a ui.views entry: the board's issues narrowed by jql
-	// jiraViewFilter is a starred Jira filter: its own search, any board.
+	// jiraViewFilter is a starred Jira filter (or a service desk queue):
+	// its own search, any board.
 	jiraViewFilter
 )
 
@@ -700,11 +701,13 @@ func (m *Model) loadJiraBoard(project string, boardID int, view string, fromCach
 			wg                 sync.WaitGroup
 		)
 		var saved []jira.QuickFilter
+		var queues []jira.Queue
 		wg.Add(5)
 		go func() {
 			defer wg.Done()
 			if withSaved {
 				saved, _ = c.FavouriteFilters(ctx) // views are extras: a failure just leaves them out
+				queues, _ = c.DeskQueues(ctx)
 			}
 		}()
 		go func() { defer wg.Done(); cfg, cfgErr = c.BoardConfiguration(ctx, board.ID) }()
@@ -742,6 +745,9 @@ func (m *Model) loadJiraBoard(project string, boardID int, view string, fromCach
 		msg.views = append(msg.views, localViews...)
 		for _, f := range saved {
 			msg.views = append(msg.views, jiraView{kind: jiraViewFilter, name: f.Name, jql: f.JQL})
+		}
+		for _, q := range queues {
+			msg.views = append(msg.views, jiraView{kind: jiraViewFilter, name: q.Label(), jql: q.JQL})
 		}
 		if view == "" {
 			view, _, _ = st.GetMeta(jiraViewKey(board.ID))

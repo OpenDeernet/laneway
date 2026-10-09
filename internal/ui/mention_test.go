@@ -40,6 +40,10 @@ func TestMentionAt(t *testing.T) {
 func TestMentionFlow(t *testing.T) {
 	var posted string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/rest/servicedeskapi/") {
+			http.NotFound(w, r) // Jira without Service Management
+			return
+		}
 		if r.Method == http.MethodGet {
 			io.WriteString(w, `[{"accountId":"a1","displayName":"Ada Lovelace"}]`)
 			return

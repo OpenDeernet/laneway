@@ -119,7 +119,8 @@ func init() {
 			Raw json.RawMessage
 			// Doc is the comment as ADF, from the visual editor.
 			Doc json.RawMessage
-			// Visibility limits who reads it: an internal note, a role or a group.
+			// Visibility limits who reads it: an internal note, a role or a group;
+			// on a service desk's request an internal note unless Customer.
 			Visibility jira.Visibility
 			// Parent is the comment it replies to (which sets who reads it).
 			Parent string
@@ -156,7 +157,7 @@ func init() {
 				return map[string]bool{"Found": found}, err
 			}
 		}
-		return nil, s.Client().AddCommentADFFor(ctx, key, doc, b.Visibility, b.Parent)
+		return nil, s.Client().PostComment(ctx, key, doc, b.Visibility, b.Parent)
 	})
 	get("/issues/{key}/comments/{id}/edit", func(ctx context.Context, s *Server, r *http.Request) (any, error) {
 		key, err := issueKey(r)

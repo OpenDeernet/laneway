@@ -797,5 +797,9 @@
   "⏎ run · ↑↓ move": "⏎ uitvoeren · ↑↓ bewegen",
   "Description. / formats, @ mentions, drop files to attach": "Beschrijving. / voor opmaak, @ voor vermeldingen, sleep bestanden om bij te voegen",
   "Description… (/ inserts, @ mentions)": "Beschrijving… (/ voegt in, @ vermeldt)",
-  "Write a comment… (@ mentions, / inserts)": "Schrijf een reactie… (@ vermeldt, / voegt in)"
+  "Write a comment… (@ mentions, / inserts)": "Schrijf een reactie… (@ vermeldt, / voegt in)",
+  "Queues": "Wachtrijen",
+  "queue · %d": "wachtrij · %d",
+  "internal note: only agents see it": "interne notitie: alleen agents zien dit",
+  "reply to the customer: they read this": "antwoord aan de klant: die leest dit"
 }

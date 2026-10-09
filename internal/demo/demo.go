@@ -94,7 +94,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(v)
 	}
-	if s.serveGitLab(w, r, body, send) || s.serveLaneway(w, r, body, send) {
+	if s.serveGitLab(w, r, body, send) || s.serveLaneway(w, r, body, send) || s.serveDesk(w, r, body, send) {
 		return
 	}
 	if r.Method == http.MethodPost && p == "/rest/api/3/search/jql" {

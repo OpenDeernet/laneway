@@ -84,6 +84,7 @@ type comment struct {
 	doc     any // the body as last written, nil: body's paragraphs
 	created time.Time
 	vis     map[string]any // the visibility it was posted with, nil for everyone
+	public  *bool          // posted on the request (servicedesk.go): for the customer, else an internal note
 }
 
 type worklog struct {

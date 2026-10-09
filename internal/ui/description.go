@@ -232,6 +232,9 @@ func (m *Model) placeInlineEditor(content string, width int) string {
 		if v := m.jiraCommentVis; v != (jira.Visibility{}) {
 			hint = i18n.Tf("for %s", v.Label()) + " · " + hint
 		}
+		if l := m.deskCommentLine(); l != "" {
+			view = append(view, l)
+		}
 		view = append(view, refDimStyle.Render(hint))
 	} else if m.descEdit.comment != "" {
 		view = append(view, refDimStyle.Render(i18n.T(descEditHint)))

@@ -76,6 +76,7 @@ on  GET /api/issues/{key}/history
 on  GET /api/issues/{key}/media/{id}
 on  GET /api/issues/{key}/movetypes
 on  GET /api/issues/{key}/notes
+on  GET /api/issues/{key}/request
 on  GET /api/issues/{key}/timeinstatus
 on  GET /api/issues/{key}/transitionmeta
 on  GET /api/issues/{key}/transitions
@@ -116,6 +117,7 @@ off GET /api/rules/events
 off GET /api/rules/log
 off GET /api/rules/stream
 on  GET /api/search
+on  GET /api/servicedesk/queues
 on  GET /api/session
 on  GET /api/settings
 on  GET /api/site/events

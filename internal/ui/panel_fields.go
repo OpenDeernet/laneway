@@ -91,6 +91,8 @@ type panelExtraMsg struct {
 	err      error
 	webLinks []jira.WebLink // its remote links; nil when they failed to load
 	children []jira.Child   // an epic's child issues; nil for other issues
+	desk     bool           // its project is a service desk
+	request  *jira.Request  // the issue as the desk's request; nil when none or it failed
 }
 
 // fetchPanelExtra loads the shown issue's other editable fields.
@@ -115,12 +117,22 @@ func (m *Model) fetchPanelExtra() tea.Cmd {
 			}
 			kids <- k
 		}()
+		var desk bool
+		req := make(chan *jira.Request, 1)
+		go func() {
+			var r *jira.Request
+			if desk, _ = c.IsServiceDesk(ctx, issueProject(key)); desk {
+				r, _ = c.Request(ctx, key) // a failure only leaves it out
+			}
+			req <- r
+		}()
 		metas, values, err := c.EditMeta(ctx, key)
 		fields := make([]jiraFormField, len(metas))
 		for i, fm := range metas {
 			fields[i] = jiraFormField{FieldMeta: fm, required: fm.Required, val: jira.DecodeValue(fm.Kind, values[fm.ID]), raw: values[fm.ID]}
 		}
-		return panelExtraMsg{key: key, fields: fields, facts: jira.IssueFacts(values), err: err, webLinks: <-links, children: <-kids}
+		request := <-req // and desk with it
+		return panelExtraMsg{key: key, fields: fields, facts: jira.IssueFacts(values), err: err, webLinks: <-links, children: <-kids, desk: desk, request: request}
 	}
 }
 
@@ -146,7 +158,11 @@ func (m Model) handlePanelExtra(msg panelExtraMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	m.webLinks, m.webLinksKey = msg.webLinks, msg.key
-	m.children = msg.children
+	m.children, m.request = msg.children, msg.request
+	if m.desks == nil {
+		m.desks = map[string]bool{}
+	}
+	m.desks[issueProject(msg.key)] = msg.desk
 	if msg.err != nil {
 		if m.panelExtraEarly { // the remembered screen stays, to read
 			for i := range m.panelExtra {
