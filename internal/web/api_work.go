@@ -87,7 +87,9 @@ func myWorklogs(ctx context.Context, s *Server, r *http.Request) (any, error) {
 	if logs == nil {
 		logs = []jira.Worklog{}
 	}
-	// canMove is false once the site turned a move away (Server, DC).
+	// canMove is false on Server and DC (serverInfo, read here first) and
+	// once the site turned a move away.
+	s.Client().Laneway(ctx)
 	return map[string]any{"worklogs": logs, "canMove": s.Client().MovesWorklogs()}, err
 }
 

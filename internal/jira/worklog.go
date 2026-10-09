@@ -162,15 +162,15 @@ func (c *Client) DeleteWorklogs(ctx context.Context, key string, ids []string) e
 	return nil
 }
 
-// MovesWorklogs is false once the site turned a worklog move away as
-// unknown.
+// MovesWorklogs is false for Jira Server or Data Center (serverInfo,
+// once read), and once the site turned a worklog move away as unknown.
 func (c *Client) MovesWorklogs() bool {
 	if !c.Enabled() {
 		return false
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return !c.noWorklogMove
+	return !c.noWorklogMove && (c.site == nil || !c.site.SelfHosted)
 }
 
 // MoveWorklogs moves worklogs ids from key to the issue to, keeping their

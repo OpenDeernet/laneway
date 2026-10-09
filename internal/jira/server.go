@@ -9,6 +9,9 @@ import (
 // siteInfo is what serverInfo says of the site's flavour.
 type siteInfo struct {
 	Laneway bool `json:"laneway"`
+	// SelfHosted is Jira Server or Data Center (deploymentType), which
+	// lacks Cloud's bulk worklog move.
+	SelfHosted bool `json:"selfHosted,omitempty"`
 }
 
 // siteInfoMeta is where the last answer is kept (SetLayouts' store, one
@@ -39,7 +42,8 @@ func (c *Client) siteInfo(ctx context.Context) (siteInfo, error) {
 	c.mu.Unlock()
 	v, err, _ := c.shared.Do("serverInfo", func() (any, error) {
 		var info struct {
-			Version string `json:"lanewayServerVersion"`
+			Version    string `json:"lanewayServerVersion"`
+			Deployment string `json:"deploymentType"`
 		}
 		if err := c.do(ctx, http.MethodGet, "/rest/api/3/serverInfo", "server info", nil, &info); err != nil {
 			var kept siteInfo
@@ -50,7 +54,7 @@ func (c *Client) siteInfo(ctx context.Context) (siteInfo, error) {
 			}
 			return kept, err
 		}
-		i := siteInfo{Laneway: info.Version != ""}
+		i := siteInfo{Laneway: info.Version != "", SelfHosted: info.Deployment == "Server" || info.Deployment == "DataCenter"}
 		c.mu.Lock()
 		c.site = &i
 		c.mu.Unlock()

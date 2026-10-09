@@ -220,3 +220,22 @@ func TestMoveWorklogsRefused(t *testing.T) {
 		t.Errorf("err = %v, moves %v", err, c.MovesWorklogs())
 	}
 }
+
+// TestMovesWorklogsSelfHosted: Server and Data Center lack the bulk move;
+// once serverInfo says so, it isn't offered (LW-335).
+func TestMovesWorklogsSelfHosted(t *testing.T) {
+	for dep, want := range map[string]bool{"Server": false, "DataCenter": false, "Cloud": true} {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			_, _ = io.WriteString(w, `{"deploymentType":"`+dep+`"}`)
+		}))
+		c := New(Config{BaseURL: srv.URL, Email: "me@x.test", APIToken: "tok"})
+		if !c.MovesWorklogs() {
+			t.Errorf("%s: not offered before serverInfo is known", dep)
+		}
+		c.Laneway(context.Background())
+		if got := c.MovesWorklogs(); got != want {
+			t.Errorf("%s: moves %v, want %v", dep, got, want)
+		}
+		srv.Close()
+	}
+}
