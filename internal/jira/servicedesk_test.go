@@ -152,10 +152,24 @@ func TestServiceDeskRequest(t *testing.T) {
 		t.Fatalf("queues %+v %v", qs, err)
 	}
 	if q := qs[0]; q.Name != "All open" || q.Count != 7 || q.Project != "HELP" || q.Label() != "HELP · All open" ||
-		q.JQL != `project = "HELP" AND (project = HELP AND resolution = Unresolved) ORDER BY created DESC` {
+		q.JQL != `project = HELP AND resolution = Unresolved ORDER BY created DESC` { // Jira's names its project: as is
 		t.Errorf("queue %+v", q)
 	}
 	if q := qs[1]; q.JQL != `project = "HELP" AND (assignee = currentUser())` || q.Count != 2 {
 		t.Errorf("queue %+v", q)
+	}
+}
+
+func TestQueueJQL(t *testing.T) {
+	for in, want := range map[string]string{
+		`resolution = Unresolved ORDER BY created DESC`:               `project = "SD" AND (resolution = Unresolved) ORDER BY created DESC`,
+		`project = SD AND (resolution = Unresolved) ORDER BY created`: `project = SD AND (resolution = Unresolved) ORDER BY created`,
+		`project = "SD" AND resolution = Unresolved`:                  `project = "SD" AND resolution = Unresolved`,
+		`project = SDX AND a = 1`:                                     `project = "SD" AND (project = SDX AND a = 1)`,
+		``:                                                            `project = "SD"`,
+	} {
+		if got := queueJQL("SD", in); got != want {
+			t.Errorf("%q: %q, want %q", in, got, want)
+		}
 	}
 }

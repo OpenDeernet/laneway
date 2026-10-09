@@ -295,9 +295,12 @@ func (c *Client) DeskQueues(ctx context.Context) ([]Queue, error) {
 // Label is how a saved list names q: its desk's project, then its name.
 func (q Queue) Label() string { return q.Project + " · " + q.Name }
 
-// queueJQL is a queue's JQL kept to its desk's project, ORDER BY last:
-// Jira's name the project already, laneway-server's leave it to the desk.
+// queueJQL is a queue's JQL kept to its desk's project, ORDER BY last.
+// Jira's (and laneway-server's) start with that project already: as is.
 func queueJQL(project, jql string) string {
+	if namesProject(project, jql) {
+		return strings.TrimSpace(jql)
+	}
 	where, order := strings.TrimSpace(jql), ""
 	if i := strings.LastIndex(strings.ToUpper(where), "ORDER BY"); i >= 0 {
 		where, order = strings.TrimSpace(where[:i]), " "+strings.TrimSpace(where[i:])
@@ -307,4 +310,23 @@ func queueJQL(project, jql string) string {
 		q += " AND (" + where + ")"
 	}
 	return q + order
+}
+
+// namesProject reports whether jql starts with project = project.
+func namesProject(project, jql string) bool {
+	rest, ok := strings.CutPrefix(strings.ToLower(strings.TrimSpace(jql)), "project")
+	if !ok {
+		return false
+	}
+	rest, ok = strings.CutPrefix(strings.TrimSpace(rest), "=")
+	if !ok {
+		return false
+	}
+	rest = strings.TrimPrefix(strings.TrimSpace(rest), `"`)
+	p := strings.ToLower(project)
+	if !strings.HasPrefix(rest, p) {
+		return false
+	}
+	next := strings.TrimPrefix(rest, p)
+	return next == "" || next[0] == '"' || next[0] == ' '
 }
