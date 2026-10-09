@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -45,6 +46,8 @@ const (
 	hostedIdle        = 12 * time.Hour
 	hostedMax         = 7 * 24 * time.Hour
 	hostedLoginTTL    = 10 * time.Minute
+	hostedLoginCookie = "laneway_login"
+	hostedLoginsMax   = 1000
 	hostedAppIdle     = 30 * time.Minute
 	hostedSessionFile = "sessions.json"
 )
@@ -106,6 +109,7 @@ type hostedSession struct {
 
 type hostedLogin struct {
 	login *jira.Login
+	nonce string // the browser's laneway_login cookie
 	next  string
 	at    time.Time
 }
@@ -125,7 +129,7 @@ func newHosted(server, public, data string, client jira.OAuthClient) (*hosted, e
 		return nil, errors.New(i18n.T("LANEWAY_WEB_CLIENT_SECRET is not set: the app's secret from laneway-server"))
 	}
 	pu, err := url.Parse(public)
-	if err != nil || pu.Host == "" || (pu.Scheme != "https" && pu.Scheme != "http") {
+	if err != nil || pu.Host == "" || (pu.Scheme != "https" && pu.Scheme != "http") || pu.Path != "" || pu.RawQuery != "" || pu.Fragment != "" {
 		return nil, fmt.Errorf(i18n.T("-url %q is not an address like https://laneway.example.com"), public)
 	}
 	if err := os.MkdirAll(filepath.Join(data, "people"), 0o700); err != nil {
@@ -248,14 +252,27 @@ func (h *hosted) startLogin(w http.ResponseWriter, r *http.Request, next string)
 	if !strings.HasPrefix(next, "/") || strings.HasPrefix(next, "//") || strings.HasPrefix(next, "/auth/") || strings.ContainsAny(next, "\\\r\n\t") {
 		next = "/"
 	}
+	// The callback must come back to this browser, not one an attacker
+	// sent their own callback to (login CSRF). Two tabs share the cookie.
+	nonce := randomString()
+	if c, err := r.Cookie(hostedLoginCookie); err == nil && len(c.Value) == len(nonce) {
+		nonce = c.Value
+	}
 	h.mu.Lock()
 	for k, p := range h.logins {
 		if time.Since(p.at) > hostedLoginTTL {
 			delete(h.logins, k)
 		}
 	}
-	h.logins[state.Query().Get("state")] = &hostedLogin{login: l, next: next, at: time.Now()}
+	if len(h.logins) >= hostedLoginsMax {
+		h.mu.Unlock()
+		http.Error(w, i18n.T("too many sign-ins under way; try again in a few minutes"), http.StatusServiceUnavailable)
+		return
+	}
+	h.logins[state.Query().Get("state")] = &hostedLogin{login: l, nonce: nonce, next: next, at: time.Now()}
 	h.mu.Unlock()
+	http.SetCookie(w, &http.Cookie{Name: hostedLoginCookie, Value: nonce, Path: "/auth/", MaxAge: int(hostedLoginTTL.Seconds()), HttpOnly: true,
+		Secure: h.secure, SameSite: http.SameSiteLaxMode})
 	http.Redirect(w, r, l.AuthURL, http.StatusFound)
 }
 
@@ -267,10 +284,12 @@ func (h *hosted) callback(w http.ResponseWriter, r *http.Request) {
 	p := h.logins[state]
 	delete(h.logins, state)
 	h.mu.Unlock()
-	if p == nil || time.Since(p.at) > hostedLoginTTL {
+	c, _ := r.Cookie(hostedLoginCookie)
+	if p == nil || time.Since(p.at) > hostedLoginTTL || c == nil || subtle.ConstantTimeCompare([]byte(c.Value), []byte(p.nonce)) != 1 {
 		http.Error(w, i18n.T("the sign-in took too long or didn't start here; open the page again"), http.StatusBadRequest)
 		return
 	}
+	http.SetCookie(w, &http.Cookie{Name: hostedLoginCookie, Value: "", Path: "/auth/", MaxAge: -1, HttpOnly: true, Secure: h.secure, SameSite: http.SameSiteLaxMode})
 	creds, err := p.login.Finish(r.Context(), r.URL.Query())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
@@ -295,6 +314,10 @@ func (h *hosted) callback(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	// A sign-in again: the running app stopped first, so it can't keep its
+	// tokens over the new ones, and the old grant revoked.
+	h.stopApp(me.AccountID)
+	h.signIn(me.AccountID).SignOut(r.Context())
 	// The latest, rotated sign-in from the check above, in its place.
 	if raw, err := os.ReadFile(tmp); err == nil {
 		if err := os.WriteFile(filepath.Join(dir, "sign-in.json"), raw, 0o600); err != nil {
@@ -310,10 +333,6 @@ func (h *hosted) callback(w http.ResponseWriter, r *http.Request) {
 	h.mu.Lock()
 	h.sessions[hashSecret(secret)] = &hostedSession{Account: me.AccountID, Created: now, LastSeen: now}
 	h.saveSessions()
-	if a := h.apps[me.AccountID]; a != nil { // a new sign-in: start afresh
-		a.stop()
-		delete(h.apps, me.AccountID)
-	}
 	h.mu.Unlock()
 	http.SetCookie(w, &http.Cookie{Name: hostedCookie, Value: secret, Path: "/", HttpOnly: true, Secure: h.secure, SameSite: http.SameSiteLaxMode,
 		Expires: now.Add(hostedMax)})
@@ -334,17 +353,43 @@ func (h *hosted) logout(w http.ResponseWriter, r *http.Request) {
 		h.mu.Unlock()
 	}
 	if account != "" {
-		h.mu.Lock()
-		a := h.apps[account]
-		delete(h.apps, account)
-		h.mu.Unlock()
-		if a != nil {
-			a.srv.Client().SignOut(r.Context())
-			a.stop()
-		}
+		// Their app may be gone (idle, a restart): the sign-in is read from
+		// their directory.
+		h.endAccount(account)
+		h.signIn(account).SignOut(r.Context())
 	}
 	http.SetCookie(w, &http.Cookie{Name: hostedCookie, Value: "", Path: "/", MaxAge: -1, HttpOnly: true, Secure: h.secure, SameSite: http.SameSiteLaxMode})
 	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+// signIn is a client on the person's sign-in alone, app or not.
+func (h *hosted) signIn(account string) *jira.Client {
+	jc := config.JiraConfig{BaseURL: h.server, SignIn: config.SignInLaneway, CredentialsFile: filepath.Join(h.accountDir(account), "sign-in.json")}
+	return jira.New(jira.Config{BaseURL: h.server, SignIn: jc.Credentials(), OAuthClient: h.client})
+}
+
+// stopApp stops the person's app, if it runs.
+func (h *hosted) stopApp(account string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if a := h.apps[account]; a != nil {
+		a.stop()
+		delete(h.apps, account)
+	}
+}
+
+// endAccount ends all the person's sessions and stops their app: their
+// sign-in ended, so every browser of theirs signs in again.
+func (h *hosted) endAccount(account string) {
+	h.stopApp(account)
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	for k, s := range h.sessions {
+		if s.Account == account {
+			delete(h.sessions, k)
+		}
+	}
+	h.saveSessions()
 }
 
 // app is the person's app, made on first use.
@@ -384,14 +429,8 @@ func (h *hosted) options(account string) (web.Options, error) {
 	opt.Client = jira.New(jcfg)
 	opt.Client.SetQueue(offline.To(opt.Store))
 	opt.Client.SetLayouts(opt.Store)
-	opt.Restart = func() {
-		h.mu.Lock()
-		if a := h.apps[account]; a != nil {
-			a.stop()
-			delete(h.apps, account)
-		}
-		h.mu.Unlock()
-	}
+	opt.Restart = func() { h.stopApp(account) }
+	opt.SignedOut = func() { h.endAccount(account) }
 	return opt, nil
 }
 

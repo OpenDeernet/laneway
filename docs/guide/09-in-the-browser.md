@@ -158,7 +158,8 @@ needs laneway-server's sign-in.
    `read:jira-work write:jira-work read:jira-user manage:jira-project
    read:servicedesk-request write:servicedesk-request read:me`. Keep its
    secret.
-2. Start it, behind a TLS proxy or with `-cert` and `-key`:
+2. Start it, behind a TLS proxy or with `-cert` and `-key`, at the root
+   of its own host (`-url` takes no path):
 
    ```sh
    LANEWAY_WEB_CLIENT_SECRET=… laneway web -hosted \
@@ -171,7 +172,9 @@ two-step, passkey, SSO, GitLab) and back. The browser gets only an
 HttpOnly session cookie (12 hours idle, 7 days at most); their tokens,
 bound to a key the server made for them (DPoP), stay in `-data`, a
 directory per person with their settings and state. *Sign out of laneway*
-in the palette ends the session and the sign-in on laneway-server.
+in the palette ends the session and the sign-in on laneway-server; a
+sign-in ended there (under signed-in apps, or the account disabled) ends
+their sessions here too.
 
 What would act as the server's own user is off: actions, asking an LLM,
 coding agents and their terminal, starting work and pull requests in

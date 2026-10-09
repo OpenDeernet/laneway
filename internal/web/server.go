@@ -76,6 +76,9 @@ type Options struct {
 	// Hosted is laneway web for many people (hosted.go): only the routes
 	// that act through the person's own Jira client serve.
 	Hosted bool
+	// SignedOut, when set, is told the site's sign-in ended (hosted: the
+	// gateway drops the person's sessions); the browser is sent to sign in.
+	SignedOut func()
 	// GitLab are the GitLab instances (nil: none, as in the demo), and
 	// GitLabRepos their projects' checkouts by path (gitlab: repos:).
 	GitLab      *gitlab.Sites
@@ -133,6 +136,13 @@ func api(pattern string, h Handler) {
 		ctx, cancel := context.WithTimeout(r.Context(), 90*time.Second)
 		defer cancel()
 		v, err := h(ctx, s, r)
+		if errors.Is(err, jira.ErrSignedOut) && s.opt.SignedOut != nil {
+			s.opt.SignedOut()
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnauthorized)
+			json.NewEncoder(w).Encode(map[string]string{"error": i18n.T("signed out; reload the page to sign in"), "signedOut": "/auth/login"})
+			return
+		}
 		if err != nil {
 			writeErr(w, err)
 			return

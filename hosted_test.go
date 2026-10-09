@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/cornedor/laneway/internal/config"
 	"github.com/cornedor/laneway/internal/jira"
@@ -28,11 +29,12 @@ type fakeLanewayServer struct {
 	codes   map[string]string // code -> account
 	access  map[string]string // token -> account
 	revoked []string
+	ended   map[string]bool // accounts whose grants laneway ended
 	n       int
 }
 
 func newFakeLanewayServer(t *testing.T) *fakeLanewayServer {
-	f := &fakeLanewayServer{who: "acc1", codes: map[string]string{}, access: map[string]string{}}
+	f := &fakeLanewayServer{who: "acc1", codes: map[string]string{}, access: map[string]string{}, ended: map[string]bool{}}
 	f.Server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		f.mu.Lock()
 		defer f.mu.Unlock()
@@ -63,6 +65,9 @@ func newFakeLanewayServer(t *testing.T) *fakeLanewayServer {
 				delete(f.codes, r.PostForm.Get("code"))
 			case "refresh_token":
 				who, _, _ = strings.Cut(strings.TrimPrefix(r.PostForm.Get("refresh_token"), "r-"), "-")
+				if f.ended[who] {
+					who = ""
+				}
 			}
 			if who == "" {
 				w.WriteHeader(400)
@@ -79,7 +84,7 @@ func newFakeLanewayServer(t *testing.T) *fakeLanewayServer {
 		default:
 			tok, ok := strings.CutPrefix(r.Header.Get("Authorization"), "DPoP ")
 			who := f.access[tok]
-			if !ok || who == "" || r.Header.Get("DPoP") == "" {
+			if !ok || who == "" || f.ended[who] || r.Header.Get("DPoP") == "" {
 				w.WriteHeader(401)
 				return
 			}
@@ -233,6 +238,9 @@ func TestHostedGateway(t *testing.T) {
 	}
 
 	// Signing out revokes on laneway and ends the session.
+	lw.mu.Lock()
+	revoked := len(lw.revoked)
+	lw.mu.Unlock()
 	req, _ = http.NewRequest("POST", gw.URL+"/auth/logout", nil)
 	req.Header.Set("Origin", gw.URL)
 	noFollow := *ada
@@ -240,7 +248,7 @@ func TestHostedGateway(t *testing.T) {
 	if res, _ := noFollow.Do(req); res.StatusCode != http.StatusSeeOther {
 		t.Errorf("logout: %d", res.StatusCode)
 	}
-	if len(lw.revoked) != 1 || !strings.HasPrefix(lw.revoked[0], "r-acc1-") {
+	if len(lw.revoked) != revoked+1 || !strings.HasPrefix(lw.revoked[revoked], "r-acc1-") {
 		t.Errorf("revoked %v", lw.revoked)
 	}
 	if res, _ := (&http.Client{Jar: ada.Jar, CheckRedirect: noFollow.CheckRedirect}).Get(gw.URL + "/api/session"); res.StatusCode != 401 {
@@ -258,5 +266,158 @@ func TestHostedUI(t *testing.T) {
 	u := hostedUI(config.UIConfig{LLM: "rm -rf ~", Calendar: "/etc/passwd", StaleDays: 4})
 	if u.LLM != "" || u.Calendar != "" || u.StaleDays != 4 {
 		t.Errorf("hosted ui %+v", u)
+	}
+}
+
+// newTestGateway is a gateway in front of a fake laneway-server.
+func newTestGateway(t *testing.T) (*fakeLanewayServer, *hosted, string) {
+	t.Helper()
+	lw := newFakeLanewayServer(t)
+	gw := httptest.NewUnstartedServer(nil)
+	h, err := newHosted(lw.URL, "http://"+gw.Listener.Addr().String(), t.TempDir(), jira.OAuthClient{ID: "webapp", Secret: "s3cret"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	h.ctx = t.Context()
+	gw.Config.Handler = h
+	gw.Start()
+	t.Cleanup(gw.Close)
+	return lw, h, gw.URL
+}
+
+// signedIn is a browser signed in to the gateway at gw.
+func signedIn(t *testing.T, gw string) *http.Client {
+	t.Helper()
+	b := browserFor()
+	res, err := b.Get(gw + "/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+	if res.StatusCode != 200 {
+		t.Fatalf("sign-in: %d", res.StatusCode)
+	}
+	return b
+}
+
+func logout(t *testing.T, b *http.Client, gw string) {
+	t.Helper()
+	req, _ := http.NewRequest("POST", gw+"/auth/logout", nil)
+	req.Header.Set("Origin", gw)
+	nf := *b
+	nf.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	if res, err := nf.Do(req); err != nil || res.StatusCode != http.StatusSeeOther {
+		t.Fatalf("logout: %v %v", res, err)
+	}
+}
+
+// A callback an attacker stopped at, sent to someone else, doesn't sign
+// them in to the attacker's account.
+func TestHostedLoginCSRF(t *testing.T) {
+	_, _, gw := newTestGateway(t)
+	attacker := browserFor()
+	attacker.CheckRedirect = func(r *http.Request, _ []*http.Request) error {
+		if r.URL.Path == "/auth/callback" {
+			return http.ErrUseLastResponse
+		}
+		return nil
+	}
+	res, err := attacker.Get(gw + "/auth/login")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cb := res.Header.Get("Location")
+	if !strings.Contains(cb, "/auth/callback?") {
+		t.Fatalf("no callback: %q", cb)
+	}
+	victim := browserFor()
+	if res, _ := victim.Get(cb); res.StatusCode != http.StatusBadRequest {
+		t.Errorf("someone else's callback: %d", res.StatusCode)
+	}
+	if res, _ := victim.Get(gw + "/api/session"); res.StatusCode != 401 {
+		t.Errorf("the victim got a session: %d", res.StatusCode)
+	}
+}
+
+// Anonymous requests can't grow the sign-ins under way without end.
+func TestHostedLoginsCapped(t *testing.T) {
+	_, h, gw := newTestGateway(t)
+	h.mu.Lock()
+	for i := range hostedLoginsMax {
+		h.logins[fmt.Sprint(i)] = &hostedLogin{at: time.Now()}
+	}
+	h.mu.Unlock()
+	nf := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	if res, _ := nf.Get(gw + "/board/ABC/1"); res.StatusCode != http.StatusServiceUnavailable {
+		t.Errorf("sign-in with the map full: %d", res.StatusCode)
+	}
+	if len(h.logins) != hostedLoginsMax {
+		t.Errorf("%d sign-ins under way", len(h.logins))
+	}
+}
+
+// Signing out after the app stopped (idle, a restart) still revokes and
+// clears the sign-in.
+func TestHostedLogoutWithoutApp(t *testing.T) {
+	lw, h, gw := newTestGateway(t)
+	ada := signedIn(t, gw)
+	h.stopApp("acc1")
+	logout(t, ada, gw)
+	if len(lw.revoked) != 1 || !strings.HasPrefix(lw.revoked[0], "r-acc1-") {
+		t.Errorf("revoked %v", lw.revoked)
+	}
+	if raw, _ := os.ReadFile(filepath.Join(h.data, "people", "acc1", "sign-in.json")); len(raw) != 0 {
+		t.Errorf("sign-in kept after logout: %s", raw)
+	}
+}
+
+// Signing in again revokes the grant before.
+func TestHostedSignInAgain(t *testing.T) {
+	lw, h, gw := newTestGateway(t)
+	signedIn(t, gw)
+	var first jira.Credentials
+	raw, _ := os.ReadFile(filepath.Join(h.data, "people", "acc1", "sign-in.json"))
+	json.Unmarshal(raw, &first)
+	signedIn(t, gw)
+	if len(lw.revoked) != 1 || lw.revoked[0] != first.Refresh {
+		t.Errorf("revoked %v, want %s", lw.revoked, first.Refresh)
+	}
+	var now jira.Credentials
+	raw, _ = os.ReadFile(filepath.Join(h.data, "people", "acc1", "sign-in.json"))
+	json.Unmarshal(raw, &now)
+	if now.Refresh == "" || now.Refresh == first.Refresh {
+		t.Errorf("sign-in after signing in again: %s", raw)
+	}
+}
+
+// A grant laneway-server ended (revoked, account disabled) ends the
+// person's sessions; the browser is sent to sign in.
+func TestHostedGrantEnded(t *testing.T) {
+	lw, h, gw := newTestGateway(t)
+	ada := signedIn(t, gw)
+	lw.mu.Lock()
+	lw.ended["acc1"] = true
+	lw.mu.Unlock()
+	res, err := ada.Get(gw + "/api/session")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var b map[string]string
+	json.NewDecoder(res.Body).Decode(&b)
+	res.Body.Close()
+	if res.StatusCode != 401 || b["signedOut"] != "/auth/login" {
+		t.Errorf("an ended grant: %d %v", res.StatusCode, b)
+	}
+	h.mu.Lock()
+	n := len(h.sessions)
+	h.mu.Unlock()
+	if n != 0 {
+		t.Errorf("%d sessions kept", n)
+	}
+}
+
+func TestHostedURLWithPath(t *testing.T) {
+	if _, err := newHosted("https://lw.example", "https://x.example/laneway", t.TempDir(), jira.OAuthClient{ID: "a", Secret: "b"}); err == nil {
+		t.Error("a -url with a path was taken")
 	}
 }

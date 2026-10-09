@@ -224,9 +224,14 @@ func (c *Client) SignOut(ctx context.Context) error {
 	o := c.oauth
 	o.mu.Lock()
 	defer o.mu.Unlock()
-	if o.key == nil {
-		o.load()
+	if l, ok := o.store.(Locker); ok {
+		// Not while another process renews it: the stored refresh token is
+		// the one to revoke.
+		if unlock, err := l.Lock(); err == nil {
+			defer unlock()
+		}
 	}
+	o.load()
 	if o.refresh != "" {
 		a, err := oauthPost(ctx, o.http, o.base+"/oauth/revoke", nil, o.client.form(url.Values{"token": {o.refresh}}))
 		if err != nil {
