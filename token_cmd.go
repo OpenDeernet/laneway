@@ -136,7 +136,7 @@ func appsList(ctx context.Context, c *jira.Client, out io.Writer) error {
 	tw := tabwriter.NewWriter(out, 0, 4, 2, ' ', 0)
 	for _, g := range gs {
 		name := g.App
-		if g.AppID == jira.SelfApp {
+		if g.Current {
 			name += " " + i18n.T("(this app)")
 		}
 		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n", g.ID, name, scopeList(g.Scopes), i18n.Tf("expires %s", dateOf(g.Expires)), usedOn(g.LastUsed))

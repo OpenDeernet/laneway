@@ -31,6 +31,7 @@ type demoGrant struct {
 	scopes                   []string
 	method                   string
 	created, lastUsed, until time.Time
+	current                  bool // the one the app signs in with
 }
 
 // Laneway makes s laneway-server.
@@ -44,7 +45,8 @@ func (s *Server) Laneway() {
 			{id: "2", label: "old laptop", created: day(-80), until: day(10)},
 		},
 		grants: []demoGrant{
-			{id: "1", app: "laneway", name: "laneway", scopes: []string{"read:jira-work", "write:jira-work", "offline_access"}, method: "passkey", created: day(-2), lastUsed: day(0), until: day(28)},
+			{id: "1", app: "laneway", name: "laneway", scopes: []string{"read:jira-work", "write:jira-work", "offline_access"}, method: "passkey", created: day(-2), lastUsed: day(0), until: day(28), current: true},
+			{id: "3", app: "laneway", name: "laneway", scopes: []string{"read:jira-work", "write:jira-work", "offline_access"}, method: "device", created: day(-9), lastUsed: day(-3), until: day(21)},
 			{id: "2", app: "calendar", name: "Calendar sync", scopes: []string{"read:jira-work"}, method: "password", created: day(-20), lastUsed: day(-1), until: day(10)},
 		},
 	}
@@ -110,7 +112,7 @@ func (s *Server) serveLaneway(w http.ResponseWriter, r *http.Request, body map[s
 		out := []any{}
 		for _, g := range lw.grants {
 			out = append(out, map[string]any{"id": atoi(g.id), "app": map[string]any{"id": g.app, "name": g.name}, "scopes": g.scopes, "method": g.method,
-				"created": stamp(g.created), "lastUsed": stamp(g.lastUsed), "expires": stamp(g.until)})
+				"created": stamp(g.created), "lastUsed": stamp(g.lastUsed), "expires": stamp(g.until), "current": g.current})
 		}
 		send(out)
 	case r.Method == http.MethodDelete && gid != p:

@@ -173,15 +173,17 @@ test.describe('on laneway-server', () => {
     await expect(ci).toHaveCount(0);
     await row.getByRole('button', { name: 'Revoke all' }).click();
     await page.getByRole('dialog', { name: 'Revoke all tokens' }).getByRole('button', { name: 'Revoke all' }).click();
-    await expect(row.locator('.st-tok-row')).toHaveCount(2); // the apps' only
+    await expect(row.locator('.st-tok-row')).toHaveCount(3); // the apps' only
     await expect(row.locator('.st-tok-secret')).toHaveCount(0);
   });
 
-  // The signed-in apps, this one marked; another revoked.
+  // The signed-in apps, this one marked (not laneway on another device); another revoked.
   test('signed-in apps are revoked', async ({ page, app }) => {
     await page.goto(new URL('#/settings', app.url).href);
     const row = page.getByRole('group', { name: 'API tokens and apps' });
-    await expect(row.getByRole('group', { name: 'laneway', exact: true })).toContainText('this app');
+    const lw = row.getByRole('group', { name: 'laneway', exact: true });
+    await expect(lw).toHaveCount(2);
+    await expect(lw.filter({ hasText: 'this app' })).toHaveCount(1);
     const cal = row.getByRole('group', { name: 'Calendar sync' });
     await expect(cal).not.toContainText('this app');
     await cal.getByRole('button', { name: 'Revoke' }).click();

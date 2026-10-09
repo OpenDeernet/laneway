@@ -59,7 +59,7 @@ laneway token list                       # id, label, scopes, expiry, last use
 laneway token create [-days N] LABEL     # prints the secret, once; -days: the site's default
 laneway token revoke ID
 laneway token revoke-all                 # laneway too, when it signs in with one
-laneway apps list                        # the laneway app's own marked (this app)
+laneway apps list                        # this sign-in marked (this app), not laneway on other devices
 laneway apps revoke ID                   # signs the app out
 ```
 

@@ -52,13 +52,14 @@ func TestDemoLaneway(t *testing.T) {
 		t.Errorf("after revoke all: %+v", toks)
 	}
 	gs, err := c.AppGrants(ctx)
-	if err != nil || len(gs) != 2 || gs[0].AppID != jira.SelfApp {
+	// Each device's sign-in is a grant of its own; only this one is current.
+	if err != nil || len(gs) != 3 || !gs[0].Current || gs[1].Current || gs[1].AppID != gs[0].AppID {
 		t.Fatalf("grants = %+v, %v", gs, err)
 	}
-	if err := c.RevokeAppGrant(ctx, gs[1].ID); err != nil {
+	if err := c.RevokeAppGrant(ctx, gs[2].ID); err != nil {
 		t.Error(err)
 	}
-	if gs, _ := c.AppGrants(ctx); len(gs) != 1 {
+	if gs, _ := c.AppGrants(ctx); len(gs) != 2 {
 		t.Errorf("after revoke: %+v", gs)
 	}
 	// No change feed in the demo: the app polls, and that is no miss.

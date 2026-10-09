@@ -29,8 +29,7 @@ export function tokenOptions(app, refresh) {
     load();
   }
   async function signOut(g) {
-    const self = g.AppID === info.Self;
-    if (!await app.ui.confirm({ title: T('Revoke %s', g.App), text: self ? T('This app signs out; it asks to be let in again.') : T('It has to be let in again.'), ok: T('Revoke'), danger: true })) return;
+    if (!await app.ui.confirm({ title: T('Revoke %s', g.App), text: g.Current ? T('This app signs out; it asks to be let in again.') : T('It has to be let in again.'), ok: T('Revoke'), danger: true })) return;
     try { await app.api.del('/site/apps/' + encodeURIComponent(g.ID)); } catch (e) { return app.ui.errToast(e); }
     app.ui.toast(T('Revoked %s', g.App), { kind: 'ok' });
     load();
@@ -82,7 +81,7 @@ export function tokenOptions(app, refresh) {
       h('div.row', h('button.btn', { onclick: make }, T('Make a token')), toks.length > 0 && h('button.btn.ghost', { onclick: revokeAll }, T('Revoke all'))),
       h('div.st-tok-h', T('Signed-in apps')),
       apps.length ? apps.map(g => h('div.st-tok-row', { role: 'group', 'aria-label': g.App },
-        h('span.st-tok-name', g.App), g.AppID === info.Self && h('span.chip.st-tok-self', T('this app')), scopes(g.Scopes), ...when(g), h('span.spacer'),
+        h('span.st-tok-name', g.App), g.Current && h('span.chip.st-tok-self', T('this app')), scopes(g.Scopes), ...when(g), h('span.spacer'),
         h('button.btn.ghost', { onclick: () => signOut(g) }, T('Revoke')))) : h('div.faint', T('none')));
   }
   return [{ name: T('API tokens and apps'), section: 'Jira site', wide: true,

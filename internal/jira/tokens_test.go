@@ -38,7 +38,7 @@ func lanewayFake(t *testing.T, laneway bool, create int) (*Client, *[]string, *m
 			}
 			fmt.Fprint(w, `{"id":"t3","label":"new","scopes":[],"created":"2026-10-09T10:00:00.000+0000","expires":"2027-01-07T10:00:00.000+0000","token":"lws_secret"}`)
 		case "GET /rest/laneway/1/myself/oauth/grants":
-			fmt.Fprint(w, `[{"id":7,"app":{"id":"laneway","name":"laneway"},"scopes":["read:jira-work","offline_access"],"created":"2026-10-01T08:00:00.000+0000","lastUsed":"2026-10-09T08:00:00.000+0000","method":"passkey","expires":"2026-11-08T08:00:00.000+0000"}]`)
+			fmt.Fprint(w, `[{"id":7,"app":{"id":"laneway","name":"laneway"},"scopes":["read:jira-work","offline_access"],"created":"2026-10-01T08:00:00.000+0000","lastUsed":"2026-10-09T08:00:00.000+0000","method":"passkey","expires":"2026-11-08T08:00:00.000+0000","current":true},{"id":8,"app":{"id":"laneway","name":"laneway"},"scopes":["read:jira-work"],"method":"device"}]`)
 		case "DELETE /rest/laneway/1/myself/tokens/t1", "DELETE /rest/laneway/1/myself/tokens", "DELETE /rest/laneway/1/myself/oauth/grants/7":
 			w.WriteHeader(http.StatusNoContent)
 		default:
@@ -85,7 +85,7 @@ func TestAppGrants(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(gs) != 1 || gs[0].ID != "7" || gs[0].AppID != SelfApp || gs[0].Method != "passkey" || len(gs[0].Scopes) != 2 || gs[0].Expires.IsZero() {
+	if len(gs) != 2 || gs[0].ID != "7" || gs[0].AppID != "laneway" || !gs[0].Current || gs[1].Current || gs[0].Method != "passkey" || len(gs[0].Scopes) != 2 || gs[0].Expires.IsZero() {
 		t.Errorf("grants = %+v", gs)
 	}
 	if err := c.RevokeAppGrant(context.Background(), "7"); err != nil {

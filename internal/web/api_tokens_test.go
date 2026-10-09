@@ -24,7 +24,6 @@ func tokensServer(t *testing.T, base string) *httptest.Server {
 type tokensInfo struct {
 	Laneway        bool
 	TokenURL, Page string
-	Self           string
 	Tokens         []jira.APIToken
 	Apps           []jira.AppGrant
 }
@@ -41,8 +40,8 @@ func TestSiteTokens(t *testing.T) {
 	t.Cleanup(stop)
 	ts := tokensServer(t, base)
 	var info tokensInfo
-	if code := issueCall(t, "GET", ts.URL+"/api/site/tokens", nil, &info); code != 200 || !info.Laneway || len(info.Tokens) != 2 || len(info.Apps) != 2 ||
-		info.Self != "laneway" || info.Page != base+"/admin#passkeys" || info.TokenURL != "" {
+	if code := issueCall(t, "GET", ts.URL+"/api/site/tokens", nil, &info); code != 200 || !info.Laneway || len(info.Tokens) != 2 || len(info.Apps) != 3 ||
+		!info.Apps[0].Current || info.Apps[1].Current || info.Page != base+"/admin#passkeys" || info.TokenURL != "" {
 		t.Fatalf("%d %+v", code, info)
 	}
 	var made struct {
@@ -67,7 +66,7 @@ func TestSiteTokens(t *testing.T) {
 	if code := issueCall(t, "DELETE", ts.URL+"/api/site/apps/"+info.Apps[1].ID, nil, nil); code != 200 {
 		t.Errorf("sign out: %d", code)
 	}
-	if issueCall(t, "GET", ts.URL+"/api/site/tokens", nil, &info); len(info.Tokens) != 0 || len(info.Apps) != 1 {
+	if issueCall(t, "GET", ts.URL+"/api/site/tokens", nil, &info); len(info.Tokens) != 0 || len(info.Apps) != 2 {
 		t.Errorf("after: %+v", info)
 	}
 	if len(d.Unhandled) > 0 {

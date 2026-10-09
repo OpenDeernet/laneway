@@ -34,17 +34,15 @@ type APIToken struct {
 // AppGrant is an app the account signed in to the site with, until revoked.
 type AppGrant struct {
 	ID      string
-	AppID   string // "laneway" is this client
+	AppID   string
 	App     string // its name
+	Current bool   // the grant this client signs in with
 	Scopes  []string
 	Method  string // how the sign-in went
 	Created time.Time
 	// LastUsed is when the app last asked; Expires when the grant ends.
 	LastUsed, Expires time.Time
 }
-
-// SelfApp is the app id laneway-server gives this client.
-const SelfApp = "laneway"
 
 // TokenPage is the server's own page for tokens and passkeys.
 func (c *Client) TokenPage() string { return c.baseURL + "/admin#passkeys" }
@@ -161,13 +159,14 @@ func (c *Client) AppGrants(ctx context.Context) ([]AppGrant, error) {
 		Created  string   `json:"created"`
 		LastUsed string   `json:"lastUsed"`
 		Expires  string   `json:"expires"`
+		Current  bool     `json:"current"`
 	}
 	if err := c.do(ctx, http.MethodGet, "/rest/laneway/1/myself/oauth/grants", "signed-in apps", nil, &resp); err != nil {
 		return nil, err
 	}
 	out := make([]AppGrant, len(resp))
 	for i, g := range resp {
-		out[i] = AppGrant{ID: looseID(g.ID), AppID: g.App.ID, App: g.App.Name, Scopes: g.Scopes, Method: g.Method,
+		out[i] = AppGrant{ID: looseID(g.ID), AppID: g.App.ID, App: g.App.Name, Scopes: g.Scopes, Method: g.Method, Current: g.Current,
 			Created: parseStamp(g.Created), LastUsed: parseStamp(g.LastUsed), Expires: parseStamp(g.Expires)}
 	}
 	return out, nil

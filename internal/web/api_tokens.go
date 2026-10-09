@@ -33,7 +33,7 @@ func init() {
 		if err != nil {
 			return nil, err
 		}
-		return map[string]any{"Laneway": true, "Page": c.TokenPage(), "Tokens": toks, "Apps": apps, "Self": jira.SelfApp}, nil
+		return map[string]any{"Laneway": true, "Page": c.TokenPage(), "Tokens": toks, "Apps": apps}, nil
 	})
 	// A token made: its secret, shown once; Page instead when this sign-in
 	// (an app's) can't make one.

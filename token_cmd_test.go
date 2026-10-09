@@ -60,7 +60,7 @@ func TestTokenCmd(t *testing.T) {
 	if got, _ := run("token", "list"); got != "" {
 		t.Errorf("after revoke-all: %q", got)
 	}
-	if got, _ := run("apps", "list"); !strings.Contains(got, "laneway (this app)") || !strings.Contains(got, "Calendar sync") {
+	if got, _ := run("apps", "list"); strings.Count(got, "laneway (this app)") != 1 || strings.Count(got, "laneway") != 2 || !strings.Contains(got, "Calendar sync") {
 		t.Errorf("apps: %q", got)
 	}
 	run("apps", "revoke", "2")

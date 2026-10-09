@@ -156,8 +156,8 @@ needs laneway-server's sign-in.
 1. In laneway-server, under OAuth apps, register an app with the redirect
    URI `https://<this server>/auth/callback` and the scopes
    `read:jira-work write:jira-work read:jira-user manage:jira-project
-   read:servicedesk-request write:servicedesk-request read:me`. Keep its
-   secret.
+   read:servicedesk-request write:servicedesk-request read:me manage:me`.
+   Keep its secret.
 2. Start it, behind a TLS proxy or with `-cert` and `-key`, at the root
    of its own host (`-url` takes no path):
 
