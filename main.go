@@ -125,8 +125,7 @@ func subcommand(args []string, cfgPath, site string, out, errOut io.Writer) int 
 		}
 		return cliCmd(args[0], append(global, args[1:]...), out, errOut)
 	}
-	fmt.Fprintf(errOut, i18n.T("laneway: unknown command %q (list, view, create, move, web, rules, setup, login, logout, prompt, hook, index, token, apps, completion)")+"
-", args[0])
+	fmt.Fprintf(errOut, i18n.T("laneway: unknown command %q (list, view, create, move, web, rules, setup, login, logout, prompt, hook, index, token, apps, completion)")+"\n", args[0])
 	return 2
 }
 
