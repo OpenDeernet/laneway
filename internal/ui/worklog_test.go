@@ -219,6 +219,95 @@ func TestTimesheetDays(t *testing.T) {
 	}
 }
 
+// TestTimesheetMarks: x marks entries (a proposal isn't one), d twice
+// deletes the marked ones, a request per issue.
+func TestTimesheetMarks(t *testing.T) {
+	var bodies []map[string]any
+	m := jiraTabModel(t)
+	worklogJira(t, &m, &bodies)
+	out, _ := m.handleJiraKey(keyMsg(t, "W"))
+	m = out.(Model)
+	m.setJiraPickerItems([]jiraPickerItem{{id: "ABC-2/101", label: "09:00  1h  ABC-2"}, {id: "ABC-3/102", label: "10:00  1h  ABC-3"},
+		{id: "ABC-2/103", label: "11:00  1h  ABC-2"}, {id: proposalID + "ABC-4/1700000000", label: "≈ 12:00  1h  ABC-4"}})
+	for _, k := range []string{"x", "x", "x", "x"} {
+		out, _ = m.handleJiraPickerKey(keyMsg(t, k))
+		m = out.(Model)
+	}
+	if got := m.jiraPicker.timesheetTargets(); !slices.Equal(got, []string{"ABC-2/101", "ABC-3/102", "ABC-2/103"}) {
+		t.Fatalf("marked %v, status %q", got, m.status)
+	}
+	if view := ansi.Strip(m.View().Content); !strings.Contains(view, "✓ 09:00") || strings.Contains(view, "✓ ≈") {
+		t.Errorf("marks not drawn:\n%s", view)
+	}
+	out, cmd := m.handleJiraPickerKey(keyMsg(t, "d"))
+	if m = out.(Model); cmd != nil || !strings.Contains(m.status, "deletes 3 worklogs") {
+		t.Fatalf("first d: status %q", m.status)
+	}
+	_, cmd = m.handleJiraPickerKey(keyMsg(t, "d"))
+	if cmd == nil {
+		t.Fatal("second d should delete")
+	}
+	cmd()
+	if len(bodies) < 2 || bodies[0]["path"] != "/rest/api/3/issue/ABC-2/worklog" || fmt.Sprint(bodies[0]["ids"]) != "[101 103]" ||
+		bodies[1]["path"] != "/rest/api/3/issue/ABC-3/worklog/102" || len(bodies) > 2 && bodies[2]["path"] != "/rest/api/3/search/jql" {
+		t.Errorf("requests = %v", bodies)
+	}
+}
+
+// TestTimesheetMove: X marks every entry, m asks the issue and moves them,
+// a request per issue they're on; one there already stays.
+func TestTimesheetMove(t *testing.T) {
+	var bodies []map[string]any
+	m := jiraTabModel(t)
+	worklogJira(t, &m, &bodies)
+	out, _ := m.handleJiraKey(keyMsg(t, "W"))
+	m = out.(Model)
+	m.setJiraPickerItems([]jiraPickerItem{{id: "ABC-2/101", label: "09:00  1h  ABC-2"}, {id: "ABC-3/102", label: "10:00  1h  ABC-3"},
+		{id: "ABC-9/103", label: "11:00  1h  ABC-9"}})
+	out, _ = m.handleJiraPickerKey(keyMsg(t, "X"))
+	out, _ = out.(Model).handleJiraPickerKey(keyMsg(t, "m"))
+	if m = out.(Model); !m.jiraFieldActive || m.jiraFieldName != "worklog-move" || !strings.Contains(m.View().Content, "Move 3 worklogs to") {
+		t.Fatalf("m: field %q, status %q", m.jiraFieldName, m.status)
+	}
+	m.jiraFieldInput.SetValue("9")
+	out, cmd := m.applyJiraField()
+	if m = out.(Model); cmd == nil || !strings.Contains(m.status, "moving 3 worklogs to ABC-9") {
+		t.Fatalf("enter: status %q", m.status)
+	}
+	cmd()
+	if len(bodies) < 2 || bodies[0]["path"] != "/rest/api/3/issue/ABC-2/worklog/move" || bodies[0]["issueIdOrKey"] != "ABC-9" ||
+		fmt.Sprint(bodies[0]["ids"]) != "[101]" || bodies[1]["path"] != "/rest/api/3/issue/ABC-3/worklog/move" || len(bodies) > 2 && bodies[2]["path"] != "/rest/api/3/search/jql" {
+		t.Errorf("requests = %v", bodies)
+	}
+}
+
+// TestTimesheetMoveUnsupported: a site without the move says so, and m
+// isn't offered again.
+func TestTimesheetMoveUnsupported(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	}))
+	defer srv.Close()
+	m := jiraTabModel(t)
+	m.jiraClient = jira.New(jira.Config{BaseURL: srv.URL, Email: "me@x.test", APIToken: "tok"})
+	out, _ := m.handleJiraKey(keyMsg(t, "W"))
+	m = out.(Model)
+	m.setJiraPickerItems([]jiraPickerItem{{id: "ABC-2/101", label: "09:00  1h  ABC-2"}})
+	out, _ = m.handleJiraPickerKey(keyMsg(t, "m"))
+	m = out.(Model)
+	m.jiraFieldInput.SetValue("ABC-9")
+	out, cmd := m.applyJiraField()
+	out, _ = out.(Model).Update(cmd())
+	if m = out.(Model); !strings.Contains(m.status, "can't move worklogs") || !m.jiraPicker.active {
+		t.Fatalf("status %q, timesheet back %v", m.status, m.jiraPicker.active)
+	}
+	m.setJiraPickerItems([]jiraPickerItem{{id: "ABC-2/101", label: "09:00  1h  ABC-2"}})
+	out, _ = m.handleJiraPickerKey(keyMsg(t, "m"))
+	if m = out.(Model); m.jiraFieldActive || m.status != "this Jira can't move worklogs" {
+		t.Errorf("m again: field %v, status %q", m.jiraFieldActive, m.status)
+	}
+}
+
 // TestTimerOnStart: with ui.timer_on_start, S's success starts the timer.
 func TestTimerOnStart(t *testing.T) {
 	m := jiraTabModel(t)

@@ -369,16 +369,21 @@ func (m *Model) openTimesheet() tea.Cmd {
 	return m.openTimesheetDay(time.Now())
 }
 
-// openTimesheetDay lists day's worklogs of yours. [ ] step a day, d twice
-// deletes the entry under the cursor, y copies the day as a markdown table.
+// openTimesheetDay lists day's worklogs of yours. [ ] step a day, x marks
+// entries, d twice deletes the marked ones (else the one under the cursor),
+// m moves them to another issue, y copies the day as a markdown table.
 func (m *Model) openTimesheetDay(day time.Time) tea.Cmd {
 	gen := m.startJiraPicker(jiraPickTimesheet, standup.Day(day, time.Now()), false)
 	m.jiraPicker.day = day
 	seq := m.jiraPicker.fetchSeq
 	c, ctx, k := m.jiraClient, m.ctx, m.keys
 	empty := i18n.Tf("nothing logged · %s in the panel logs work · %s %s another day", helpKey(k.LogWork), helpKey(k.PrevView), helpKey(k.NextView))
-	hint := i18n.Tf("  ·  %s %s day · %s edit · %s %s delete · %s propose · %s copy · %s week", helpKey(k.PrevView), helpKey(k.NextView),
-		helpKey(k.EditEntry), helpKey(k.DeleteEntry), helpKey(k.DeleteEntry), helpKey(k.ProposeWork), helpKey(k.CopyKey), helpKey(k.Timesheet))
+	hint := i18n.Tf("  ·  %s %s day · %s edit · %s %s delete · %s mark", helpKey(k.PrevView), helpKey(k.NextView),
+		helpKey(k.EditEntry), helpKey(k.DeleteEntry), helpKey(k.DeleteEntry), helpKey(k.Mark))
+	if c.MovesWorklogs() {
+		hint += i18n.Tf(" · %s move", helpKey(k.MoveEntry))
+	}
+	hint += i18n.Tf(" · %s propose · %s copy · %s week", helpKey(k.ProposeWork), helpKey(k.CopyKey), helpKey(k.Timesheet))
 	return func() tea.Msg {
 		logs, err := c.MyWorklogs(ctx, day)
 		total := 0
@@ -442,26 +447,140 @@ func (m *Model) timesheetKey(k string) (tea.Cmd, bool) {
 		_, comment, _ := jira.ParseDuration(m.jiraFieldInput.Value())
 		m.worklogEdit, m.worklogEditDay, m.worklogComment = id, day, comment
 		return nil, true
+	case is(m.keys.Mark):
+		if p.idx >= len(p.items) || !timesheetRow(p.items[p.idx]) {
+			return nil, true
+		}
+		p.items[p.idx].current = !p.items[p.idx].current
+		p.idx = min(p.idx+1, len(p.items)-1)
+		m.status = m.timesheetMarked()
+		return nil, true
+	case is(m.keys.MarkAll):
+		all := !slices.ContainsFunc(p.items, func(it jiraPickerItem) bool { return timesheetRow(it) && !it.current })
+		for i := range p.items {
+			if timesheetRow(p.items[i]) {
+				p.items[i].current = !all
+			}
+		}
+		m.status = m.timesheetMarked()
+		return nil, true
 	case is(m.keys.DeleteEntry):
-		if p.idx >= len(p.items) || !strings.Contains(p.items[p.idx].id, "/") {
+		rows := p.timesheetTargets()
+		if len(rows) == 0 {
 			return nil, true
 		}
-		it := p.items[p.idx]
-		if p.pendingDelete != it.id {
-			p.pendingDelete = it.id
+		if sig := strings.Join(rows, ","); p.pendingDelete != sig {
+			p.pendingDelete = sig
 			m.status = i18n.Tf("%s again deletes this worklog", helpKey(m.keys.DeleteEntry))
+			if len(rows) > 1 {
+				m.status = i18n.Tf("%s again deletes %d worklogs", helpKey(m.keys.DeleteEntry), len(rows))
+			}
 			return nil, true
 		}
-		key, id, _ := strings.Cut(it.id, "/")
+		keys, ids := worklogsByIssue(rows)
 		day, c, ctx := p.day, m.jiraClient, m.ctx
-		m.status = i18n.Tf("deleting a worklog on %s…", key)
+		m.status = i18n.Tf("deleting a worklog on %s…", keys[0])
+		if len(rows) > 1 {
+			m.status = i18n.Tf("deleting %d worklogs…", len(rows))
+		}
 		reload := m.openTimesheetDay(day)
 		return func() tea.Msg {
-			if err := c.DeleteWorklog(ctx, key, id); err != nil {
-				return worklogFailedMsg{key: key, day: day, err: err}
+			for _, key := range keys { // the API takes one issue's at a time
+				if err := c.DeleteWorklogs(ctx, key, ids[key]); err != nil {
+					return worklogFailedMsg{key: key, day: day, err: err}
+				}
 			}
 			return reload()
 		}, true
+	case is(m.keys.MoveEntry):
+		rows := p.timesheetTargets()
+		if len(rows) == 0 {
+			return nil, true
+		}
+		if !m.jiraClient.MovesWorklogs() {
+			m.status = i18n.T("this Jira can't move worklogs")
+			return nil, true
+		}
+		day := p.day
+		m.closeJiraPicker()
+		m.openBulkInput("worklog-move", i18n.T("ABC-123 or 123"))
+		m.jiraFieldKey = i18n.Tn(len(rows), "%d worklog", "%d worklogs", len(rows))
+		m.worklogMoves, m.worklogEditDay = rows, day
+		return nil, true
 	}
 	return nil, false
+}
+
+// timesheetRow is whether it is one of the day's worklogs (key/id), not a
+// proposal or the empty day's line.
+func timesheetRow(it jiraPickerItem) bool {
+	return strings.Contains(it.id, "/") && !strings.HasPrefix(it.id, proposalID)
+}
+
+// timesheetTargets are the marked worklogs (key/id), else the one under
+// the cursor.
+func (p *jiraPickerState) timesheetTargets() []string {
+	var rows []string
+	for _, it := range p.items {
+		if it.current && timesheetRow(it) {
+			rows = append(rows, it.id)
+		}
+	}
+	if len(rows) == 0 && p.idx < len(p.items) && timesheetRow(p.items[p.idx]) {
+		rows = []string{p.items[p.idx].id}
+	}
+	return rows
+}
+
+// timesheetMarked says how many entries are marked and what takes them.
+func (m *Model) timesheetMarked() string {
+	n := 0
+	for _, it := range m.jiraPicker.items {
+		if it.current && timesheetRow(it) {
+			n++
+		}
+	}
+	if n == 0 {
+		return i18n.T("no worklogs marked")
+	}
+	return i18n.Tf("%d marked · %s %s deletes them · %s moves them", n, helpKey(m.keys.DeleteEntry), helpKey(m.keys.DeleteEntry), helpKey(m.keys.MoveEntry))
+}
+
+// worklogsByIssue splits key/id rows by issue, the keys in the order seen.
+func worklogsByIssue(rows []string) (keys []string, ids map[string][]string) {
+	ids = map[string][]string{}
+	for _, r := range rows {
+		key, id, _ := strings.Cut(r, "/")
+		if _, ok := ids[key]; !ok {
+			keys = append(keys, key)
+		}
+		ids[key] = append(ids[key], id)
+	}
+	return keys, ids
+}
+
+// applyWorklogMove moves the input's worklogs to the typed issue, one
+// request per issue they're on, then shows their day again.
+func (m Model) applyWorklogMove(raw string) (tea.Model, tea.Cmd) {
+	to := jiraGotoKey(raw, m.jiraTab.project)
+	if to == "" {
+		m.fail(i18n.Tf("not an issue key: %s", raw))
+		return m, nil
+	}
+	rows, day := m.worklogMoves, m.worklogEditDay
+	m.worklogMoves = nil
+	m.closeJiraField()
+	keys, ids := worklogsByIssue(rows)
+	keys = slices.DeleteFunc(keys, func(k string) bool { return k == to }) // there already
+	c, ctx := m.jiraClient, m.ctx
+	reload := m.openTimesheetDay(day)
+	m.status = i18n.Tf("moving %s to %s…", i18n.Tn(len(rows), "%d worklog", "%d worklogs", len(rows)), to)
+	return m, func() tea.Msg {
+		for _, key := range keys {
+			if err := c.MoveWorklogs(ctx, key, ids[key], to); err != nil {
+				return worklogFailedMsg{key: key, day: day, err: err}
+			}
+		}
+		return reload()
+	}
 }

@@ -8,8 +8,9 @@ import { isZero, date as toDate, shortDate, duration } from '../lib/fmt.js';
 import { ymd, addDays, weekStart, hm, dayStart, targetSeconds, workdays, logDialog } from '../lib/worktime.js';
 import * as cq from '../lib/cardquery.js';
 import * as pins from '../lib/pins.js';
+import { check, setCheck, selBar } from '../lib/selbar.js';
 import { openFilterBuilder } from './board_filter.js';
-import { T } from '../lib/i18n.js';
+import { T, Tn } from '../lib/i18n.js';
 
 const KEY_RE = /^[A-Z][A-Z0-9]+-\d+$/;
 const today = () => { const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate()); };
@@ -37,7 +38,7 @@ export default function mount(el, { app, scope, toolbar, query }) {
   function setTab(t) {
     if (t === tab) return;
     tab = t; prefs.set('work_tab', t); app.setQuery({ tab: t });
-    paintToolbar(); render();
+    marks.clear(); paintToolbar(); render();
   }
 
   // ---- toolbar
@@ -140,11 +141,24 @@ export default function mount(el, { app, scope, toolbar, query }) {
     return api.swr(path, d => {
       if (dead || logsPath !== path) return;
       logs = (d.worklogs || []).map(w => ({ ...w, at: new Date(w.Started) }));
+      canMove = d.canMove !== false;
       if (tab !== 'issues') paintTime();
     }).catch(e => { if (!dead) ui.errToast(e); });
   }
   const dayLogs = d => logs.filter(w => ymd(w.at) === ymd(d));
   const curLog = () => dayLogs(day)[wsel];
+  // Marked worklogs (x) by Key/ID: d deletes and m moves them, else the one under the cursor.
+  const marks = new Set(), idOf = w => w.Key + '/' + w.ID;
+  let canMove = true; // false once the site turned a move away (Server, DC)
+  const targets = () => { const ws = dayLogs(day).filter(w => marks.has(idOf(w))); return ws.length ? ws : kids([curLog()]); };
+  const byIssue = ws => { const m = new Map(); for (const w of ws) (m.get(w.Key) || m.set(w.Key, []).get(w.Key)).push(w.ID); return m; };
+  const selbar = selBar({ clear: () => { marks.clear(); paintTime(); }, label: T('Selected worklogs'), actions: [[T('Move…'), 'm', () => moveLogs()], [T('Delete'), 'd', () => delLog()]] });
+  const toggleMark = w => { if (w) marks.has(idOf(w)) ? marks.delete(idOf(w)) : marks.add(idOf(w)); };
+  function markAll() {
+    const ws = dayLogs(day), all = ws.length && ws.every(w => marks.has(idOf(w)));
+    for (const w of ws) all ? marks.delete(idOf(w)) : marks.add(idOf(w));
+    paintTime();
+  }
   // Proposed worklogs from git and ui.activity (p), listed under the day's logs.
   let props = [], propsDay = '';
   const dayProps = () => (propsDay === ymd(day) ? props : []);
@@ -168,7 +182,7 @@ export default function mount(el, { app, scope, toolbar, query }) {
       props = props.filter(x => x !== p); refreshSoon();
     }
   }
-  function paintTime() { clear(body); tab === 'week' ? paintWeek() : paintDay(); }
+  function paintTime() { clear(body); tab === 'week' ? paintWeek() : paintDay(); selbar.set(tab === 'day' ? marks.size : 0); }
   function nav(label, sub) {
     return h('div.time-head',
       h('button.btn.ghost', { onclick: () => step(-1), title: T('Previous (h)'), 'aria-label': T('Previous') }, icon('chevron-left')),
@@ -186,18 +200,21 @@ export default function mount(el, { app, scope, toolbar, query }) {
     day = next; reload();
   };
   const goToday = () => { day = today(); reload(); };
-  function reload() { logs = []; logsPath = ''; wsel = 0; paintTime(); loadLogs(); }
+  function reload() { logs = []; logsPath = ''; wsel = 0; marks.clear(); paintTime(); loadLogs(); }
   function openDay(d) { day = d; tab = 'day'; paintToolbar(); reload(); }
 
   function paintDay() {
     const ws = dayLogs(day), total = sum(ws), target = targetSeconds(app);
     wsel = Math.min(wsel, Math.max(ws.length + dayProps().length - 1, 0));
+    for (const id of marks) if (!ws.some(w => idOf(w) === id)) marks.delete(id); // deleted or moved meanwhile
+    selbar.buttons[0].hidden = !canMove;
     body.append(nav(day.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' }), T('%s of %s', duration(total), duration(target))),
       h('div.wbar', h('div.wbar-fill' + (total >= target ? '.full' : ''), { style: { width: Math.min(100, (total / target) * 100) + '%' } })));
     if (!ws.length && !dayProps().length) { body.append(h('div.empty', logsPath ? T('Nothing logged. ') : T('Loading…'), logsPath && h('button.btn.link', { onclick: () => addLog() }, T('Log work (a)')), logsPath && h('button.btn.link', { onclick: propose }, T(' Propose from git (p)')))); return; }
-    const t = h('div.wlist');
-    ws.forEach((w, i) => t.append(h('div.wlog' + (i === wsel ? '.sel' : ''), { dataset: { key: w.Key, i } },
-      h('span.wtime.dim', hm(w.at)), h('span.wkey.mono', w.Key),
+    const t = h('div.wlist' + (marks.size ? '.marking' : ''));
+    const chk = w => { const c = check(); setCheck(c, marks.has(idOf(w))); return c; };
+    ws.forEach((w, i) => t.append(h('div.wlog' + (i === wsel ? '.sel' : '') + (marks.has(idOf(w)) ? '.mark' : ''), { dataset: { key: w.Key, i } },
+      chk(w), h('span.wtime.dim', hm(w.at)), h('span.wkey.mono', w.Key),
       h('span.wsum', w.Summary, w.Comment && h('span.wcomment.dim', ' — ' + w.Comment.replace(/\s+/g, ' '))),
       h('span.wdur', duration(w.Seconds)))));
     const ps = dayProps();
@@ -239,8 +256,8 @@ export default function mount(el, { app, scope, toolbar, query }) {
     body.append(tbl);
   }
 
-  async function pickIssue() {
-    const c = await ui.pick({ title: T('Log work on'), items: cards, label: c => c.Key + ' ' + c.Summary, placeholder: T('Issue key, or filter your work'),
+  async function pickIssue(title = T('Log work on')) {
+    const c = await ui.pick({ title, items: cards, label: c => c.Key + ' ' + c.Summary, placeholder: T('Issue key, or filter your work'),
       create: q => ({ Key: q.trim().toUpperCase(), Summary: '' }), empty: T('Type an issue key'),
       first: q => { const k = q.trim().toUpperCase(); return KEY_RE.test(k) ? cards.find(c => c.Key === k) || { Key: k, Summary: '' } : null; } });
     if (!c) return null;
@@ -272,13 +289,27 @@ export default function mount(el, { app, scope, toolbar, query }) {
     if (await logDialog(app, { key: w.Key, summary: w.Summary, seconds: w.Seconds, started: w.at, comment: w.Comment, edit: w.ID }) === 'logged') refreshSoon();
   }
   async function delLog() {
-    const w = curLog(); if (!w) return;
-    if (!(await ui.confirm({ title: T('Delete worklog'), text: T('%s on %s', duration(w.Seconds), w.Key) + (w.Comment ? ' — ' + w.Comment : ''), ok: T('Delete'), danger: true }))) return;
+    const ws = targets(); if (!ws.length) return;
+    const w = ws[0], text = ws.length > 1 ? T('%d worklogs, %s', ws.length, duration(sum(ws))) : T('%s on %s', duration(w.Seconds), w.Key) + (w.Comment ? ' — ' + w.Comment : '');
+    if (!(await ui.confirm({ title: ws.length > 1 ? T('Delete worklogs') : T('Delete worklog'), text, ok: T('Delete'), danger: true }))) return;
     try {
-      await api.del('/worklog/' + w.Key + '/' + w.ID);
-      ui.toast(T('Deleted %s on %s', duration(w.Seconds), w.Key));
-      bus.emit('issue:changed', { key: w.Key });
+      for (const [key, IDs] of byIssue(ws)) await api.del('/worklog/' + key, { IDs }); // the API takes one issue's at a time
+      ui.toast(ws.length > 1 ? T('Deleted %d worklogs', ws.length) : T('Deleted %s on %s', duration(w.Seconds), w.Key));
     } catch (e) { ui.errToast(e); }
+    for (const key of byIssue(ws).keys()) bus.emit('issue:changed', { key });
+  }
+  // m: the marked worklogs (else the one under the cursor) to another issue, keeping their start.
+  async function moveLogs() {
+    const ws = targets(); if (!ws.length) return;
+    if (!canMove) return ui.toast(T("This Jira can't move worklogs"), { kind: 'err' });
+    const c = await pickIssue(Tn(ws.length, 'Move %d worklog to', 'Move %d worklogs to', ws.length));
+    if (!c) return;
+    const from = byIssue(ws);
+    try {
+      for (const [key, IDs] of from) if (key !== c.Key) await api.post('/worklog/' + key + '/move', { IDs, To: c.Key });
+      ui.toast(Tn(ws.length, 'Moved %d worklog to %s', 'Moved %d worklogs to %s', ws.length, c.Key));
+    } catch (e) { ui.errToast(e); }
+    for (const key of new Set([...from.keys(), c.Key])) bus.emit('issue:changed', { key });
   }
   // y: the day or week as the TUI copies it, a markdown table with a Total row.
   async function copyText() {
@@ -319,7 +350,7 @@ export default function mount(el, { app, scope, toolbar, query }) {
       list = vlist(scroller, { count: rows.length, rowHeight: rowHeight(), create: () => h('div'), bind: bindRow });
       paintList();
     } else {
-      root.append(body);
+      root.append(body, selbar.el);
       paintTime();
       loadLogs();
     }
@@ -329,7 +360,11 @@ export default function mount(el, { app, scope, toolbar, query }) {
     const i = rows.findIndex(r => r.card && r.card.Key === row.dataset.key);
     if (i >= 0) { select(i); app.panel.open(row.dataset.key); }
   });
-  delegate(root, 'click', '.wlog', (e, row) => { wsel = +row.dataset.i; paintTime(); if (row.dataset.key) app.panel.open(row.dataset.key); });
+  delegate(root, 'click', '.wlog', (e, row) => {
+    wsel = +row.dataset.i;
+    if (e.target.closest('.chk') || e.ctrlKey || e.metaKey) { toggleMark(curLog()); return paintTime(); }
+    paintTime(); if (row.dataset.key) app.panel.open(row.dataset.key);
+  });
   delegate(root, 'dblclick', '.wlog', () => editLog());
   delegate(root, 'click', '.wcell:not(.tot):not(.foot)', (e, td) => { cell = { row: +td.dataset.r, col: +td.dataset.c }; paintTime(); });
   delegate(root, 'dblclick', '.wcell:not(.tot):not(.foot)', () => cellEnter());
@@ -360,7 +395,11 @@ export default function mount(el, { app, scope, toolbar, query }) {
   scope.bind('ArrowLeft', () => step(-1), T('previous day'), { ...G, hidden: true, ...D });
   scope.bind('ArrowRight', () => step(1), T('next day'), { ...G, hidden: true, ...D });
   scope.bind('e', editLog, T('edit worklog'), { ...G, ...D, bar: T('edit') });
-  scope.bind(['d', 'Delete'], delLog, T('delete worklog'), { ...G, ...D });
+  scope.bind(['d', 'Delete'], delLog, T('delete worklog (the marked ones)'), { ...G, ...D });
+  scope.bind('x', () => { toggleMark(curLog()); wsel = Math.min(wsel + 1, Math.max(dayLogs(day).length - 1, 0)); paintTime(); }, T('mark worklog'), { ...G, ...D, bar: T('mark') });
+  scope.bind('X', markAll, T('mark every worklog of the day'), { ...G, ...D });
+  scope.bind('m', moveLogs, T('move worklog (the marked ones) to another issue'), { ...G, ...D, bar: T('move') });
+  scope.bind('Escape', () => { marks.clear(); paintTime(); }, T('clear marks'), { ...G, ...D, when: () => tab === 'day' && marks.size > 0 });
   scope.bind('Enter', () => { const w = curLog(); if (w) app.panel.open(w.Key); else logProposal(); }, T('open issue / log the proposed work'), { ...G, ...D });
   scope.bind('p', propose, T('propose worklogs from git commits and ui.activity'), { ...G, ...D, bar: T('propose') });
   scope.bind(['j', 'ArrowDown'], () => moveCell(1, 0), T('next row'), { ...G, ...W });

@@ -280,6 +280,8 @@ func (m *Model) helpSections() []struct {
 			{join(k.PrevView, k.NextView), i18n.T("previous / next day")},
 			row(k.EditEntry, i18n.T("edit the entry")),
 			row(k.DeleteEntry, i18n.T("delete it (twice)")),
+			{join(k.Mark, k.MarkAll), i18n.T("mark the entry / all: delete and move take the marked")},
+			row(k.MoveEntry, i18n.T("move it to another issue")),
 			row(k.ProposeWork, i18n.T("propose what's missing: commits, ui.activity, meetings")),
 			row(k.OpenChannel, i18n.T("open the issue; a proposal: log it")),
 			row(k.CopyKey, i18n.T("copy the day as a table")),

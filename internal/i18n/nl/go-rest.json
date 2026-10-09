@@ -302,5 +302,6 @@
   "usage: laneway rules list [-config path] [-site name]\n       laneway rules watch [-config path] [-site name]\n       laneway rules test [-config path] [-site name] [-on kind] [-key K] [-summary S] [-type T]\n                          [-status S] [-from-status S] [-assignee A] [-priority P] [-points N] [-by-me B] [-watch JQL]": "gebruik: laneway rules list [-config pad] [-site naam]\n        laneway rules watch [-config pad] [-site naam]\n        laneway rules test [-config pad] [-site naam] [-on soort] [-key K] [-summary S] [-type T]\n                           [-status S] [-from-status S] [-assignee A] [-priority P] [-points N] [-by-me B] [-watch JQL]",
   "usage: laneway view [-format plain|json] KEY": "gebruik: laneway view [-format plain|json] SLEUTEL",
   "view: -format is plain or json": "view: -format is plain of json",
-  "watching %s every %s": "%s volgen, elke %s"
+  "watching %s every %s": "%s volgen, elke %s",
+  "no worklogs": "geen werklogs"
 }

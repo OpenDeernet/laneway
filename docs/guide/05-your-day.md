@@ -58,7 +58,10 @@ starts timing that one.
 ## Your worklogs
 
 What you logged on a day, with the total; edit an entry's time and
-comment, delete one, copy the day as a markdown table. *Propose* fills the
+comment, delete one, copy the day as a markdown table. Mark several
+entries to delete them at once, or move them to another issue (logged on
+the wrong one); a move keeps their start and comment. Jira Server and Data
+Center can't move worklogs: there laneway leaves the move out. *Propose* fills the
 gaps: your commits and branch switches in the `jira.repos` repositories,
 the lines `ui.activity` commands print (agent logs, shell history), each
 issue's time less what it has logged, rounded to a quarter. Point
@@ -73,7 +76,8 @@ totals and how short each past workday is of 8h. Log on any cell.
 === "Terminal"
 
     `W` lists today. `[` `]` step a day, `e` edits an entry, `d` twice
-    deletes it, `p` proposes, `enter` logs a proposal, `y` copies.
+    deletes it, `x` marks it (`X` every entry) for `d` and `m`, `m` moves
+    it to another issue, `p` proposes, `enter` logs a proposal, `y` copies.
 
     ![Today's worklogs](../screenshots/worklogs.png)
 
@@ -83,8 +87,9 @@ totals and how short each past workday is of 8h. Log on any cell.
 === "Browser"
 
     `W` opens My work on the day. `h` `l` step a day, `0` back to today,
-    `e` edits an entry, `d` deletes it, `p` proposes, `enter` logs a
-    proposal, `a` logs work, `y` copies.
+    `e` edits an entry, `d` deletes it, `x` marks it (`X` every entry, or
+    click its box) for `d` and `m`, `m` moves it to another issue, `p`
+    proposes, `enter` logs a proposal, `a` logs work, `y` copies.
 
     ![Worklogs in the browser](../screenshots/web/worklogs.png)
 

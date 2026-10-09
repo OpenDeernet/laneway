@@ -3,6 +3,7 @@ package jira
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -99,6 +100,103 @@ func (c *Client) DeleteWorklog(ctx context.Context, key, id string) error {
 	}
 	c.Invalidate(key)
 	return nil
+}
+
+// ErrNoWorklogMove is a site without Jira Cloud's worklog move (Server,
+// Data Center), for errors.Is.
+var ErrNoWorklogMove = errors.New("jira: this site can't move worklogs")
+
+// missingRoute is whether err says the site lacks the endpoint: a 405, or
+// a 404 without Jira's error body.
+func missingRoute(err error) bool {
+	var nf notFound
+	var re *RequestError
+	return errors.As(err, &nf) && !nf.said || errors.As(err, &re) && re.code == http.StatusMethodNotAllowed
+}
+
+// worklogIDs is ids as the bulk endpoints take them, numbers.
+func worklogIDs(ids []string) ([]int, error) {
+	out := make([]int, len(ids))
+	for i, id := range ids {
+		n, err := strconv.Atoi(id)
+		if err != nil {
+			return nil, fmt.Errorf("jira: bad worklog id %q", id)
+		}
+		out[i] = n
+	}
+	return out, nil
+}
+
+// DeleteWorklogs removes worklogs ids from key in one request. A site
+// without the bulk delete, or one that turns it away with a 404 (it takes
+// Delete all worklogs), gets one delete per id.
+func (c *Client) DeleteWorklogs(ctx context.Context, key string, ids []string) error {
+	if !c.Enabled() {
+		return errNotConfigured
+	}
+	nums, err := worklogIDs(ids)
+	if err != nil || len(ids) == 0 {
+		return err
+	}
+	c.mu.Lock()
+	bulk := !c.noBulkDelete && len(ids) > 1
+	c.mu.Unlock()
+	if bulk {
+		path := "/rest/api/3/issue/" + url.PathEscape(key) + "/worklog"
+		err := c.do(ctx, http.MethodDelete, path, key, map[string]any{"ids": nums}, nil)
+		if err == nil || !errors.Is(err, ErrNotFound) && !missingRoute(err) {
+			c.Invalidate(key)
+			return err
+		}
+		if missingRoute(err) {
+			c.mu.Lock()
+			c.noBulkDelete = true
+			c.mu.Unlock()
+		}
+	}
+	for _, id := range ids {
+		if err := c.DeleteWorklog(ctx, key, id); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// MovesWorklogs is false once the site turned a worklog move away as
+// unknown.
+func (c *Client) MovesWorklogs() bool {
+	if !c.Enabled() {
+		return false
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return !c.noWorklogMove
+}
+
+// MoveWorklogs moves worklogs ids from key to the issue to, keeping their
+// author and start. ErrNoWorklogMove is a site without the move.
+func (c *Client) MoveWorklogs(ctx context.Context, key string, ids []string, to string) error {
+	if !c.Enabled() {
+		return errNotConfigured
+	}
+	if !c.MovesWorklogs() {
+		return ErrNoWorklogMove
+	}
+	nums, err := worklogIDs(ids)
+	if err != nil || len(ids) == 0 {
+		return err
+	}
+	path := "/rest/api/3/issue/" + url.PathEscape(key) + "/worklog/move"
+	err = c.do(ctx, http.MethodPost, path, key, map[string]any{"ids": nums, "issueIdOrKey": to}, nil)
+	if missingRoute(err) {
+		c.mu.Lock()
+		c.noWorklogMove = true
+		c.mu.Unlock()
+		return ErrNoWorklogMove
+	}
+	c.Invalidate(key)
+	c.Invalidate(to)
+	return err
 }
 
 // Worklog is one entry: your own (MyWorklogs) or anyone's on an issue

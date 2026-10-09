@@ -89,6 +89,7 @@ type keyMap struct {
 	EndEarlier, EndLater, RoadmapIssues key.Binding
 	RoadmapEdit                         key.Binding
 	EditEntry, DeleteEntry, ProposeWork key.Binding
+	MoveEntry                           key.Binding
 }
 
 func bind(help string, keys ...string) key.Binding {
@@ -226,6 +227,7 @@ func defaultKeys() keyMap {
 		EditEntry:       bind(i18n.T("edit the entry"), "e"),
 		DeleteEntry:     bind(i18n.T("delete the entry (twice)"), "d", "delete"),
 		ProposeWork:     bind(i18n.T("propose worklogs from git and ui.activity"), "p"),
+		MoveEntry:       bind(i18n.T("move the entry, or the marked ones, to another issue"), "m"),
 	}
 }
 
@@ -369,6 +371,9 @@ type Model struct {
 	worklogEdit    string
 	worklogEditDay time.Time
 	worklogComment string
+	// worklogMoves are the worklogs (key/id) the move input moves, from
+	// worklogEditDay's timesheet.
+	worklogMoves []string
 	// worklogFromTimer marks the input as the timer's stop: the timer ends
 	// once the log is written.
 	worklogFromTimer bool

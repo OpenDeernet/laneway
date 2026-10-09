@@ -119,6 +119,9 @@ type Client struct {
 	// laneway is whether the site is laneway-server (Laneway), behind mu;
 	// nil until read.
 	laneway *bool
+	// noBulkDelete and noWorklogMove: the site lacks Jira Cloud's bulk
+	// worklog endpoints (worklog.go), behind mu.
+	noBulkDelete, noWorklogMove bool
 
 	// rules caches the workflow walk (transition.go); boardMeta the Agile
 	// API's slow-changing answers (agile.go). Both have their own locks.
@@ -668,7 +671,10 @@ func (c *Client) do(ctx context.Context, method, path, what string, body, out an
 // ErrNotFound is a 404, for errors.Is.
 var ErrNotFound = errors.New("jira: not found")
 
-type notFound struct{ what string }
+type notFound struct {
+	what string
+	said bool // with Jira's message: the route exists, the thing doesn't
+}
 
 func (e notFound) Error() string   { return fmt.Sprintf("jira: %s not found (or no access)", e.what) }
 func (e notFound) Is(t error) bool { return t == ErrNotFound }
@@ -700,7 +706,7 @@ func statusError(code int, what string, body []byte, retryAfter string) error {
 		}
 		return fmt.Errorf("jira: no permission for %s · ask a Jira admin, or check the api_token", what)
 	case http.StatusNotFound:
-		return notFound{what}
+		return notFound{what, msg != ""}
 	case http.StatusTooManyRequests:
 		if retryAfter != "" {
 			return fmt.Errorf("jira: rate-limited on %s · retry in %ss", what, retryAfter)
@@ -716,7 +722,7 @@ func statusError(code int, what string, body []byte, retryAfter string) error {
 	if msg == "" {
 		msg = http.StatusText(code)
 	}
-	re := &RequestError{msg: fmt.Sprintf("jira server %d: %s", code, msg)}
+	re := &RequestError{msg: fmt.Sprintf("jira server %d: %s", code, msg), code: code}
 	var e struct {
 		ErrorMessages []string          `json:"errorMessages"`
 		Errors        map[string]string `json:"errors"`
@@ -739,6 +745,7 @@ func statusError(code int, what string, body []byte, retryAfter string) error {
 // the whole, Fields by field id (a create's "components": "… is required").
 type RequestError struct {
 	msg      string
+	code     int
 	Messages []string
 	Fields   map[string]string
 }

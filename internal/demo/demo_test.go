@@ -91,6 +91,35 @@ func TestDemoWrites(t *testing.T) {
 	}
 }
 
+// TestDemoBulkWorklogs: worklogs move to another issue and go, several
+// at once.
+func TestDemoBulkWorklogs(t *testing.T) {
+	c, _ := demoClient(t)
+	ctx := context.Background()
+	for range 3 {
+		if err := c.AddWorklog(ctx, "DEMO-5", 1800, time.Now(), "", ""); err != nil {
+			t.Fatal(err)
+		}
+	}
+	wl, err := c.IssueWorklogs(ctx, "DEMO-5")
+	if err != nil || len(wl) != 3 {
+		t.Fatalf("worklogs = %v, %v", wl, err)
+	}
+	if err := c.MoveWorklogs(ctx, "DEMO-5", []string{wl[0].ID, wl[1].ID}, "DEMO-6"); err != nil {
+		t.Fatal(err)
+	}
+	moved, _ := c.IssueWorklogs(ctx, "DEMO-6")
+	if left, _ := c.IssueWorklogs(ctx, "DEMO-5"); len(left) != 1 || !slices.ContainsFunc(moved, func(w jira.Worklog) bool { return w.ID == wl[0].ID }) {
+		t.Errorf("left %v, moved %v", left, moved)
+	}
+	if err := c.DeleteWorklogs(ctx, "DEMO-6", []string{wl[0].ID, wl[1].ID}); err != nil {
+		t.Fatal(err)
+	}
+	if after, _ := c.IssueWorklogs(ctx, "DEMO-6"); len(after) != len(moved)-2 {
+		t.Errorf("after the delete %v", after)
+	}
+}
+
 func TestDemoJQL(t *testing.T) {
 	s := New(time.Now())
 	for jql, want := range map[string]int{

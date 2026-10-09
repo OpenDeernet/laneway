@@ -3,9 +3,12 @@ package jira
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"testing"
 	"time"
 )
@@ -127,5 +130,93 @@ func TestIssueWorklogs(t *testing.T) {
 	got, err := c.IssueWorklogs(context.Background(), "A-1")
 	if err != nil || len(got) != 2 || got[0].Author != "Ann" || got[0].Comment != "review" || got[1].Seconds != 1800 {
 		t.Errorf("%+v, %v", got, err)
+	}
+}
+
+// TestDeleteWorklogs: one request for the lot, twice; a 404 (no Delete
+// all worklogs) falls back to one delete per id each time, a 405
+// (Server/DC) once and then deletes one at a time from the start.
+func TestDeleteWorklogs(t *testing.T) {
+	const bulk, one, two = "DELETE /rest/api/3/issue/ABC-1/worklog [1 2]", "DELETE /rest/api/3/issue/ABC-1/worklog/1 []", "DELETE /rest/api/3/issue/ABC-1/worklog/2 []"
+	for _, tc := range []struct {
+		name   string
+		status int
+		body   string
+		want   []string
+	}{
+		{"bulk", http.StatusNoContent, "", []string{bulk, bulk}},
+		{"no permission", http.StatusNotFound, `{"errorMessages":["you do not have permission to delete the specified worklog."]}`, []string{bulk, one, two, bulk, one, two}},
+		{"server", http.StatusMethodNotAllowed, "", []string{bulk, one, two, one, two}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var got []string
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				var b struct{ IDs []int }
+				_ = json.NewDecoder(r.Body).Decode(&b)
+				got = append(got, fmt.Sprintf("%s %s %v", r.Method, r.URL.Path, b.IDs))
+				if r.URL.Path == "/rest/api/3/issue/ABC-1/worklog" {
+					w.WriteHeader(tc.status)
+					_, _ = io.WriteString(w, tc.body)
+					return
+				}
+				w.WriteHeader(http.StatusNoContent)
+			}))
+			defer srv.Close()
+			c := New(Config{BaseURL: srv.URL, Email: "me@x.test", APIToken: "tok"})
+			for range 2 {
+				if err := c.DeleteWorklogs(context.Background(), "ABC-1", []string{"1", "2"}); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if !slices.Equal(got, tc.want) {
+				t.Errorf("requests =\n%q\nwant\n%q", got, tc.want)
+			}
+		})
+	}
+}
+
+// TestMoveWorklogs: the ids and target in one request; a site without the
+// move says so, and isn't asked again.
+func TestMoveWorklogs(t *testing.T) {
+	var got []string
+	status := http.StatusNoContent
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		got = append(got, r.Method+" "+r.URL.Path+" "+string(b))
+		w.WriteHeader(status)
+	}))
+	defer srv.Close()
+	c := New(Config{BaseURL: srv.URL, Email: "me@x.test", APIToken: "tok"})
+	ctx := context.Background()
+	if err := c.MoveWorklogs(ctx, "ABC-1", []string{"10", "11"}, "ABC-2"); err != nil {
+		t.Fatal(err)
+	}
+	if want := `POST /rest/api/3/issue/ABC-1/worklog/move {"ids":[10,11],"issueIdOrKey":"ABC-2"}`; len(got) != 1 || got[0] != want {
+		t.Errorf("requests = %q, want %q", got, want)
+	}
+	status = http.StatusNotFound // no Jira error body: the route is missing
+	if err := c.MoveWorklogs(ctx, "ABC-1", []string{"10"}, "ABC-2"); !errors.Is(err, ErrNoWorklogMove) {
+		t.Errorf("err = %v, want ErrNoWorklogMove", err)
+	}
+	if c.MovesWorklogs() {
+		t.Error("MovesWorklogs after the move was turned away")
+	}
+	if err := c.MoveWorklogs(ctx, "ABC-1", []string{"10"}, "ABC-2"); !errors.Is(err, ErrNoWorklogMove) || len(got) != 2 {
+		t.Errorf("err = %v after %d requests, want ErrNoWorklogMove without asking", err, len(got))
+	}
+}
+
+// TestMoveWorklogsRefused: Jira's own 404 (a worklog not on the issue) is
+// an error, not a site without the move.
+func TestMoveWorklogsRefused(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = io.WriteString(w, `{"errorMessages":["One or many worklogs specified do not belong to issue."]}`)
+	}))
+	defer srv.Close()
+	c := New(Config{BaseURL: srv.URL, Email: "me@x.test", APIToken: "tok"})
+	err := c.MoveWorklogs(context.Background(), "ABC-1", []string{"10"}, "ABC-2")
+	if !errors.Is(err, ErrNotFound) || errors.Is(err, ErrNoWorklogMove) || !c.MovesWorklogs() {
+		t.Errorf("err = %v, moves %v", err, c.MovesWorklogs())
 	}
 }

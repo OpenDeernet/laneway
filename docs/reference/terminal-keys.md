@@ -190,6 +190,8 @@ line beside it until you leave (again removes it).
 | --- | --- |
 | `[` `]` | a day (the week: a week) |
 | `e` `d` | edit, delete twice |
+| `x` `X` | mark an entry, every entry: `d` and `m` take the marked |
+| `m` | move to another issue (Jira Cloud) |
 | `p` | propose missing worklogs |
 | `enter` | open; on a proposal, log it; in the week, log on the cell |
 | `#` | the week: add an issue's row |
@@ -274,7 +276,7 @@ A key bound to two actions on one screen is reported. The actions:
 | Planning | `plan_start plan_goal plan_rename plan_new plan_complete` |
 | Charts | `chart_done chart_compare` |
 | Roadmap | `roadmap_grip roadmap_fold end_earlier end_later zoom_in zoom_out today roadmap_issues roadmap_edit` |
-| Worklogs | `edit_entry delete_entry propose_work` |
+| Worklogs | `edit_entry delete_entry move_entry propose_work` |
 | Inbox | `inbox_done inbox_done_all inbox_unread inbox_snooze` |
 | Agents | `agent_prompt agent_stop` |
 | Standup | `standup_pause standup_shuffle standup_park` |

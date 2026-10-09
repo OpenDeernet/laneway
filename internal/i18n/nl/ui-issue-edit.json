@@ -58,7 +58,6 @@
   "Link %s": "%s koppelen",
   "Log work": "Uren boeken",
   "Move": "Verplaatsen",
-  "Move %s to": "%s verplaatsen naar",
   "New %s in %s": "Nieuw: %s in %s",
   "New %s in %s → %s": "Nieuw: %s in %s → %s",
   "New %s of %s": "Nieuw: %s van %s",
@@ -239,5 +238,6 @@
   "↵ save, starred · esc cancel": "↵ opslaan, met ster · esc annuleren",
   "↵ send · esc cancel": "↵ versturen · esc annuleren",
   "↵ start · esc cancel": "↵ starten · esc annuleren",
-  "− fewer fields": "− minder velden"
+  "− fewer fields": "− minder velden",
+  "↵ move · esc cancel": "↵ verplaatsen · esc annuleren"
 }

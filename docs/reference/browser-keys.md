@@ -183,7 +183,9 @@ Fields have no key walk: click one to edit it.
 | `1` `2` `3` | issues, day, week | `O`, `W`, `W` |
 | `W` | day or week | |
 | `h` `l`, `0` | a day or week back, forward, today | `[` `]` |
-| `e`, `d` | edit, delete an entry | |
+| `e`, `d` | edit, delete an entry (the marked ones) | |
+| `x`, `X` | mark an entry, every entry | |
+| `m` | move an entry (the marked ones) to another issue | |
 | `p` | propose missing worklogs | |
 | `a` | log work | |
 | `enter` | open; log a proposal; log on a week's cell | |

@@ -71,7 +71,7 @@ func (s *Server) Start() (baseURL string, stop func(), err error) {
 }
 
 var (
-	issueRe      = regexp.MustCompile(`^/rest/api/3/issue/([A-Z]+-\d+)(/[a-z]+)?(/\d+)?$`)
+	issueRe      = regexp.MustCompile(`^/rest/api/3/issue/([A-Z]+-\d+)(/[a-z]+)?(/\d+|/move)?$`)
 	sprintIssues = regexp.MustCompile(`^/rest/agile/1\.0/(?:board/\d+/)?sprint/(\d+)/issue$`)
 	sprintRe     = regexp.MustCompile(`^/rest/agile/1\.0/sprint/(\d+)$`)
 	versionRe    = regexp.MustCompile(`^/rest/api/3/version/(\d+)$`)
@@ -492,6 +492,9 @@ func (s *Server) issueRoute(method string, iss *issue, sub, id string, body map[
 		}
 		return map[string]any{"worklogs": out, "total": len(out), "maxResults": len(out), "startAt": 0}, true
 	case "POST /worklog":
+		if id == "move" {
+			return s.moveWorklogs(iss, body), true
+		}
 		secs, _ := body["timeSpentSeconds"].(float64)
 		started := time.Now()
 		if v, _ := body["started"].(string); v != "" {
@@ -504,6 +507,14 @@ func (s *Server) issueRoute(method string, iss *issue, sub, id string, body map[
 		iss.worklogs = append(iss.worklogs, wl)
 		return worklogJSON(wl), true
 	case "DELETE /worklog":
+		if id == "" { // the bulk delete, all or nothing
+			ids, ok := issueWorklogs(iss, body)
+			if !ok {
+				return refusal("One or many worklogs specified do not belong to issue."), true
+			}
+			iss.worklogs = slices.DeleteFunc(iss.worklogs, func(w worklog) bool { return slices.Contains(ids, w.id) })
+			return nil, true
+		}
 		iss.worklogs = slices.DeleteFunc(iss.worklogs, func(w worklog) bool { return w.id == id })
 		return nil, true
 	case "GET /changelog":
@@ -526,6 +537,46 @@ func (s *Server) issueRoute(method string, iss *issue, sub, id string, body map[
 			"object": map[string]any{"url": s.base + "/wiki/spaces/SHOP/pages/" + pageID + "/Guest+checkout", "title": pageTitle}}}, true
 	}
 	return nil, false
+}
+
+// issueWorklogs reads a bulk request's ids; ok is false unless each is one
+// of iss's worklogs.
+func issueWorklogs(iss *issue, body map[string]any) (ids []string, ok bool) {
+	list, _ := body["ids"].([]any)
+	for _, v := range list {
+		n, _ := v.(float64)
+		id := strconv.Itoa(int(n))
+		if !slices.ContainsFunc(iss.worklogs, func(w worklog) bool { return w.id == id }) {
+			return nil, false
+		}
+		ids = append(ids, id)
+	}
+	return ids, len(ids) > 0
+}
+
+// moveWorklogs moves the body's worklogs from iss to its issueIdOrKey, all
+// or nothing, as Jira's bulk move.
+func (s *Server) moveWorklogs(iss *issue, body map[string]any) any {
+	key, _ := body["issueIdOrKey"].(string)
+	to := s.issues[key]
+	if to == nil {
+		return refusal("Issue does not exist or you do not have permission to see it.")
+	}
+	ids, ok := issueWorklogs(iss, body)
+	if !ok {
+		return refusal("One or many worklogs specified do not belong to issue.")
+	}
+	if to == iss {
+		return nil
+	}
+	for _, w := range iss.worklogs {
+		if slices.Contains(ids, w.id) {
+			to.worklogs = append(to.worklogs, w)
+		}
+	}
+	iss.worklogs = slices.DeleteFunc(iss.worklogs, func(w worklog) bool { return slices.Contains(ids, w.id) })
+	iss.updated, to.updated = time.Now(), time.Now()
+	return nil
 }
 
 func firstOf(v []string) string {

@@ -35,6 +35,8 @@ func init() {
 	post("/worklog/{key}", addWorklog)
 	put("/worklog/{key}/{id}", updateWorklog)
 	del("/worklog/{key}/{id}", deleteWorklog)
+	del("/worklog/{key}", deleteWorklogs)
+	post("/worklog/{key}/move", moveWorklogs)
 	get("/inbox", inbox)
 	put("/inbox/state/{key}", putInboxState)
 }
@@ -85,7 +87,8 @@ func myWorklogs(ctx context.Context, s *Server, r *http.Request) (any, error) {
 	if logs == nil {
 		logs = []jira.Worklog{}
 	}
-	return map[string]any{"worklogs": logs}, err
+	// canMove is false once the site turned a move away (Server, DC).
+	return map[string]any{"worklogs": logs, "canMove": s.Client().MovesWorklogs()}, err
 }
 
 type worklogBody struct {
@@ -151,6 +154,46 @@ func deleteWorklog(ctx context.Context, s *Server, r *http.Request) (any, error)
 		return nil, err
 	}
 	return nil, s.Client().DeleteWorklog(ctx, key, r.PathValue("id"))
+}
+
+// worklogsBody is a bulk delete's or move's worklogs, all on the path's
+// issue; To is the move's issue.
+type worklogsBody struct {
+	IDs []string
+	To  string
+}
+
+func deleteWorklogs(ctx context.Context, s *Server, r *http.Request) (any, error) {
+	key, err := validKey(r)
+	if err != nil {
+		return nil, err
+	}
+	b, err := Body[worklogsBody](r)
+	if err != nil {
+		return nil, err
+	}
+	if len(b.IDs) == 0 {
+		return nil, badRequest(i18n.T("no worklogs"))
+	}
+	return nil, s.Client().DeleteWorklogs(ctx, key, b.IDs)
+}
+
+func moveWorklogs(ctx context.Context, s *Server, r *http.Request) (any, error) {
+	key, err := validKey(r)
+	if err != nil {
+		return nil, err
+	}
+	b, err := Body[worklogsBody](r)
+	if err != nil {
+		return nil, err
+	}
+	switch {
+	case len(b.IDs) == 0:
+		return nil, badRequest(i18n.T("no worklogs"))
+	case !jira.ValidKey(b.To):
+		return nil, badRequest(i18n.T("bad issue key"))
+	}
+	return nil, s.Client().MoveWorklogs(ctx, key, b.IDs, b.To)
 }
 
 // ---- inbox

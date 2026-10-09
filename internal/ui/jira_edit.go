@@ -1213,6 +1213,9 @@ func (m Model) applyJiraField() (tea.Model, tea.Cmd) {
 	if field == "week-add" {
 		return m.applyWeekAdd(raw)
 	}
+	if field == "worklog-move" {
+		return m.applyWorklogMove(raw)
+	}
 	if field == "plan-start" {
 		return m.applyPlanStart(raw)
 	}
@@ -1617,6 +1620,8 @@ func (m *Model) renderJiraFieldInput() string {
 		title, hint, outerW = i18n.T("Save as a Jira filter"), i18n.T("↵ save, starred · esc cancel"), m.jiraFieldInput.Width()+12
 	case "week-add":
 		title, hint, outerW = i18n.T("Add an issue"), i18n.T("↵ add its row · esc cancel"), m.jiraFieldInput.Width()+12
+	case "worklog-move":
+		title, hint, outerW = i18n.Tf("Move %s to", m.jiraFieldKey), i18n.T("↵ move · esc cancel"), m.jiraFieldInput.Width()+12
 	case "plan-new":
 		title, hint, outerW = i18n.T("New sprint"), i18n.T("↵ create · esc cancel"), m.jiraFieldInput.Width()+12
 	case "plan-start":

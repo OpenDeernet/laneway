@@ -86,6 +86,42 @@ func TestWorkAndWorklogs(t *testing.T) {
 	}
 }
 
+// TestBulkWorklogs: several worklogs move to another issue, then go.
+func TestBulkWorklogs(t *testing.T) {
+	ts := workServer(t)
+	started := time.Now().Add(-time.Hour).Format(time.RFC3339)
+	for range 2 {
+		if c := workCall(t, "POST", ts.URL+"/api/worklog/DEMO-5", `{"Seconds":600,"Started":"`+started+`"}`, nil); c != 200 {
+			t.Fatalf("add worklog = %d", c)
+		}
+	}
+	var on []jira.Worklog
+	workCall(t, "GET", ts.URL+"/api/issues/DEMO-5/worklogs", "", &on)
+	if len(on) < 2 {
+		t.Fatalf("worklogs = %+v", on)
+	}
+	ids := fmt.Sprintf(`["%s","%s"]`, on[len(on)-2].ID, on[len(on)-1].ID)
+	if c := workCall(t, "POST", ts.URL+"/api/worklog/DEMO-5/move", `{"IDs":`+ids+`,"To":"nope"}`, nil); c != 400 {
+		t.Fatalf("move to a bad key = %d", c)
+	}
+	if c := workCall(t, "POST", ts.URL+"/api/worklog/DEMO-5/move", `{"IDs":`+ids+`,"To":"DEMO-6"}`, nil); c != 200 {
+		t.Fatalf("move = %d", c)
+	}
+	var left, moved []jira.Worklog
+	workCall(t, "GET", ts.URL+"/api/issues/DEMO-5/worklogs", "", &left)
+	workCall(t, "GET", ts.URL+"/api/issues/DEMO-6/worklogs", "", &moved)
+	if len(left) != len(on)-2 || len(moved) < 2 {
+		t.Fatalf("left %d of %d, moved %d", len(left), len(on), len(moved))
+	}
+	if c := workCall(t, "DELETE", ts.URL+"/api/worklog/DEMO-6", `{"IDs":`+ids+`}`, nil); c != 200 {
+		t.Fatalf("delete = %d", c)
+	}
+	var after []jira.Worklog
+	if workCall(t, "GET", ts.URL+"/api/issues/DEMO-6/worklogs", "", &after); len(after) != len(moved)-2 {
+		t.Errorf("after the delete %d of %d", len(after), len(moved))
+	}
+}
+
 func TestInboxMarks(t *testing.T) {
 	ts := workServer(t)
 	var in struct {
