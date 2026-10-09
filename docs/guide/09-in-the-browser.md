@@ -64,6 +64,7 @@ shell's `PATH`. It takes effect at the next login. Not with `-demo` or
 | My work | `g w` | your issues, worklogs of a day or week, proposals |
 | Inbox | `g i` | threads on issues others changed, mentions |
 | Standup | `g s` | round the team, with the board beside it |
+| Dashboards | | the site's dashboards with their gadgets; on laneway-server each gadget as it is there, on Jira the ones that list a filter's issues (the rest link to Jira) |
 | Agents | `g a` | coding agents and worktrees, each one's live terminal (needs herdr) |
 | Merge requests | `g M` | the merge requests waiting on you on your GitLabs, a page each |
 | Rules | `g l` | your rules, a live feed, try a change |

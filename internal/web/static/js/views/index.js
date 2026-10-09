@@ -13,6 +13,7 @@ export const routes = [
   { path: '/roadmap/:project?', name: 'roadmap', title: T('Roadmap'), key: 'm', load: () => import('./roadmap.js') },
   { path: '/work', name: 'work', title: T('My work'), key: 'w', load: () => import('./work.js') },
   { path: '/inbox', name: 'inbox', title: T('Inbox'), key: 'i', load: () => import('./inbox.js') },
+  { path: '/dashboards/:id?', name: 'dashboards', title: T('Dashboards'), bar: false, load: () => import('./dashboards.js') },
   { path: '/standup', name: 'standup', title: T('Standup'), key: 's', load: () => import('./standup.js') },
   { path: '/agents', name: 'agents', title: T('Agents'), key: 'a', bar: false, load: () => import('./agents.js') },
   { path: '/mr', name: 'mr', title: T('Merge request'), nav: false, bar: false, load: () => import('./mr.js') },

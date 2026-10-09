@@ -2,6 +2,7 @@
 # Re-record: go test ./internal/contract -run TestRecord -record <site> -project <keys>
 # Projects: LAN,LWC.
 # Recorded 2026-10-05.
+# Dashboards and serverInfo recorded 2026-10-09 (corne-claude).
 
 GET /rest/agile/1.0/board 200
 	. object
@@ -539,6 +540,34 @@ GET /rest/agile/1.0/board/{id}/sprint/{id}/issue 200
 	maxResults number
 	startAt number
 	total number
+
+GET /rest/api/3/dashboard/search 200
+	. object
+	isLast bool
+	maxResults number
+	self string
+	startAt number
+	total number
+	values array
+	values[] object
+	values[].id string
+	values[].isFavourite bool
+	values[].name string
+	values[].self string
+	values[].view string
+
+GET /rest/api/3/dashboard/{id}/gadget 200
+	. object
+	gadgets array
+	gadgets[] object
+	gadgets[].color string
+	gadgets[].id number
+	gadgets[].moduleKey string
+	gadgets[].position object
+	gadgets[].position.column number
+	gadgets[].position.row number
+	gadgets[].title string
+	gadgets[].uri string
 
 GET /rest/api/3/field 200
 	. array
@@ -1956,6 +1985,26 @@ GET /rest/api/3/project/{project}/version 200
 	values[].startDate string
 	values[].userReleaseDate string
 	values[].userStartDate string
+
+GET /rest/api/3/serverInfo 200
+	. object
+	baseUrl string
+	buildDate string
+	buildNumber number
+	defaultLocale object
+	defaultLocale.locale string
+	deploymentType string
+	displayUrl string
+	displayUrlCSMHelpSeeker string
+	displayUrlConfluence string
+	displayUrlServicedeskHelpCenter string
+	scmInfo string
+	serverTime string
+	serverTimeZone string
+	serverTitle string
+	version string
+	versionNumbers array
+	versionNumbers[] number
 
 GET /rest/api/3/status 200
 	. array

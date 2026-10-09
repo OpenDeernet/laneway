@@ -1,3 +1,7 @@
 # "endpoint | path" the demo may answer though Jira's recording lacks it,
 # each with its reason. Prefer giving the recorded projects (LAN, LWC on
 # corne-team) data that shows the path over a line here.
+
+# The recording account sees only the system dashboard, which has no owner;
+# Jira sends the owner of any other (expand=owner).
+GET /rest/api/3/dashboard/search 200 | values[].owner

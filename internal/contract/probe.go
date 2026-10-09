@@ -55,6 +55,15 @@ func Probe(ctx context.Context, c *jira.Client, project string) []error {
 	try("CommentVisibilities", ignore(c.CommentVisibilities(ctx, project)))
 	try("CycleTimes", ignore(c.CycleTimes(ctx, project, 8, nil, nil)))
 	try("Roadmap", ignore(c.Roadmap(ctx, project, "Epic", 30)))
+	if ds, err := c.Dashboards(ctx); err != nil {
+		try("Dashboards", err)
+	} else if len(ds) > 0 {
+		gs, err := c.Gadgets(ctx, ds[0].ID)
+		try("Gadgets", err)
+		for _, g := range gs {
+			c.GadgetData(ctx, ds[0].ID, g) // most of Jira's own keep their settings out of reach
+		}
+	}
 
 	var cards []jira.Card
 	boards, err := c.Boards(ctx, project)

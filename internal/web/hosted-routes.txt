@@ -23,9 +23,9 @@ off GET /api/actions
 off GET /api/agents
 off GET /api/agents/events
 off GET /api/agents/issues
+off GET /api/agents/status
 off GET /api/agents/{pane}/output
 off GET /api/agents/{pane}/terminal
-off GET /api/agents/status
 off GET /api/ask
 on  GET /api/attachments/{id}
 on  GET /api/attachments/{id}/media
@@ -38,6 +38,9 @@ on  GET /api/boards/{board}/viewcards
 off GET /api/branch
 on  GET /api/confluence/images/{id}
 on  GET /api/confluence/pages/{id}
+on  GET /api/dashboards
+on  GET /api/dashboards/{id}
+on  GET /api/dashboards/{id}/gadgets/{gid}
 on  GET /api/drafts/{id}
 on  GET /api/emoji
 on  GET /api/emoji/table
@@ -175,8 +178,8 @@ off POST /api/setup
 off POST /api/setup/laneway
 off POST /api/setup/probe
 off POST /api/site
-off POST /api/sites
 on  POST /api/site/tokens
+off POST /api/sites
 on  POST /api/worklog/{key}
 on  POST /api/worklog/{key}/move
 off PUT /api/autostart

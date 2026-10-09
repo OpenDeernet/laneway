@@ -1278,5 +1278,16 @@
   "used %s": "gebruikt %s",
   "what it is for": "waarvoor het is",
   "your tokens for scripts and the apps you signed in with; revoke what you no longer use": "je tokens voor scripts en de apps waarmee je bent ingelogd; trek in wat je niet meer gebruikt",
-  "Sign out of laneway": "Afmelden bij laneway"
+  "Sign out of laneway": "Afmelden bij laneway",
+  "Dashboard": "Dashboard",
+  "Dashboards": "Dashboards",
+  "Make one on the site; it shows here.": "Maak er een op de site; dan staat het hier.",
+  "No dashboards": "Geen dashboards",
+  "No issues.": "Geen issues.",
+  "Open on the site": "Openen op de site",
+  "Open the dashboard": "Open het dashboard",
+  "This dashboard has no gadgets yet.": "Dit dashboard heeft nog geen gadgets.",
+  "This gadget isn’t set up yet: set it up on the site.": "Deze gadget is nog niet ingesteld: stel hem in op de site.",
+  "This gadget shows on the site.": "Deze gadget is te zien op de site.",
+  "created": "aangemaakt"
 }

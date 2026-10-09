@@ -266,6 +266,12 @@ func (s *Server) read(p string, q map[string][]string) (any, bool) {
 	switch p {
 	case "/rest/api/3/myself":
 		return map[string]any{"accountId": me.id, "displayName": me.name, "emailAddress": "demo@example.com", "timeZone": "UTC"}, true
+	case "/rest/api/3/dashboard/search":
+		return s.dashboards(), true
+	case "/rest/api/3/dashboard/" + demoDashboard + "/gadget":
+		return s.gadgets(), true
+	case "/rest/api/3/dashboard/" + demoDashboard + "/items/10002/properties/config":
+		return map[string]any{"key": "config", "value": map[string]any{"jql": "project = DEMO ORDER BY updated DESC"}}, true
 	case "/rest/api/3/serverInfo":
 		if s.lw != nil {
 			return map[string]any{"deploymentType": "Cloud", "lanewayServerVersion": "demo"}, true

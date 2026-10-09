@@ -1,0 +1,16 @@
+/* Dashboards: a dashboard's gadgets in its columns (views/dashboards.js); panels as on Home. */
+.dbs { height: 100%; overflow: auto; padding: calc(var(--pad) * 2); display: grid; gap: calc(var(--pad) * 1.5); align-content: start; }
+.db-head { display: flex; align-items: center; gap: var(--pad); flex-wrap: wrap; }
+.db-head h2 { margin: 0; font-size: 1.143rem; }
+.db-cols { display: grid; gap: calc(var(--pad) * 1.5); align-items: start; grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr)); }
+@media (max-width: 60rem) { .db-cols { grid-template-columns: minmax(0, 1fr); } }
+.db-col { display: grid; gap: calc(var(--pad) * 1.5); align-content: start; min-width: 0; }
+.db-g .hnote a { color: var(--accent); }
+.db-bucket { display: grid; grid-template-columns: minmax(6rem, 30%) 1fr auto; gap: var(--pad); align-items: center; padding: .214rem calc(var(--pad) * 1.5); font-size: .929rem; }
+.db-bucket .hbar { height: .714rem; }
+.db-grid { width: 100%; border-collapse: collapse; font-size: .929rem; }
+.db-grid th, .db-grid td { padding: .214rem calc(var(--pad) * 1.5); text-align: right; font-variant-numeric: tabular-nums; }
+.db-grid th:first-child, .db-grid td:first-child { text-align: left; }
+.db-grid tr + tr td { border-top: 1px solid var(--bg-3); }
+.db-chart { padding: var(--pad); }
+.db-foot { padding: .286rem calc(var(--pad) * 1.5); color: var(--fg-2); font-size: .857rem; border-top: 1px solid var(--bg-3); }

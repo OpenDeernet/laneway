@@ -66,6 +66,13 @@ func (s *Server) serveLaneway(w http.ResponseWriter, r *http.Request, body map[s
 	switch {
 	case p == "/rest/laneway/1/events": // the demo has no change feed: the app polls
 		gone()
+	case r.Method == http.MethodGet && strings.HasPrefix(p, "/rest/laneway/1/dashboard/"+demoDashboard+"/gadget/") && strings.HasSuffix(p, "/data"):
+		n, _ := strconv.Atoi(strings.TrimSuffix(strings.TrimPrefix(p, "/rest/laneway/1/dashboard/"+demoDashboard+"/gadget/"), "/data"))
+		if v, ok := s.gadgetData(n); ok {
+			send(v)
+		} else {
+			gone()
+		}
 	case r.Method == http.MethodGet && p == "/rest/laneway/1/myself/tokens":
 		out := []any{}
 		for _, t := range lw.tokens {
