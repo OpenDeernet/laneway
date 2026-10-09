@@ -116,6 +116,9 @@ type Client struct {
 	// resolved. See Priorities / Myself.
 	priorities []Option
 	myself     *User
+	// laneway is whether the site is laneway-server (Laneway), behind mu;
+	// nil until read.
+	laneway *bool
 
 	// rules caches the workflow walk (transition.go); boardMeta the Agile
 	// API's slow-changing answers (agile.go). Both have their own locks.

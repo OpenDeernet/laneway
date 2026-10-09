@@ -32,6 +32,11 @@ func (c *Client) Events(ctx context.Context, fn func(SiteChange)) error {
 	if !c.Enabled() {
 		return errNotConfigured
 	}
+	// Jira has no feed: don't ask it. Unknown yet (offline): try the
+	// stream, which retries until the site answers.
+	if is, err := c.Laneway(ctx); err == nil && !is {
+		return ErrNoEvents
+	}
 	client := &http.Client{Transport: c.http.Transport} // no timeout: the stream stays open
 	var last int64
 	backoff := time.Second

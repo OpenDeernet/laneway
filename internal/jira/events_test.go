@@ -5,12 +5,18 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
 
 func TestEvents(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/rest/api/3/serverInfo" {
+			fmt.Fprint(w, `{"deploymentType":"Cloud","lanewayServerVersion":"0.1.0"}`)
+			return
+		}
 		if r.URL.Path != "/rest/laneway/1/events" {
 			http.NotFound(w, r)
 			return
@@ -36,10 +42,51 @@ func TestEvents(t *testing.T) {
 		t.Fatal("no change read")
 	}
 
-	jira := httptest.NewServer(http.NotFoundHandler())
+	// Jira: serverInfo without laneway's version, and the feed isn't asked for.
+	var mu sync.Mutex
+	var asked []string
+	jira := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		asked = append(asked, r.URL.Path)
+		mu.Unlock()
+		if r.URL.Path == "/rest/api/3/serverInfo" {
+			fmt.Fprint(w, `{"deploymentType":"Cloud","version":"1001.0.0-SNAPSHOT"}`)
+			return
+		}
+		http.NotFound(w, r)
+	}))
 	defer jira.Close()
 	c = New(Config{BaseURL: jira.URL, Email: "a@b.c", APIToken: "t"})
 	if err := c.Events(context.Background(), func(SiteChange) {}); err != ErrNoEvents {
 		t.Errorf("against Jira: %v, want ErrNoEvents", err)
+	}
+	if err := c.Events(context.Background(), func(SiteChange) {}); err != ErrNoEvents {
+		t.Errorf("against Jira again: %v, want ErrNoEvents", err)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if fmt.Sprint(asked) != "[/rest/api/3/serverInfo]" {
+		t.Errorf("asked Jira %v, want serverInfo once", asked)
+	}
+}
+
+func TestLanewayUnknownWhileOffline(t *testing.T) {
+	var down atomic.Bool
+	down.Store(true)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if down.Load() {
+			http.Error(w, "down", http.StatusBadGateway)
+			return
+		}
+		fmt.Fprint(w, `{"lanewayServerVersion":"0.1.0"}`)
+	}))
+	defer srv.Close()
+	c := New(Config{BaseURL: srv.URL, Email: "a@b.c", APIToken: "t"})
+	if _, err := c.Laneway(context.Background()); err == nil {
+		t.Fatal("no error while the site is down")
+	}
+	down.Store(false)
+	if is, err := c.Laneway(context.Background()); err != nil || !is {
+		t.Errorf("after the site is back: %v %v", is, err)
 	}
 }

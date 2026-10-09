@@ -248,9 +248,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		send(v)
 		return
 	}
-	if p != "/rest/laneway/1/events" { // laneway-server's, which Jira has not either
-		s.unhandled(r.Method + " " + p)
-	}
+	s.unhandled(r.Method + " " + p)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusNotFound)
 	send(map[string]any{"errorMessages": []string{"the demo has no " + p}})
