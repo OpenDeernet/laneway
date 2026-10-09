@@ -344,5 +344,6 @@
   "ui.%s acts on the machine laneway runs on: not on a laneway web shared by many people": "ui.%s werkt op de machine waar laneway draait: niet op een laneway web dat veel mensen delen",
   "bad dashboard id": "ongeldig dashboard-id",
   "bad gadget id": "ongeldig gadget-id",
-  "no such gadget": "die gadget bestaat niet"
+  "no such gadget": "die gadget bestaat niet",
+  "not a time zone": "geen tijdzone"
 }

@@ -86,3 +86,12 @@ func (c *Client) Administers(ctx context.Context) (bool, error) {
 	}
 	return resp.Permissions["ADMINISTER"].Have || resp.Permissions["ADMINISTER_PROJECTS"].Have, nil
 }
+
+// ProfilePage is where Jira keeps your profile: Atlassian's account page
+// on Cloud, the site's own on Server and Data Center.
+func (c *Client) ProfilePage(ctx context.Context) string {
+	if i, _ := c.siteInfo(ctx); i.SelfHosted {
+		return c.baseURL + "/secure/ViewProfile.jspa"
+	}
+	return "https://id.atlassian.com/manage-profile/profile-and-visibility"
+}

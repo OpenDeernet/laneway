@@ -13,6 +13,8 @@ on  DELETE /api/issues/{key}/attachments/{id}
 on  DELETE /api/issues/{key}/comments/{id}
 on  DELETE /api/issues/{key}/links/{id}
 off DELETE /api/issues/{key}/worktree
+on  DELETE /api/me/avatar
+on  DELETE /api/me/sessions
 on  DELETE /api/queue/{id}
 on  DELETE /api/site/apps/{id}
 on  DELETE /api/site/tokens
@@ -93,6 +95,7 @@ on  GET /api/jql/values
 on  GET /api/jql/words
 on  GET /api/labels
 on  GET /api/linktypes
+on  GET /api/me
 on  GET /api/notes
 on  GET /api/plan/{board}
 on  GET /api/prefs
@@ -167,6 +170,7 @@ on  POST /api/issues/{key}/watch
 on  POST /api/issues/{key}/weblinks
 off POST /api/issues/{key}/work
 on  POST /api/jql/starred
+on  POST /api/me/avatar
 on  POST /api/plan/move
 on  POST /api/plan/sprints
 on  POST /api/plan/sprints/{id}/close
@@ -198,6 +202,9 @@ on  PUT /api/issues/{key}/doc/{field}
 on  PUT /api/issues/{key}/field/{field}
 on  PUT /api/issues/{key}/notes
 on  PUT /api/issues/{key}/watchers/{account}
+on  PUT /api/me/locale
+on  PUT /api/me/notifications
+on  PUT /api/me/timezone
 on  PUT /api/prefs/{name}
 on  PUT /api/settings/{name}
 off PUT /api/site/projects

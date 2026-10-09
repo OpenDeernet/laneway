@@ -28,6 +28,7 @@ import { designLanes } from './settings_lanes.js';
 import { keyOptions } from './settings_keys.js';
 import { fontOptions } from './settings_fonts.js';
 import { siteOptions } from './settings_site.js';
+import { accountOptions } from './settings_account.js';
 import { T } from '../lib/i18n.js';
 
 css('settings');
@@ -35,12 +36,12 @@ css('settings');
 // GROUPS order the sections; a section none lists is the config file's (its topics in the server's order).
 const GROUPS = [
   { title: T('Web app'), desc: T('every browser on this laneway web; the terminal has its own'), sections: ['Appearance', 'Fonts', 'Board', 'Notifications'] },
-  { title: T('Jira and server'), sections: ['Jira site', 'Server', 'GitLab', 'Data'] },
+  { title: T('Jira and server'), sections: ['Account', 'Jira site', 'Server', 'GitLab', 'Data'] },
   { title: T('Config file'), desc: T('ui: options, shared with the terminal app'), sections: null },
   { title: T('Keyboard'), sections: ['Keyboard'] },
 ];
 // A section's name is its id (options carry it, the sidebar and anchors key on it); this is what shows.
-const SECTIONS = { Appearance: T('Appearance'), Fonts: T('Fonts'), Board: T('Board'), Notifications: T('Notifications'), 'Jira site': T('Jira site'), Server: T('Server'), GitLab: 'GitLab', Data: T('Data'), Keyboard: T('Keyboard') };
+const SECTIONS = { Appearance: T('Appearance'), Fonts: T('Fonts'), Board: T('Board'), Notifications: T('Notifications'), Account: T('Account'), 'Jira site': T('Jira site'), Server: T('Server'), GitLab: 'GitLab', Data: T('Data'), Keyboard: T('Keyboard') };
 const secName = sec => SECTIONS[sec] || T(sec);
 const VAL = { compact: T('compact'), normal: T('normal'), roomy: T('roomy'), show: T('show'), hide: T('hide'), lanes: T('lanes'), list: T('list') };
 const CONFIG = GROUPS.findIndex(g => !g.sections);
@@ -235,9 +236,9 @@ export default function mount(el, { app, scope, toolbar, query }) {
       h('div.st-name', h('div', o.name, o.meta && h('span.chip', o.meta), o.advanced && !adv && h('span.chip', T('advanced'))), o.desc && h('div.st-desc', o.desc)), o.render());
   }
   function draw() {
-    const vis = shown();
+    const vis = shown(), was = rows[sel];
     rows = vis.filter(o => !o.static);
-    sel = Math.min(sel, Math.max(0, rows.length - 1));
+    sel = rows.includes(was) ? rows.indexOf(was) : Math.min(sel, Math.max(0, rows.length - 1)); // options loaded above it keep the cursor
     clear(list); clear(nav);
     let grp = -1, sec = null, body = null;
     for (const o of vis) {
@@ -331,6 +332,12 @@ export default function mount(el, { app, scope, toolbar, query }) {
     for (const w of c.warnings) options.push(info(T('Config warning'), w, 'Server'));
     setFoot(); draw();
   }).catch(e => app.ui.errToast(e));
+  // You on the server (settings_account.js): which rows depends on it.
+  api.get('/me', { fresh: true }).then(m => {
+    if (dead) return;
+    options.push(...accountOptions(app, m, () => refresh()));
+    draw();
+  }).catch(e => console.warn('account', e));
   // Each GitLab instance (the gitlab: config's, then glab's logins), signed in to.
   api.get('/gitlab', { fresh: true }).then(list => {
     if (dead || !list.length) return;

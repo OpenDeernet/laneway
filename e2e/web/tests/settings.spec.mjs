@@ -149,8 +149,44 @@ test('api tokens on jira link to atlassian', async ({ page, app }) => {
   await expect(row.getByRole('button', { name: 'Make a token' })).toHaveCount(0);
 });
 
+// Settings > Account on Jira: only the way to the profile Jira keeps.
+test('account on jira links the profile', async ({ page, app }) => {
+  await page.goto(new URL('/settings', app.url).href);
+  const row = page.getByRole('group', { name: 'Profile' });
+  await expect(row.getByRole('link', { name: 'Open your Jira profile' })).toHaveAttribute('href', /id\.atlassian\.com/);
+  await expect(page.getByRole('group', { name: 'Avatar' })).toHaveCount(0);
+});
+
 test.describe('on laneway-server', () => {
   test.use({ flavour: 'laneway' });
+
+  // Settings > Account: an avatar uploaded shows in the app bar and goes again; mail cycles; every session ended.
+  test('your account', async ({ page, app }) => {
+    await page.goto(new URL('/settings', app.url).href);
+    const pic = page.getByRole('group', { name: 'Avatar' });
+    await expect(pic.getByRole('button', { name: 'Remove' })).toHaveCount(0);
+    const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
+    await pic.locator('input[type=file]').setInputFiles({ name: 'me.png', mimeType: 'image/png', buffer: png });
+    await expect(pic.getByRole('button', { name: 'Remove' })).toBeVisible();
+    await expect(page.locator('#me img')).toHaveAttribute('src', /^\/api\/avatar\//);
+    await pic.getByRole('button', { name: 'Remove' }).click();
+    await expect(pic.getByRole('button', { name: 'Remove' })).toHaveCount(0);
+    await expect(page.locator('#me img')).toHaveCount(0);
+
+    const mail = page.getByRole('group', { name: 'Email', exact: true });
+    await mail.getByRole('button', { name: 'at once' }).click();
+    await expect(mail.getByRole('button', { name: 'hourly digest' })).toBeVisible();
+    await expect(page.getByRole('group', { name: 'Time zone' })).toContainText('UTC');
+    await expect(page.getByRole('group', { name: 'Mail language' }).getByRole('button', { name: 'English' })).toBeVisible();
+
+    const sessions = page.getByRole('group', { name: 'Sessions' });
+    await expect(sessions.getByRole('group', { name: '192.0.2.10' })).toContainText('passkey');
+    await sessions.getByRole('button', { name: 'Sign out everywhere' }).click();
+    const reloaded = page.waitForEvent('load');
+    await page.getByRole('dialog', { name: 'Sign out everywhere' }).getByRole('button', { name: 'Sign out everywhere' }).click();
+    await reloaded;
+    await expect(page.getByRole('group', { name: 'Sessions' })).toContainText('none');
+  });
 
   // A token made shows its secret once; one revoked after a confirm, then the rest at once.
   test('api tokens are made and revoked', async ({ page, app }) => {

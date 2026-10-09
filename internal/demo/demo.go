@@ -94,7 +94,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(v)
 	}
-	if s.serveGitLab(w, r, body, send) || s.serveLaneway(w, r, body, send) || s.serveDesk(w, r, body, send) {
+	if s.serveGitLab(w, r, body, send) || s.serveLaneway(w, r, body, send) || s.serveAccount(w, r, raw, body, send) || s.serveDesk(w, r, body, send) {
 		return
 	}
 	if r.Method == http.MethodPost && p == "/rest/api/3/search/jql" {
@@ -265,7 +265,12 @@ func (s *Server) read(p string, q map[string][]string) (any, bool) {
 	}
 	switch p {
 	case "/rest/api/3/myself":
-		return map[string]any{"accountId": me.id, "displayName": me.name, "emailAddress": "demo@example.com", "timeZone": "UTC"}, true
+		out := map[string]any{"accountId": me.id, "displayName": me.name, "emailAddress": "demo@example.com", "timeZone": "UTC"}
+		if s.lw != nil && s.lw.avatar != nil {
+			u := s.base + "/avatar/user/" + me.id + "?v=" + strconv.Itoa(s.lw.avatarSeq)
+			out["avatarUrls"] = map[string]any{"48x48": u + "&s=48", "24x24": u + "&s=24"}
+		}
+		return out, true
 	case "/rest/api/3/dashboard/search":
 		return s.dashboards(), true
 	case "/rest/api/3/dashboard/" + demoDashboard + "/gadget":

@@ -13,7 +13,9 @@ export function install(app) {
   const ext = url => () => window.open(url, '_blank', 'noopener');
   const has = id => app.commands.list().some(c => c.id === id);
 
-  btn.replaceChildren(avatar(name, me.AvatarURL, 24));
+  const paint = m => btn.replaceChildren(avatar(name, m.AvatarURL, 24));
+  paint(me);
+  app.bus.on('me', paint); // a new avatar (Settings > Account)
   btn.title = T('%s · account', name);
   btn.setAttribute('aria-label', btn.title);
   app.api.swr('/account', a => {
@@ -35,7 +37,7 @@ export function install(app) {
     if (app.session.hosted) out.push('-', { label: T('Sign out of laneway'), run: () => app.commands.run('signout') });
     return out.filter(Boolean);
   }
-  const head = () => h('div.ctx-head', { role: 'none' }, avatar(name, me.AvatarURL, 32),
+  const head = () => h('div.ctx-head', { role: 'none' }, avatar(name, app.session.me.AvatarURL, 32),
     h('div.ctx-who', h('div.ctx-name', name), me.Email && h('div.faint', me.Email), h('div.faint', host(app.session.baseURL))));
 
   // A press on the button while its menu is open only closes it (the menu's own outside press does).
