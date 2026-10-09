@@ -187,7 +187,6 @@
   "laneway web on %s": "laneway web op %s",
   "laneway web on %s · connect it to Jira there": "laneway web op %s · koppel het daar aan Jira",
   "laneway: -cert and -key go together": "laneway: -cert en -key horen bij elkaar",
-  "laneway: unknown command %q (list, view, create, move, web, rules, setup, prompt, hook, index, completion)": "laneway: onbekend commando %q (list, view, create, move, web, rules, setup, prompt, hook, index, completion)",
   "list: the query": "list: de query",
   "logged %s": "%s geboekt",
   "lower-case letters, digits, - and _ only": "alleen kleine letters, cijfers, - en _",
@@ -303,5 +302,18 @@
   "usage: laneway view [-format plain|json] KEY": "gebruik: laneway view [-format plain|json] SLEUTEL",
   "view: -format is plain or json": "view: -format is plain of json",
   "watching %s every %s": "%s volgen, elke %s",
-  "no worklogs": "geen werklogs"
+  "no worklogs": "geen werklogs",
+  "%s is a Jira site: it signs in with an API token (laneway setup)": "%s is een Jira-site: die meldt zich aan met een API-token (laneway setup)",
+  "%s signs in with an API token; revoke it on the site": "%s meldt zich aan met een API-token; trek het in op de site",
+  "It's a laneway-server: sign in through it (the browser, or a code on another device)? [Y/n, n: email and API token]": "Het is een laneway-server: daarmee aanmelden (de browser, of een code op een ander apparaat)? [J/n, n: e-mail en API-token]",
+  "a site from sites: (default jira:)": "een site uit sites: (standaard jira:)",
+  "config file (default ~/.config/laneway/config.yaml)": "configuratiebestand (standaard ~/.config/laneway/config.yaml)",
+  "keeping the sign-in: %w": "de aanmelding bewaren: %w",
+  "laneway: unknown command %q (list, view, create, move, web, rules, setup, login, logout, prompt, hook, index, completion)": "laneway: onbekend commando %q (list, view, create, move, web, rules, setup, login, logout, prompt, hook, index, completion)",
+  "open %s on any device and enter %s": "open %s op een willekeurig apparaat en vul %s in",
+  "sign in with a code on another device instead of this machine's browser": "aanmelden met een code op een ander apparaat in plaats van de browser op deze machine",
+  "signed out of %s": "afgemeld bij %s",
+  "signing in in your browser; if it didn't open, open this:": "aanmelden in je browser; ging die niet open, open dan dit:",
+  "waiting… ": "wachten… ",
+  "Start the sign-in first.": "Begin eerst met aanmelden."
 }

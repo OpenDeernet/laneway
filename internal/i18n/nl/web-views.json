@@ -1242,5 +1242,12 @@
   "delete worklog (the marked ones)": "werklog verwijderen (de gemarkeerde)",
   "mark every worklog of the day": "elke werklog van de dag markeren",
   "mark worklog": "werklog markeren",
-  "move worklog (the marked ones) to another issue": "werklog (de gemarkeerde) naar een ander issue verplaatsen"
+  "move worklog (the marked ones) to another issue": "werklog (de gemarkeerde) naar een ander issue verplaatsen",
+  " (a new tab), sign in, and allow laneway there.": " (een nieuw tabblad), meld je aan en sta laneway daar toe.",
+  "Asking laneway for a sign-in code…": "laneway om een aanmeldcode vragen…",
+  "Check it shows this code: ": "Controleer dat het deze code toont: ",
+  "Sign in with laneway": "Aanmelden met laneway",
+  "This is a laneway-server: you sign in on its own page, as in the browser, and laneway keeps that sign-in. No token needed.": "Dit is een laneway-server: je meldt je aan op zijn eigen pagina, zoals in de browser, en laneway bewaart die aanmelding. Geen token nodig.",
+  "Waiting for you to allow it…": "Wachten tot je het toestaat…",
+  "laneway's sign-in page": "de aanmeldpagina van laneway"
 }

@@ -63,12 +63,22 @@ the real thing.
     comes where there is one (`secret-tool`, macOS Keychain). Then your
     board opens.
 
+    On a [laneway-server](https://github.com/cornedor/laneway-server)
+    there's no token to make: laneway asks to sign in through it, opens
+    its sign-in page in your browser (over SSH it shows a code to enter
+    on any device instead), and keeps that sign-in. `laneway login` signs
+    in again, `laneway logout` signs out.
+
 === "Browser"
 
     Run `laneway web`. Without a config the browser opens on a setup page:
     your site (`acme` or its URL), email and an API token, with the steps to
     make one. It signs in before it saves anything and says what went wrong
     if it can't.
+
+    On a laneway-server the page asks for no token: *Sign in with
+    laneway* shows a code and a link to its sign-in page; allow it there
+    and the page goes on by itself.
 
     Two boxes to tick: keep the token in the system keyring, and start
     `laneway web` when you log in. *Try the demo* starts the generated

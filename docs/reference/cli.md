@@ -21,6 +21,8 @@ the command; a command's flags go before its arguments.
 | `laneway` | the terminal app |
 | `laneway web` (`serve`) | the browser app, see [In the browser](../guide/09-in-the-browser.md) |
 | `laneway setup` | add a Jira site, or replace a site's email and token |
+| `laneway login` | sign in to a laneway-server site through its own sign-in (`-device`: with a code on another device; over SSH it does that anyway) |
+| `laneway logout` | end a laneway-server site's sign-in, on the server too |
 
 `laneway web` flags: `-addr` (`127.0.0.1:8484`), `-remote` (allow an
 address that is not loopback; needs `-cert` and `-key`), `-cert`, `-key`

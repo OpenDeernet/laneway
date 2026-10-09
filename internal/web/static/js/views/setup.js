@@ -42,6 +42,28 @@ export function mountSetup(el, st) {
     atLogin ? h('label.check.su-keyring', atLogin, T('Start laneway when I log in, so this page is always there (Settings turns it off)')) : null,
     h('div.su-actions', connect, status));
 
+  // A laneway-server signs in through itself: no email or token here.
+  let laneway = false;
+  const tokenParts = [email.closest('.su-field'), token.closest('.su-field'), keyring && keyring.parentElement].filter(Boolean);
+  const lanewayBox = h('div.su-laneway', { hidden: true });
+  form.insertBefore(lanewayBox, form.querySelector('.su-actions'));
+  const setMode = on => {
+    laneway = on;
+    tokenParts.forEach(x => { x.hidden = on; });
+    lanewayBox.hidden = !on;
+    lanewayBox.replaceChildren(h('p.su-hint', T('This is a laneway-server: you sign in on its own page, as in the browser, and laneway keeps that sign-in. No token needed.')));
+    connect.textContent = on ? T('Sign in with laneway') : T('Connect');
+  };
+  let probed = '';
+  const probe = async () => {
+    const v = site.value.trim();
+    if (!v || v === probed) return;
+    probed = v;
+    try { setMode(!!(await api.post('/setup/probe', { Site: v })).laneway); } catch (e) { setMode(false); }
+  };
+  site.addEventListener('change', probe);
+  if (site.value) probe();
+
   clear(el).append(h('div.su-wrap', h('div.su-card',
     h('h2', again ? T('Sign in to Jira again') : T('Connect laneway to Jira')),
     h('p.su-intro.dim', again
@@ -55,6 +77,7 @@ export function mountSetup(el, st) {
   let busy = false;
   async function send(demo) {
     if (busy) return;
+    if (!demo && laneway) return signInLaneway();
     busy = true; connect.disabled = true;
     for (const k in errs) errs[k].textContent = '';
     status.className = 'su-status dim';
@@ -70,6 +93,36 @@ export function mountSetup(el, st) {
       status.textContent = '';
       const f = e.fields && Object.keys(e.fields)[0];
       if (f && errs[f]) { errs[f].textContent = e.fields[f]; ({ site, email, token })[f].focus(); } else { status.className = 'su-status err'; status.textContent = e.message; }
+    }
+  }
+
+  // The sign-in happens on the laneway-server's own page: a code to check
+  // there, then this page waits until it was allowed.
+  async function signInLaneway() {
+    busy = true; connect.disabled = true;
+    errs.site.textContent = '';
+    status.className = 'su-status dim';
+    status.textContent = T('Asking laneway for a sign-in code…');
+    try {
+      const c = await api.post('/setup/laneway', { Site: site.value });
+      lanewayBox.replaceChildren(
+        h('p', T('Open '), h('a', { href: c.complete || c.uri, target: '_blank', rel: 'noopener' }, T("laneway's sign-in page")), T(' (a new tab), sign in, and allow laneway there.')),
+        h('p', T('Check it shows this code: '), h('b.mono.su-code', c.code)));
+      status.textContent = T('Waiting for you to allow it…');
+      for (;;) {
+        await new Promise(r => setTimeout(r, 2000));
+        const r = await api.post('/setup', { Site: site.value, Laneway: true, Autostart: !!(atLogin && atLogin.checked) });
+        if (r.pending) continue;
+        status.className = 'su-status ok';
+        status.textContent = T('Signed in as %s. Opening your boards…', r.who);
+        if (r.autostartError) { status.textContent += T(' Starting at login did not work: %s', r.autostartError); await new Promise(res => setTimeout(res, 4000)); }
+        await waitForApp();
+        return;
+      }
+    } catch (e) {
+      busy = false; connect.disabled = false;
+      status.className = 'su-status err';
+      status.textContent = (e.fields && Object.values(e.fields)[0]) || e.message;
     }
   }
 }

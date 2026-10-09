@@ -29,8 +29,10 @@ func (c *Client) Avatar(ctx context.Context, avatarURL string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if own && c.auth != "" {
-		req.Header.Set("Authorization", c.auth)
+	if own && c.Enabled() {
+		if _, err := c.authorize(req); err != nil {
+			return nil, err
+		}
 	}
 	hc := *c.http
 	hc.CheckRedirect = func(r *http.Request, via []*http.Request) error {

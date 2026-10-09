@@ -547,6 +547,7 @@ func JiraConfig(cfg config.JiraConfig, ui config.UIConfig) jira.Config {
 		BaseURL:          cfg.BaseURL,
 		Email:            cfg.Email,
 		APIToken:         cfg.APIToken,
+		SignIn:           cfg.Credentials(),
 		Projects:         cfg.Projects,
 		StoryPointsField: cfg.StoryPointsField,
 		CardLimit:        opts.cardLimit,

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"cmp"
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -79,6 +80,45 @@ func signIn(ctx context.Context, j config.JiraConfig) (string, error) {
 	return u.DisplayName, err
 }
 
+// probeLaneway and lanewayLogin are jira's; tests swap them.
+var (
+	probeLaneway = jira.ProbeLaneway
+	lanewayLogin = func(ctx context.Context, base string, p prompter, device bool) (jira.Credentials, error) {
+		// Over SSH the browser here isn't the person's: a code they type
+		// on their own device instead.
+		if device || os.Getenv("SSH_CONNECTION") != "" || os.Getenv("SSH_TTY") != "" {
+			return jira.DeviceLogin(ctx, base, func(code, uri, complete string) {
+				fmt.Fprintln(p.out, "  "+i18n.Tf("open %s on any device and enter %s", uri, code))
+				fmt.Fprint(p.out, "  "+i18n.T("waiting… "))
+			})
+		}
+		return jira.LoopbackLogin(ctx, base, func(u string) error {
+			fmt.Fprintln(p.out, "  "+i18n.T("signing in in your browser; if it didn't open, open this:"))
+			fmt.Fprintln(p.out, "  "+u)
+			fmt.Fprint(p.out, "  "+i18n.T("waiting… "))
+			p.open(u)
+			return nil
+		})
+	}
+)
+
+// keepLanewaySignIn signs j in through its laneway-server and keeps the
+// sign-in: j becomes a sign_in: laneway site for the account.
+func keepLanewaySignIn(ctx context.Context, j *config.JiraConfig, p prompter, device bool) error {
+	creds, err := lanewayLogin(ctx, j.BaseURL, p, device)
+	if err != nil {
+		fmt.Fprintln(p.out)
+		return err
+	}
+	j.SignIn, j.Email, j.APIToken, j.APITokenCmd = config.SignInLaneway, creds.Account, "", nil
+	raw, _ := json.Marshal(creds)
+	if err := j.Credentials().Save(raw); err != nil {
+		return fmt.Errorf(i18n.T("keeping the sign-in: %w"), err)
+	}
+	fmt.Fprintln(p.out, "✓ "+i18n.Tf("signed in as %s", creds.Account))
+	return nil
+}
+
 // errTryDemo is "demo" typed at a first start's site prompt: laneway -demo
 // instead.
 var errTryDemo = errors.New("try the demo")
@@ -137,6 +177,20 @@ func setupSite(ctx context.Context, cfgPath, site string, p prompter, verify fun
 			fmt.Fprintf(p.out, "  "+i18n.T("already set up as %s; this replaces its email and token")+"\n", siteName(name))
 		} else {
 			known = cfg.Jira // the same person, most likely
+		}
+		if probeLaneway(ctx, j.BaseURL) {
+			yes, err := p.ask(i18n.T("It's a laneway-server: sign in through it (the browser, or a code on another device)? [Y/n, n: email and API token]"), "")
+			if err != nil {
+				return "", err
+			}
+			if yes == "" || strings.HasPrefix(strings.ToLower(yes), "y") || strings.HasPrefix(strings.ToLower(yes), "j") {
+				if err := keepLanewaySignIn(ctx, &j, p, false); err != nil {
+					fmt.Fprintln(p.out, "  ✗ "+err.Error())
+					fmt.Fprintln(p.out, "  "+i18n.T("Try again; enter keeps what you typed."))
+					continue
+				}
+				break
+			}
 		}
 		if j.Email, err = p.ask(i18n.T("Email"), cmp.Or(j.Email, known.Email)); err != nil {
 			return "", err

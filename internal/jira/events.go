@@ -45,7 +45,9 @@ func (c *Client) Events(ctx context.Context, fn func(SiteChange)) error {
 		if err != nil {
 			return err
 		}
-		req.Header.Set("Authorization", c.auth)
+		if _, err := c.authorize(req); err != nil {
+			return err
+		}
 		req.Header.Set("Accept", "text/event-stream")
 		if last > 0 {
 			req.Header.Set("Last-Event-ID", strconv.FormatInt(last, 10))

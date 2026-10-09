@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/cornedor/laneway/internal/config"
+	"github.com/cornedor/laneway/internal/jira"
 )
 
 // scripted answers setup's questions from lines, the token ones too, and
@@ -181,5 +182,45 @@ func TestSetupDemo(t *testing.T) {
 	}
 	if _, err := setup(context.Background(), path, s.prompter("demo", "a@a", "tok", ""), s.verify); err != nil {
 		t.Errorf("second site named demo: %v", err)
+	}
+}
+
+// Tests never ask a real site whether it is a laneway-server.
+func init() { probeLaneway = func(context.Context, string) bool { return false } }
+
+// TestSetupLanewaySignIn: a laneway-server site signs in through it; the
+// config gets sign_in: laneway and no token, the sign-in is kept apart.
+func TestSetupLanewaySignIn(t *testing.T) {
+	t.Setenv("JIRA_API_TOKEN", "")
+	t.Setenv("PATH", "") // no keyring tool: the sign-in goes to a file
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	path := filepath.Join(t.TempDir(), "laneway", "config.yaml")
+	probeLaneway = func(_ context.Context, base string) bool { return base == "https://lw.example" }
+	defer func() { probeLaneway = func(context.Context, string) bool { return false } }()
+	var device bool
+	old := lanewayLogin
+	defer func() { lanewayLogin = old }()
+	lanewayLogin = func(_ context.Context, base string, _ prompter, dev bool) (jira.Credentials, error) {
+		device = dev
+		return jira.Credentials{Key: "a2V5", Refresh: "lwr_1", Account: "ada@lw.example"}, nil
+	}
+	s := &scripted{}
+	name, err := setup(context.Background(), path, s.prompter("https://lw.example", ""), s.verify)
+	if err != nil || name != "" || device {
+		t.Fatalf("setup = %q %v (device %v)\n%s", name, err, device, s.out.String())
+	}
+	c, _, err := config.Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !c.Jira.LanewaySignIn() || c.Jira.APIToken != "" || c.Jira.Email != "ada@lw.example" || c.Jira.Check("jira") != nil {
+		t.Errorf("config = %+v (check %v)", c.Jira, c.Jira.Check("jira"))
+	}
+	raw, err := c.Jira.Credentials().Load()
+	if err != nil || !strings.Contains(string(raw), `"refresh":"lwr_1"`) {
+		t.Errorf("kept sign-in %q %v", raw, err)
+	}
+	if !strings.Contains(s.out.String(), "signed in as ada@lw.example") || len(s.tried) != 0 {
+		t.Errorf("out:\n%s\ntried %v", s.out.String(), s.tried)
 	}
 }

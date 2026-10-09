@@ -221,7 +221,7 @@ func siteClient(cfgPath, site string) (*jira.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return jira.New(jira.Config{BaseURL: cfg.Jira.BaseURL, Email: cfg.Jira.Email, APIToken: cfg.Jira.APIToken, Timeout: 10 * time.Second}), nil
+	return jira.New(jira.Config{BaseURL: cfg.Jira.BaseURL, Email: cfg.Jira.Email, APIToken: cfg.Jira.APIToken, SignIn: cfg.Jira.Credentials(), Timeout: 10 * time.Second}), nil
 }
 
 // hookPostCheckout offers to move the branch's issue in progress while it

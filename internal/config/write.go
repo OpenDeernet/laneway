@@ -48,6 +48,17 @@ func SetSite(path, name string, j JiraConfig) error {
 				return err
 			}
 		}
+		if j.LanewaySignIn() { // the sign-in is kept apart: no token at all
+			for _, k := range []string{"api_token", "api_token_cmd"} {
+				if err := setMapping(site, k, nil); err != nil {
+					return err
+				}
+			}
+			return setMapping(site, "sign_in", SignInLaneway)
+		}
+		if err := setMapping(site, "sign_in", nil); err != nil { // a token again
+			return err
+		}
 		if len(j.APITokenCmd) > 0 { // the keyring holds it: no token in the file
 			if err := setMapping(site, "api_token", nil); err != nil {
 				return err

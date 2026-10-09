@@ -33,7 +33,10 @@ type JiraConfig struct {
 	APIToken string `yaml:"api_token"`
 	// APITokenCmd prints the token when api_token is unset:
 	// [secret-tool, lookup, service, laneway], [pass, jira], [op, read, …].
-	APITokenCmd      []string          `yaml:"api_token_cmd,omitempty"`
+	APITokenCmd []string `yaml:"api_token_cmd,omitempty"`
+	// SignIn "laneway" signs in to a laneway-server through its own
+	// sign-in (laneway login) instead of email and api_token (signin.go).
+	SignIn           string            `yaml:"sign_in,omitempty"`
 	Projects         []string          `yaml:"projects"`
 	StoryPointsField string            `yaml:"story_points_field"`
 	Repos            map[string]string `yaml:"repos,omitempty"`
@@ -874,7 +877,14 @@ const starterConfig = `jira:
 // "sites.club").
 func (j JiraConfig) Check(site string) error {
 	var missing []string
-	for _, f := range []struct{ name, v string }{{"base_url", j.BaseURL}, {"email", j.Email}, {"api_token", j.APIToken}} {
+	need := []struct{ name, v string }{{"base_url", j.BaseURL}, {"email", j.Email}, {"api_token", j.APIToken}}
+	switch {
+	case j.LanewaySignIn():
+		need = need[:1] // the sign-in is kept apart (laneway login)
+	case strings.TrimSpace(j.SignIn) != "":
+		return fmt.Errorf("%s.sign_in: %q isn't a sign-in; use %s or leave it out", site, j.SignIn, SignInLaneway)
+	}
+	for _, f := range need {
 		if strings.TrimSpace(f.v) == "" {
 			missing = append(missing, f.name)
 		}

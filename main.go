@@ -78,6 +78,16 @@ func subcommand(args []string, cfgPath, site string, out, errOut io.Writer) int 
 			global = append(global, "-site", site)
 		}
 		return setupCmd(append(global, args[1:]...), errOut)
+	case "login":
+		if site != "" {
+			global = append(global, "-site", site)
+		}
+		return loginCmd(append(global, args[1:]...), errOut)
+	case "logout":
+		if site != "" {
+			global = append(global, "-site", site)
+		}
+		return logoutCmd(append(global, args[1:]...), out, errOut)
 	case "prompt":
 		if site != "" {
 			global = append(global, "-site", site)
@@ -107,7 +117,7 @@ func subcommand(args []string, cfgPath, site string, out, errOut io.Writer) int 
 		}
 		return cliCmd(args[0], append(global, args[1:]...), out, errOut)
 	}
-	fmt.Fprintf(errOut, i18n.T("laneway: unknown command %q (list, view, create, move, web, rules, setup, prompt, hook, index, completion)")+"\n", args[0])
+	fmt.Fprintf(errOut, i18n.T("laneway: unknown command %q (list, view, create, move, web, rules, setup, login, logout, prompt, hook, index, completion)")+"\n", args[0])
 	return 2
 }
 
@@ -200,7 +210,7 @@ func runSite(cfg config.Config, cfgPath, site string) (string, int, error) {
 				return nil, err
 			}
 			timeout, _ := j.RequestTimeout()
-			return jira.New(jira.Config{BaseURL: j.BaseURL, Email: j.Email, APIToken: j.APIToken, Timeout: timeout}), nil
+			return jira.New(jira.Config{BaseURL: j.BaseURL, Email: j.Email, APIToken: j.APIToken, SignIn: j.Credentials(), Timeout: timeout}), nil
 		})
 	final, err := newProgram(m).Run()
 	fm, ok := final.(ui.Model)

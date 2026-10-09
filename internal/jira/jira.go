@@ -66,6 +66,9 @@ type Config struct {
 	Timeout          time.Duration // one request's limit; 0: DefaultTimeout
 	CustomFields     []string      // fields by name cards carry in Card.Extra
 	FlatReplies      bool          // read comments without who they reply to (ui.threaded_replies: off)
+	// SignIn keeps a laneway-server sign-in (oauth.go): set, it is used
+	// instead of Email and APIToken.
+	SignIn CredentialStore
 }
 
 // Client fetches and caches issues for one instance. The zero value is not
@@ -73,6 +76,7 @@ type Config struct {
 type Client struct {
 	baseURL    string        // trimmed of any trailing slash
 	auth       string        // pre-encoded "Basic …" header value, empty when unconfigured
+	oauth      *oauthSession // a laneway-server sign-in instead (oauth.go)
 	spOverride string        // configured story-points custom-field id, "" to auto-detect
 	cardLimit  int           // most cards one board fetch returns
 	flagValue  string        // the Flagged option SetFlagged sets
@@ -157,7 +161,10 @@ func New(cfg Config) *Client {
 	if c.cardLimit <= 0 {
 		c.cardLimit = DefaultCardLimit
 	}
-	if cfg.Email != "" && cfg.APIToken != "" {
+	switch {
+	case cfg.SignIn != nil:
+		c.oauth = &oauthSession{base: c.baseURL, store: cfg.SignIn, http: &http.Client{Timeout: c.timeout}}
+	case cfg.Email != "" && cfg.APIToken != "":
 		raw := cfg.Email + ":" + cfg.APIToken
 		c.auth = "Basic " + base64.StdEncoding.EncodeToString([]byte(raw))
 	}
@@ -168,7 +175,7 @@ func New(cfg Config) *Client {
 // whether a fetch can succeed. The UI uses it to decide whether to offer the
 // panel at all.
 func (c *Client) Enabled() bool {
-	return c != nil && c.baseURL != "" && c.auth != ""
+	return c != nil && c.baseURL != "" && (c.auth != "" || c.oauth != nil)
 }
 
 // BaseURL returns the configured instance root (no trailing slash). Used by
@@ -602,7 +609,10 @@ func (c *Client) attempt(ctx context.Context, method, path, what string, body an
 	if err != nil {
 		return nil, -1, fmt.Errorf("build request: %w", err)
 	}
-	req.Header.Set("Authorization", c.auth)
+	access, err := c.authorize(req)
+	if err != nil {
+		return nil, -1, err
+	}
 	req.Header.Set("Accept", "application/json")
 	if buf != nil {
 		req.Header.Set("Content-Type", "application/json")
@@ -623,6 +633,12 @@ func (c *Client) attempt(ctx context.Context, method, path, what string, body an
 	respBody, err := io.ReadAll(io.LimitReader(resp.Body, 8<<20))
 	if err != nil {
 		return nil, -1, fmt.Errorf("read response: %w", err)
+	}
+	if resp.StatusCode == http.StatusUnauthorized && access != "" && try == 0 {
+		// The access token was turned away (revoked, or the server
+		// restarted its clock): refresh and send it once more.
+		c.oauth.expire(access)
+		return nil, 0, statusError(resp.StatusCode, what, respBody, "")
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		retryAfter := resp.Header.Get("Retry-After")

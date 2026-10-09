@@ -103,7 +103,9 @@ func (c *Client) download(ctx context.Context, path, what string) ([]byte, error
 	if err != nil {
 		return nil, fmt.Errorf("build request: %w", err)
 	}
-	req.Header.Set("Authorization", c.auth)
+	if _, err := c.authorize(req); err != nil {
+		return nil, err
+	}
 	resp, err := c.transfer.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("call jira: %w", stallCause(reqCtx, err))
@@ -180,7 +182,9 @@ func (c *Client) UploadAttachmentFrom(ctx context.Context, key, name string, f i
 	if err != nil {
 		return Attachment{}, fmt.Errorf("build request: %w", err)
 	}
-	req.Header.Set("Authorization", c.auth)
+	if _, err := c.authorize(req); err != nil {
+		return Attachment{}, err
+	}
 	req.Header.Set("Content-Type", mw.FormDataContentType())
 	req.Header.Set("X-Atlassian-Token", "no-check") // Jira's CSRF guard for uploads
 	c.writing.Add(1)
@@ -226,7 +230,9 @@ func (c *Client) MediaID(ctx context.Context, id string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("build request: %w", err)
 	}
-	req.Header.Set("Authorization", c.auth)
+	if _, err := c.authorize(req); err != nil {
+		return "", err
+	}
 	hc := *c.transfer
 	hc.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
 	resp, err := hc.Do(req)
@@ -400,7 +406,9 @@ func (c *Client) DownloadAttachment(ctx context.Context, id, name, dir string) (
 	if err != nil {
 		return "", fmt.Errorf("build request: %w", err)
 	}
-	req.Header.Set("Authorization", c.auth)
+	if _, err := c.authorize(req); err != nil {
+		return "", err
+	}
 	resp, err := c.transfer.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("call jira: %w", stallCause(reqCtx, err))

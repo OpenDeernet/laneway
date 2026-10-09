@@ -168,7 +168,7 @@ func projectDefaults(cfg *config.Config, project, typ string) (string, string) {
 	if project == "" || err != nil {
 		return "", ""
 	}
-	c := jira.New(jira.Config{BaseURL: cfg.Jira.BaseURL, Email: cfg.Jira.Email, APIToken: cfg.Jira.APIToken, Timeout: timeout})
+	c := jira.New(jira.Config{BaseURL: cfg.Jira.BaseURL, Email: cfg.Jira.Email, APIToken: cfg.Jira.APIToken, SignIn: cfg.Jira.Credentials(), Timeout: timeout})
 	if !c.Enabled() {
 		return "", ""
 	}

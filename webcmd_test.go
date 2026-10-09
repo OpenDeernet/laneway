@@ -9,8 +9,10 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/cornedor/laneway/internal/config"
+	"github.com/cornedor/laneway/internal/jira"
 	"github.com/cornedor/laneway/internal/web"
 )
 
@@ -149,5 +151,53 @@ func TestWebAutostartArgv(t *testing.T) {
 	a := webAutostart("c.yaml", "127.0.0.1:9000")
 	if a == nil || len(a.Argv) != 7 || !filepath.IsAbs(a.Argv[0]) || strings.Join(a.Argv[1:5], " ") != "web -no-open -addr 127.0.0.1:9000" || !filepath.IsAbs(a.Argv[6]) {
 		t.Errorf("argv = %+v", a)
+	}
+}
+
+// TestWebSetupLaneway: on a laneway-server the setup screen starts a
+// sign-in with a code; saving waits until it was allowed, then writes a
+// sign_in: laneway site and keeps the sign-in.
+func TestWebSetupLaneway(t *testing.T) {
+	t.Setenv("PATH", "") // no keyring tool: the sign-in goes to a file
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	allow := make(chan struct{})
+	old := deviceLogin
+	defer func() { deviceLogin = old }()
+	deviceLogin = func(ctx context.Context, base string, show func(code, uri, complete string)) (jira.Credentials, error) {
+		show("BCDF-GHJK", base+"/device", base+"/device?user_code=BCDF-GHJK")
+		<-allow
+		return jira.Credentials{Key: "a2V5", Refresh: "lwr_1", Account: "ada@lw.example"}, nil
+	}
+	path := filepath.Join(t.TempDir(), "laneway", "config.yaml")
+	ctx := context.Background()
+	form := web.SetupForm{Site: "https://lw.example", Laneway: true}
+	var fe web.FieldError
+	if _, err := webSetupSave(ctx, path, "", form); !errors.As(err, &fe) || fe.Field != "site" {
+		t.Errorf("save before starting: %v", err)
+	}
+	c, err := webLaneway.start(ctx, "lw.example")
+	if err != nil || c.Code != "BCDF-GHJK" || c.URI != "https://lw.example/device" {
+		t.Fatalf("start = %+v %v", c, err)
+	}
+	if _, err := webSetupSave(ctx, path, "", form); !errors.Is(err, web.ErrPending) {
+		t.Errorf("save while waiting: %v", err)
+	}
+	close(allow)
+	var who string
+	for i := 0; i < 100; i++ {
+		if who, err = webSetupSave(ctx, path, "", form); !errors.Is(err, web.ErrPending) {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if err != nil || who != "ada@lw.example" {
+		t.Fatalf("save = %q %v", who, err)
+	}
+	cfg, _, err := config.Load(path)
+	if err != nil || !cfg.Jira.LanewaySignIn() || cfg.Jira.APIToken != "" || cfg.Jira.Email != "ada@lw.example" {
+		t.Errorf("config = %+v %v", cfg.Jira, err)
+	}
+	if raw, _ := cfg.Jira.Credentials().Load(); !strings.Contains(string(raw), "lwr_1") {
+		t.Errorf("kept sign-in %q", raw)
 	}
 }

@@ -19,6 +19,7 @@ jira:
   name: Work              # how this site is labelled in the site picker and the web's header
   api_token: ...          # or JIRA_API_TOKEN (overrides it), or:
   # api_token_cmd: [secret-tool, lookup, service, laneway]   # prints the token (pass, op read, …)
+  # sign_in: laneway      # a laneway-server: its own sign-in (laneway login) instead of email and api_token
   projects: [ABC]         # listed first in the project picker
   repos: {ABC: ~/src/abc} # checkouts: start work, your commits in the standup and worklog proposals
   start_statuses: {ABC: Doing}   # where start work moves ABC issues, over ui.start_status ("" for none)
@@ -331,3 +332,15 @@ status_todo status_progress status_done`, and `shade`.
 | `~/.config/laneway/rules.log` | what `log` rule actions wrote |
 | `~/.cache/laneway/index-jira.db` | the local index of every issue read; `index-club.db` for a site |
 | `~/.cache/laneway/avatars` | avatar images |
+
+### Signing in to a laneway-server
+
+A site on [laneway-server](https://github.com/cornedor/laneway-server)
+can sign in the way its web pages do (password and two-step, passkey,
+SSO, GitLab) instead of with an API token: `laneway setup` and the setup
+page offer it, `laneway login` does it later. The config then says
+`sign_in: laneway`; the sign-in itself (a key made for it and a refresh
+token) lives in the system keyring, or without one in
+`~/.config/laneway/sign-in/` readable only by you. Its tokens last 15
+minutes, renew themselves and only work with that key (OAuth with DPoP),
+so a copied one is of no use. `laneway logout` ends it on the server too.

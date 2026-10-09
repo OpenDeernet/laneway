@@ -53,7 +53,7 @@ func rulesWatch(args []string, out, errOut io.Writer) int {
 		fmt.Fprintln(errOut, "laneway:", err)
 		return 1
 	}
-	c := jira.New(jira.Config{BaseURL: cfg.Jira.BaseURL, Email: cfg.Jira.Email, APIToken: cfg.Jira.APIToken,
+	c := jira.New(jira.Config{BaseURL: cfg.Jira.BaseURL, Email: cfg.Jira.Email, APIToken: cfg.Jira.APIToken, SignIn: cfg.Jira.Credentials(),
 		StoryPointsField: cfg.Jira.StoryPointsField, CardLimit: cfg.UI.CardLimit, Timeout: timeout})
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()

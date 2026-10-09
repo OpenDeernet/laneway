@@ -19,6 +19,7 @@ import (
 	"runtime"
 	"slices"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -165,6 +166,11 @@ func serveWeb(parent context.Context, cfgPath, site, addr, cert, key, token stri
 				}
 				return who, err
 			}
+			st.Probe = func(ctx context.Context, site string) bool {
+				base, err := config.BaseURL(site)
+				return err == nil && probeLaneway(ctx, base)
+			}
+			st.Laneway = webLaneway.start
 			opt.Setup = st
 		} else {
 			if opt, err = webSite(cfg, site, opt); err != nil {
@@ -329,6 +335,21 @@ func webSetupSave(ctx context.Context, path, site string, f web.SetupForm) (stri
 	if err != nil {
 		return "", web.FieldError{Field: "site", Msg: sentence(err.Error())}
 	}
+	if f.Laneway {
+		creds, err := webLaneway.result(base)
+		if err != nil {
+			return "", err
+		}
+		j := config.JiraConfig{BaseURL: base, SignIn: config.SignInLaneway, Email: creds.Account}
+		raw, _ := json.Marshal(creds)
+		if err := j.Credentials().Save(raw); err != nil {
+			return "", err
+		}
+		if err := config.SetSite(path, site, j); err != nil {
+			return "", err
+		}
+		return creds.Account, nil
+	}
 	j := config.JiraConfig{BaseURL: base, Email: strings.TrimSpace(f.Email), APIToken: strings.TrimSpace(f.Token)}
 	if !strings.Contains(j.Email, "@") {
 		return "", web.FieldError{Field: "email", Msg: i18n.T("Type the email address you sign in to Jira with.")}
@@ -423,4 +444,74 @@ func webSite(cfg config.Config, site string, opt web.Options) (web.Options, erro
 
 func webClient(jc config.JiraConfig, uiCfg config.UIConfig) *jira.Client {
 	return jira.New(ui.JiraConfig(jc, uiCfg))
+}
+
+// deviceLogin is jira's; tests swap it.
+var deviceLogin = jira.DeviceLogin
+
+// webLaneway holds the setup screen's laneway sign-ins under way, by site.
+var webLaneway = &lanewaySignIns{pending: map[string]*lanewaySignIn{}}
+
+type lanewaySignIns struct {
+	mu      sync.Mutex
+	pending map[string]*lanewaySignIn
+}
+
+type lanewaySignIn struct {
+	done  chan struct{}
+	creds jira.Credentials
+	err   error
+}
+
+// start begins a sign-in to site with a code the person allows at its
+// /device page (in another tab, or on another device for a remote
+// laneway web); Save with Laneway picks it up.
+func (l *lanewaySignIns) start(ctx context.Context, site string) (web.LanewayCode, error) {
+	base, err := config.BaseURL(site)
+	if err != nil {
+		return web.LanewayCode{}, web.FieldError{Field: "site", Msg: sentence(err.Error())}
+	}
+	shown := make(chan web.LanewayCode, 1)
+	p := &lanewaySignIn{done: make(chan struct{})}
+	l.mu.Lock()
+	l.pending[base] = p
+	l.mu.Unlock()
+	go func() {
+		defer close(p.done)
+		ctx, cancel := context.WithTimeout(context.Background(), 11*time.Minute)
+		defer cancel()
+		p.creds, p.err = deviceLogin(ctx, base, func(code, uri, complete string) {
+			shown <- web.LanewayCode{Code: code, URI: uri, Complete: complete}
+		})
+	}()
+	select {
+	case c := <-shown:
+		return c, nil
+	case <-p.done:
+		return web.LanewayCode{}, web.FieldError{Field: "site", Msg: sentence(p.err.Error())}
+	case <-ctx.Done():
+		return web.LanewayCode{}, ctx.Err()
+	}
+}
+
+// result is site's sign-in once allowed; web.ErrPending while it waits.
+func (l *lanewaySignIns) result(base string) (jira.Credentials, error) {
+	l.mu.Lock()
+	p := l.pending[base]
+	l.mu.Unlock()
+	if p == nil {
+		return jira.Credentials{}, web.FieldError{Field: "site", Msg: i18n.T("Start the sign-in first.")}
+	}
+	select {
+	case <-p.done:
+	default:
+		return jira.Credentials{}, web.ErrPending
+	}
+	l.mu.Lock()
+	delete(l.pending, base)
+	l.mu.Unlock()
+	if p.err != nil {
+		return jira.Credentials{}, web.FieldError{Field: "site", Msg: sentence(p.err.Error())}
+	}
+	return p.creds, nil
 }
