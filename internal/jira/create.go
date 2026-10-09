@@ -170,7 +170,6 @@ func (c *Client) CreateFields(ctx context.Context, project, typ string) ([]Creat
 	type field struct {
 		rawFieldMeta
 		FieldID         string `json:"fieldId"`
-		Required        bool   `json:"required"`
 		HasDefaultValue bool   `json:"hasDefaultValue"`
 	}
 	var resp struct {

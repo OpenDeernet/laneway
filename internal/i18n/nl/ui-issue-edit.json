@@ -16,6 +16,7 @@
   "%s can't be set here — set it in Jira (esc, then o)": "%s kan hier niet worden gezet, doe het in Jira (esc, dan o)",
   "%s comment may have posted: %v · %s brings it back, posting it looks first": "%s reactie is misschien geplaatst: %v · %s haalt hem terug, plaatsen kijkt eerst",
   "%s comment not posted: %v · %s brings it back": "%s reactie niet geplaatst: %v · %s haalt hem terug",
+  "%s is required": "%s is verplicht",
   "%s released": "%s gereleased",
   "%s set on %d": "%s gezet op %d",
   "%s set on %s": "%s gezet op %s",

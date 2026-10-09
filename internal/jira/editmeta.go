@@ -19,8 +19,9 @@ var panelFieldIDs = []string{
 }
 
 // EditMeta lists the issue's editable fields beyond the panel's own (summary,
-// priority, points, …), sorted by name, with their current values. Fields of
-// a shape the form can't write are left out. Where Jira offers no edit
+// priority, points, …), sorted by name, with their current values and
+// whether the field configuration requires them. Fields of a shape the form
+// can't write are left out, as are those editmeta lacks (hidden ones). Where Jira offers no edit
 // screen (a closed issue), the one last seen for its project and type comes
 // back read-only (layout.go).
 func (c *Client) EditMeta(ctx context.Context, key string) ([]FieldMeta, map[string]json.RawMessage, error) {
@@ -44,6 +45,7 @@ func (c *Client) EditMeta(ctx context.Context, key string) ([]FieldMeta, map[str
 			continue
 		}
 		if fm := f.meta(id); fm.Kind != KindOther && fm.Kind != KindComment {
+			fm.Required = f.Required
 			out = append(out, fm)
 		}
 	}

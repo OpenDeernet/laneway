@@ -229,12 +229,12 @@ export function mountIssue(el, key, { app, full, card }) {
   // with the TUI; own ones pinned till unpinned, the others once pinned), the others fold under More (the pref
   // fields.more remembers it open); ui.empty_fields: hide folds their empty ones too. A filled rich-text field
   // reads as a section under the description (renderDocs). Read-only: the screen Jira last offered for this
-  // project and type, on an issue it lets no one edit now.
+  // project and type, on an issue it lets no one edit now. One the field configuration requires is marked *.
   function renderFields() {
     const i = st.issue; if (!i) return clear(box.fields);
     const c = st.card || {};
     const cell = (field, label, value) => {
-      const inner = [h('span.k', label), h('span.v', value == null || value === '' ? dash() : value)];
+      const inner = [h('span.k' + (field && required(field) ? '.req' : ''), label), h('span.v', value == null || value === '' ? dash() : value)];
       return field ? h('button.fld', { dataset: { field }, title: T('Edit %s', label.toLowerCase()), onclick: e => edit(field, e.currentTarget) }, inner)
         : h('div.fld.ro', inner);
     };
@@ -264,6 +264,8 @@ export function mountIssue(el, key, { app, full, card }) {
   const fieldMeta = () => st.meta || (st.issue && st.issue.Screen ? { Fields: st.issue.Screen, Values: st.issue.ScreenValues || {}, early: true } : null);
   const fieldPins = () => (st.meta && st.meta.Pins) || app.session.pins || {};
   const isDoc = f => f.Kind === 'doc' && !!valueText(fieldMeta().Values[f.ID]);
+  // required: editmeta's field id (or the panel's due) may not be emptied.
+  const required = id => { const m = fieldMeta(), f = m && (m.Fields || []).find(x => x.ID === (id === 'due' ? 'duedate' : id)); return !!(f && f.Required && !f.ReadOnly); };
   function extraRows(cell) {
     const m = fieldMeta(); if (!m) return [];
     return (m.Fields || []).filter(f => !SHOWN.has(f.ID) && f.Kind !== 'sprint' && !isDoc(f))
@@ -290,7 +292,7 @@ export function mountIssue(el, key, { app, full, card }) {
     const v = valueText(fieldMeta().Values[f.ID]);
     let c;
     if (f.ReadOnly) { c = cell(null, f.Name, v); c.title = T('Jira lets no one edit this issue now'); }
-    else if (f.Kind === 'doc') c = h('button.fld', { title: T('Write %s', f.Name.toLowerCase()), onclick: () => editDoc(f) }, h('span.k', f.Name), h('span.v', dash()));
+    else if (f.Kind === 'doc') c = h('button.fld', { title: T('Write %s', f.Name.toLowerCase()), onclick: () => editDoc(f) }, h('span.k' + (required(f.ID) ? '.req' : ''), f.Name), h('span.v', dash()));
     else c = cell(f.ID, f.Name, v);
     return c;
   }
@@ -323,6 +325,7 @@ export function mountIssue(el, key, { app, full, card }) {
     const done = () => { st.editingDoc = null; renderDocs(); };
     const e = editor({ ...docOf(ed), rows: 8, placeholder: T('%s…', f.Name), allowEmpty: true, label: T('Save'), draft: 'desc:' + key + ':field:' + f.ID, base: ed.Base,
       save: async (doc, base) => {
+        if (required(f.ID) && e.isEmpty()) { ui.toast(T('%s is required', f.Name), { kind: 'err' }); return false; }
         const r = await saveDoc('/issues/' + key + '/doc/' + encodeURIComponent(f.ID), f.Name, e, { Doc: doc }, base);
         if (r === 'theirs') { e.dropDraft(); done(); changed(); }
         if (r !== true) return false;

@@ -86,6 +86,10 @@ and the browser alike.
 
     Click a field to edit it.
 
+A field Jira's field configuration requires is marked `*`, as on the create
+form, and won't empty: laneway refuses before sending, with what you typed
+still in the editor.
+
 > **Tip:** dates understand you: `2026-10-01`, `today`, `+3d`, `fri`. A
 > date-time takes `fri 14:00`.
 

@@ -89,7 +89,11 @@ func (m *Model) renderJiraIssue(iss *jira.Issue, width int) string {
 	lw, w := panelLabelW(), panelLabelW()
 	if split >= 0 {
 		for _, r := range rows[split:] {
-			w = max(w, len([]rune(i18n.T(r.name())))+2)
+			n := len([]rune(i18n.T(r.name()))) + 2
+			if r.ff != nil {
+				n = len([]rune(extraLabel(*r.ff))) + 2
+			}
+			w = max(w, n)
 		}
 	}
 	for i, r := range rows {
@@ -644,7 +648,7 @@ func (m *Model) writeExtraRow(b *strings.Builder, ff jiraFormField, sel bool, w,
 		val = i18n.T("↓ below")
 	}
 	if m.fieldInlineOn(ff.ID) {
-		b.WriteString(refLabelStyle.Render(refMetaLabel(ff.Name, w)) + m.fieldInlineView(w, width) + "\n")
+		b.WriteString(refLabelStyle.Render(refMetaLabel(extraLabel(ff), w)) + m.fieldInlineView(w, width) + "\n")
 		if ff.Clause != "" {
 			for _, l := range m.labelLines(w) {
 				b.WriteString(l + "\n")
@@ -652,8 +656,17 @@ func (m *Model) writeExtraRow(b *strings.Builder, ff jiraFormField, sel bool, w,
 		}
 		return
 	}
-	refField(b, ff.Name, val, w, sel)
+	refField(b, extraLabel(ff), val, w, sel)
 	m.inlinePickerUnder(b, ff.ID, w, width)
+}
+
+// extraLabel is an editmeta field's row label: its name, marked * where the
+// field configuration requires it, as the create form marks one.
+func extraLabel(ff jiraFormField) string {
+	if ff.required && !ff.ReadOnly {
+		return ff.Name + " *"
+	}
+	return ff.Name
 }
 
 // ownValue is the shown issue's value of the panel's own field id, "" when

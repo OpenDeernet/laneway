@@ -94,6 +94,9 @@ issue again, in either, and it comes back. Saving, posting or cancelling
 drops it. The browser also sends it as the page goes, so a reload or a
 closed tab keeps the last keystrokes.
 
+A rich-text field the field configuration requires doesn't save empty;
+the editor stays open.
+
 A description or rich-text field saves only when Jira still has what the
 editor opened on (for a draft, what it was written on). When someone
 changed it meanwhile, nothing is written:

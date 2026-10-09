@@ -35,7 +35,7 @@ func (c *Client) keepLayout(project, typeID string, fields []FieldMeta) {
 	}
 	slim := make([]FieldMeta, len(fields))
 	for i, f := range fields {
-		slim[i] = FieldMeta{ID: f.ID, Name: f.Name, Kind: f.Kind, Clause: f.Clause}
+		slim[i] = FieldMeta{ID: f.ID, Name: f.Name, Kind: f.Kind, Clause: f.Clause, Required: f.Required}
 	}
 	b, err := json.Marshal(slim)
 	if err != nil {

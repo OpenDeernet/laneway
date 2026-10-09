@@ -84,6 +84,9 @@ func init() {
 		if err != nil {
 			return nil, err
 		}
+		if err := required(ctx, s.Client(), key, r.PathValue("field"), jira.Value{Text: b.Markdown, Doc: b.Doc}); err != nil {
+			return nil, err
+		}
 		if given(b.Doc) {
 			return nil, s.Client().SetDocADF(ctx, key, r.PathValue("field"), b.Doc, b.Base)
 		}

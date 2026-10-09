@@ -35,6 +35,7 @@
 .fld { display: flex; flex-direction: column; gap: 1px; text-align: left; font: inherit; color: var(--fg); background: none; border: 1px solid transparent; border-radius: var(--radius); padding: .286rem .571rem; min-width: 0; }
 button.fld { cursor: pointer; } button.fld:hover { background: var(--bg-3); border-color: var(--border); }
 .fld .k { font-size: .75em; text-transform: uppercase; letter-spacing: .04em; color: var(--fg-3); }
+.fld .k.req::after { content: " *"; color: var(--err); }
 .fld .v { display: flex; align-items: center; gap: .429rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fld .chips { display: flex; gap: .286rem; flex-wrap: wrap; } .fld .parent { display: flex; gap: .429rem; min-width: 0; }
 .who { display: inline-flex; align-items: center; gap: .429rem; }

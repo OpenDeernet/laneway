@@ -10,7 +10,8 @@ import (
 )
 
 // TestEditMeta: the issue's editable fields beyond the panel's own, sorted,
-// with story points, system fields and unwritable shapes left out.
+// with story points, system fields and unwritable shapes left out, and
+// whether the field configuration requires them.
 func TestEditMeta(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/rest/api/3/issue/ABC-1" || r.URL.Query().Get("expand") != "editmeta" {
@@ -21,7 +22,7 @@ func TestEditMeta(t *testing.T) {
 		  "summary":{"name":"Summary","schema":{"type":"string","system":"summary"}},
 		  "customfield_1":{"name":"Story Points","schema":{"type":"number"}},
 		  "customfield_2":{"name":"Reviewer","schema":{"type":"user"}},
-		  "customfield_3":{"name":"Team","schema":{"type":"option"},"allowedValues":[{"id":"7","value":"Core"}]},
+		  "customfield_3":{"name":"Team","required":true,"schema":{"type":"option"},"allowedValues":[{"id":"7","value":"Core"}]},
 		  "customfield_4":{"name":"Due","schema":{"type":"date"}},
 		  "customfield_6":{"name":"Seen","schema":{"type":"datetime"}},
 		  "environment":{"name":"Environment","schema":{"type":"string","system":"environment"}}
@@ -51,6 +52,38 @@ func TestEditMeta(t *testing.T) {
 	}
 	if fields[4].Options[0].Name != "Core" {
 		t.Errorf("options = %+v", fields[4].Options)
+	}
+	for i, f := range fields {
+		if f.Required != (i == 4) {
+			t.Errorf("%s required = %v", f.Name, f.Required)
+		}
+	}
+}
+
+// TestEditMetaHidden: a field editmeta leaves out (hidden by the field
+// configuration) is no editable field, though the issue's values or an
+// earlier screen of its project and type hold it.
+func TestEditMetaHidden(t *testing.T) {
+	seen := `{"fields":{"project":{"key":"ABC"},"issuetype":{"id":"1"}},
+		"editmeta":{"fields":{"customfield_1":{"name":"Shown","schema":{"type":"string"}},"customfield_2":{"name":"Hidden","schema":{"type":"string"}}}}}`
+	now := `{"fields":{"project":{"key":"ABC"},"issuetype":{"id":"1"},"customfield_1":"x","customfield_2":"y"},
+		"editmeta":{"fields":{"customfield_1":{"name":"Shown","schema":{"type":"string"}}}}}`
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/rest/api/3/issue/ABC-1" {
+			io.WriteString(w, seen)
+		} else {
+			io.WriteString(w, now)
+		}
+	}))
+	defer srv.Close()
+	c := New(Config{BaseURL: srv.URL, Email: "me@x.test", APIToken: "tok"})
+	c.SetLayouts(memMeta{})
+	if f, _, err := c.EditMeta(context.Background(), "ABC-1"); err != nil || len(f) != 2 {
+		t.Fatalf("before: %+v %v", f, err)
+	}
+	f, _, err := c.EditMeta(context.Background(), "ABC-2")
+	if err != nil || len(f) != 1 || f[0].Name != "Shown" {
+		t.Fatalf("hidden: %+v %v", f, err)
 	}
 }
 
