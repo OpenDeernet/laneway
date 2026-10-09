@@ -18,7 +18,8 @@ type MetaStore interface {
 	SetMeta(key, value string) error
 }
 
-// SetLayouts gives the client somewhere to keep the edit screens it saw.
+// SetLayouts gives the client somewhere to keep the edit screens it saw,
+// and what serverInfo said of the site.
 func (c *Client) SetLayouts(s MetaStore) { c.layouts = s }
 
 func layoutKey(project, typeID string) string { return "layout:" + project + ":" + typeID }

@@ -90,3 +90,29 @@ func TestLanewayUnknownWhileOffline(t *testing.T) {
 		t.Errorf("after the site is back: %v %v", is, err)
 	}
 }
+
+// The answer is kept per site: a start while it can't be reached knows
+// the flavour.
+func TestLanewayKeptForOffline(t *testing.T) {
+	var down atomic.Bool
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if down.Load() {
+			http.Error(w, "down", http.StatusBadGateway)
+			return
+		}
+		fmt.Fprint(w, `{"lanewayServerVersion":"0.1.0"}`)
+	}))
+	defer srv.Close()
+	st := memMeta{}
+	c := New(Config{BaseURL: srv.URL, Email: "a@b.c", APIToken: "t"})
+	c.SetLayouts(st)
+	if is, err := c.Laneway(context.Background()); err != nil || !is {
+		t.Fatalf("online: %v %v", is, err)
+	}
+	down.Store(true)
+	c = New(Config{BaseURL: srv.URL, Email: "a@b.c", APIToken: "t"})
+	c.SetLayouts(st)
+	if is, err := c.Laneway(context.Background()); err != nil || !is {
+		t.Errorf("a start offline: %v %v", is, err)
+	}
+}

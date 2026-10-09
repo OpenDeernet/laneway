@@ -2,20 +2,37 @@ package jira
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 )
 
+// siteInfo is what serverInfo says of the site's flavour.
+type siteInfo struct {
+	Laneway bool `json:"laneway"`
+}
+
+// siteInfoMeta is where the last answer is kept (SetLayouts' store, one
+// per site), for a start while the site can't be reached.
+const siteInfoMeta = "serverInfo"
+
 // Laneway reports whether the site is laneway-server rather than Jira:
 // its serverInfo carries lanewayServerVersion. Features only laneway has
-// ask this instead of probing their own endpoint. The answer is read once
-// per client; an error (offline, Jira down) is returned and not kept.
+// ask this instead of probing their own endpoint.
 func (c *Client) Laneway(ctx context.Context) (bool, error) {
+	i, err := c.siteInfo(ctx)
+	return i.Laneway, err
+}
+
+// siteInfo is read once per client and kept; while it can't be read
+// (offline, Jira down) the kept one answers, and it is asked again next
+// time.
+func (c *Client) siteInfo(ctx context.Context) (siteInfo, error) {
 	if !c.Enabled() {
-		return false, errNotConfigured
+		return siteInfo{}, errNotConfigured
 	}
 	c.mu.Lock()
-	if c.laneway != nil {
-		v := *c.laneway
+	if c.site != nil {
+		v := *c.site
 		c.mu.Unlock()
 		return v, nil
 	}
@@ -25,13 +42,23 @@ func (c *Client) Laneway(ctx context.Context) (bool, error) {
 			Version string `json:"lanewayServerVersion"`
 		}
 		if err := c.do(ctx, http.MethodGet, "/rest/api/3/serverInfo", "server info", nil, &info); err != nil {
-			return false, err
+			var kept siteInfo
+			if c.layouts != nil {
+				if raw, ok, _ := c.layouts.GetMeta(siteInfoMeta); ok && json.Unmarshal([]byte(raw), &kept) == nil {
+					return kept, nil
+				}
+			}
+			return kept, err
 		}
-		is := info.Version != ""
+		i := siteInfo{Laneway: info.Version != ""}
 		c.mu.Lock()
-		c.laneway = &is
+		c.site = &i
 		c.mu.Unlock()
-		return is, nil
+		if c.layouts != nil {
+			b, _ := json.Marshal(i)
+			_ = c.layouts.SetMeta(siteInfoMeta, string(b))
+		}
+		return i, nil
 	})
-	return v.(bool), err
+	return v.(siteInfo), err
 }

@@ -122,9 +122,9 @@ type Client struct {
 	// resolved. See Priorities / Myself.
 	priorities []Option
 	myself     *User
-	// laneway is whether the site is laneway-server (Laneway), behind mu;
+	// site is what serverInfo said of the site (Laneway), behind mu;
 	// nil until read.
-	laneway *bool
+	site *siteInfo
 	// noBulkDelete and noWorklogMove: the site lacks Jira Cloud's bulk
 	// worklog endpoints (worklog.go), behind mu.
 	noBulkDelete, noWorklogMove bool
