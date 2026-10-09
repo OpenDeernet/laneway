@@ -41,6 +41,26 @@ laneway create -project ABC -summary 'Login fails' [-type Bug] [-description 'â€
 laneway move ABC-12 'In Progress'        # a status the issue can move to, any case
 ```
 
+## Tokens
+
+On a laneway-server site, your API tokens and the apps you signed in
+with. Jira keeps its tokens on
+[Atlassian's page](https://id.atlassian.com/manage-profile/security/api-tokens);
+there these say so and stop. `-config` and `-site` go after `token` or
+`apps`. The browser has them under Settings â€º Jira site.
+
+```sh
+laneway token list                       # id, label, scopes, expiry, last use
+laneway token create [-days N] LABEL     # prints the secret, once; -days: the site's default
+laneway token revoke ID
+laneway token revoke-all                 # laneway too, when it signs in with one
+laneway apps list                        # the laneway app's own marked (this app)
+laneway apps revoke ID                   # signs the app out
+```
+
+Signed in through an app rather than with an API token, `create` can't:
+it names the server's own page, which can.
+
 ## Shell
 
 | Command | |

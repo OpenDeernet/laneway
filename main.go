@@ -57,8 +57,8 @@ func main() {
 }
 
 // subcommand runs a command without the board (list, view, create, move,
-// rules, setup, prompt, hook or index), handing on the global -config and -site
-// given before it.
+// rules, setup, prompt, hook, index, token or apps), handing on the global
+// -config and -site given before it.
 func subcommand(args []string, cfgPath, site string, out, errOut io.Writer) int {
 	var global []string
 	if cfgPath != "" {
@@ -105,6 +105,14 @@ func subcommand(args []string, cfgPath, site string, out, errOut io.Writer) int 
 		return indexCmd(args[1:], site, out, errOut)
 	case "mr":
 		return mrCmd(args[1:], out, errOut)
+	case "token", "apps":
+		if site != "" {
+			global = append(global, "-site", site)
+		}
+		if len(args) < 2 {
+			return tokenCmd(args[0] == "apps", nil, out, errOut)
+		}
+		return tokenCmd(args[0] == "apps", append([]string{args[1]}, append(global, args[2:]...)...), out, errOut)
 	case "web", "serve":
 		return webCmd(args[1:], cfgPath, site, errOut)
 	case "completion":
@@ -117,7 +125,8 @@ func subcommand(args []string, cfgPath, site string, out, errOut io.Writer) int 
 		}
 		return cliCmd(args[0], append(global, args[1:]...), out, errOut)
 	}
-	fmt.Fprintf(errOut, i18n.T("laneway: unknown command %q (list, view, create, move, web, rules, setup, login, logout, prompt, hook, index, completion)")+"\n", args[0])
+	fmt.Fprintf(errOut, i18n.T("laneway: unknown command %q (list, view, create, move, web, rules, setup, login, logout, prompt, hook, index, token, apps, completion)")+"
+", args[0])
 	return 2
 }
 
@@ -270,9 +279,13 @@ func runDemo(cfgPath string) error {
 
 // newDemo is the demo Jira. LANEWAY_DEMO_UNHANDLED names a file it adds
 // each request it can't answer to, for the e2e tests; LANEWAY_DEMO_BULK a
-// number of issues more, for timing a big board.
+// number of issues more, for timing a big board; LANEWAY_DEMO_FLAVOUR=laneway
+// makes it laneway-server instead of Jira Cloud.
 func newDemo() *demo.Server {
 	s := demo.New(time.Now())
+	if os.Getenv("LANEWAY_DEMO_FLAVOUR") == "laneway" {
+		s.Laneway()
+	}
 	if n, err := strconv.Atoi(os.Getenv("LANEWAY_DEMO_BULK")); err == nil {
 		s.Bulk(n)
 	}

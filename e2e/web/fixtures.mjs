@@ -8,12 +8,13 @@ import { fileURLToPath } from 'node:url';
 const vitalsJS = fileURLToPath(new URL('node_modules/web-vitals/dist/web-vitals.attribution.iife.js', import.meta.url));
 
 // start runs `laneway web -demo` on a free port, in a home of its own, and
-// resolves to the URL it prints. bulk is a number of issues more in it.
-function start(unhandled, bulk) {
+// resolves to the URL it prints. bulk is a number of issues more in it;
+// flavour 'laneway' makes it laneway-server instead of Jira Cloud.
+function start(unhandled, bulk, flavour) {
   const home = mkdtempSync(path.join(tmpdir(), 'laneway-e2e-'));
   const proc = spawn(process.env.LANEWAY, ['web', '-demo', '-no-open', '-addr', '127.0.0.1:0'], {
     env: { ...process.env, HOME: home, XDG_CONFIG_HOME: path.join(home, '.config'), XDG_STATE_HOME: path.join(home, '.state'),
-      XDG_CACHE_HOME: path.join(home, '.cache'), LANEWAY_DEMO_UNHANDLED: unhandled, LANEWAY_DEMO_BULK: String(bulk) },
+      XDG_CACHE_HOME: path.join(home, '.cache'), LANEWAY_DEMO_UNHANDLED: unhandled, LANEWAY_DEMO_BULK: String(bulk), LANEWAY_DEMO_FLAVOUR: flavour },
     stdio: ['ignore', 'ignore', 'pipe'],
   });
   let log = '';
@@ -59,16 +60,18 @@ async function watchVitals(page, vitals) {
 // test is Playwright's with app: a fresh demo, the page on its board. A
 // test fails on an error in the page or a request the demo can't answer.
 // Its INP and CLS go along as the attachment vitals (vitals-reporter.mjs).
-// test.use({ bulk: n }) gives the demo n issues more; { inp: ms } is the
-// test's INP budget, failed on with INP_BUDGETS=1 (a serial run: parallel
-// workers' contention is no app's); { cls: n } its CLS budget, always.
+// test.use({ bulk: n }) gives the demo n issues more, { flavour: 'laneway' }
+// makes it laneway-server; { inp: ms } is the test's INP budget, failed on
+// with INP_BUDGETS=1 (a serial run: parallel workers' contention is no
+// app's); { cls: n } its CLS budget, always.
 export const test = base.extend({
   bulk: [0, { option: true }],
+  flavour: ['', { option: true }],
   inp: [0, { option: true }],
   cls: [0, { option: true }],
-  app: async ({ page, bulk, inp, cls }, use, info) => {
+  app: async ({ page, bulk, flavour, inp, cls }, use, info) => {
     const unhandled = info.outputPath('unhandled.txt');
-    const server = start(unhandled, bulk);
+    const server = start(unhandled, bulk, flavour);
     const errors = [];
     const vitals = {};
     await watchVitals(page, vitals);
