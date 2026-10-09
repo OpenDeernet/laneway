@@ -140,3 +140,52 @@ test('advanced options hide behind a toggle', async ({ page, app }) => {
   await expect(pw).toHaveCount(0);
   await expect(adv).toHaveAttribute('aria-pressed', 'false');
 });
+
+// Settings > Jira site on Jira: Atlassian's token page, nothing asked of laneway-server's.
+test('api tokens on jira link to atlassian', async ({ page, app }) => {
+  await page.goto(new URL('#/settings', app.url).href);
+  const row = page.getByRole('group', { name: 'API tokens and apps' });
+  await expect(row.getByRole('link', { name: 'Atlassian\'s API token page' })).toHaveAttribute('href', /id\.atlassian\.com/);
+  await expect(row.getByRole('button', { name: 'Make a token' })).toHaveCount(0);
+});
+
+test.describe('on laneway-server', () => {
+  test.use({ flavour: 'laneway' });
+
+  // A token made shows its secret once; one revoked after a confirm, then the rest at once.
+  test('api tokens are made and revoked', async ({ page, app }) => {
+    await page.goto(new URL('#/settings', app.url).href);
+    const row = page.getByRole('group', { name: 'API tokens and apps' });
+    const ci = row.getByRole('group', { name: 'CI pipeline' });
+    await expect(ci).toContainText('read:jira-work');
+    await expect(ci).toContainText('expires');
+    await expect(row.getByRole('group', { name: 'old laptop' })).toContainText('never used');
+    await row.getByRole('button', { name: 'Make a token' }).click();
+    const form = page.getByRole('dialog', { name: 'Make a token' });
+    await form.getByRole('textbox', { name: 'Label' }).fill('deploy script');
+    await form.getByRole('spinbutton', { name: 'Days it lives' }).fill('7');
+    await form.getByRole('button', { name: 'Make' }).click();
+    await expect(row.getByRole('status')).toContainText('deploy script: copy it now');
+    await expect(row.locator('.st-tok-secret')).toHaveText(/^lws_/);
+    await expect(row.getByRole('group', { name: 'deploy script' })).toBeVisible();
+    await ci.getByRole('button', { name: 'Revoke' }).click();
+    await page.getByRole('dialog', { name: 'Revoke CI pipeline' }).getByRole('button', { name: 'Revoke' }).click();
+    await expect(ci).toHaveCount(0);
+    await row.getByRole('button', { name: 'Revoke all' }).click();
+    await page.getByRole('dialog', { name: 'Revoke all tokens' }).getByRole('button', { name: 'Revoke all' }).click();
+    await expect(row.locator('.st-tok-row')).toHaveCount(2); // the apps' only
+    await expect(row.locator('.st-tok-secret')).toHaveCount(0);
+  });
+
+  // The signed-in apps, this one marked; another revoked.
+  test('signed-in apps are revoked', async ({ page, app }) => {
+    await page.goto(new URL('#/settings', app.url).href);
+    const row = page.getByRole('group', { name: 'API tokens and apps' });
+    await expect(row.getByRole('group', { name: 'laneway', exact: true })).toContainText('this app');
+    const cal = row.getByRole('group', { name: 'Calendar sync' });
+    await expect(cal).not.toContainText('this app');
+    await cal.getByRole('button', { name: 'Revoke' }).click();
+    await page.getByRole('dialog', { name: 'Revoke Calendar sync' }).getByRole('button', { name: 'Revoke' }).click();
+    await expect(cal).toHaveCount(0);
+  });
+});

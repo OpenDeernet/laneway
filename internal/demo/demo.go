@@ -39,7 +39,8 @@ type Server struct {
 	linkSeq  int
 	// base is where Start serves it, for links back to itself.
 	base string
-	git  gitlabState // the GitLab's writes (gitlab.go)
+	git  gitlabState   // the GitLab's writes (gitlab.go)
+	lw   *lanewayState // the laneway flavour's (laneway.go); nil: Jira's
 	// Unhandled are the requests no route answered, for tests;
 	// OnUnhandled, when set, hears each as it comes.
 	Unhandled   []string
@@ -93,7 +94,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(v)
 	}
-	if s.serveGitLab(w, r, body, send) {
+	if s.serveGitLab(w, r, body, send) || s.serveLaneway(w, r, body, send) {
 		return
 	}
 	if r.Method == http.MethodPost && p == "/rest/api/3/search/jql" {
@@ -266,6 +267,9 @@ func (s *Server) read(p string, q map[string][]string) (any, bool) {
 	case "/rest/api/3/myself":
 		return map[string]any{"accountId": me.id, "displayName": me.name, "emailAddress": "demo@example.com", "timeZone": "UTC"}, true
 	case "/rest/api/3/serverInfo":
+		if s.lw != nil {
+			return map[string]any{"deploymentType": "Cloud", "lanewayServerVersion": "demo"}, true
+		}
 		return map[string]any{"deploymentType": "Cloud"}, true
 	case "/rest/api/3/project/search":
 		return map[string]any{"isLast": true, "total": 1, "values": []any{projectJSON()}}, true

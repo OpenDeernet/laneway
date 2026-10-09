@@ -136,3 +136,11 @@
 .ln-foreign { font-size: .786rem; }
 .ln-hidden { min-height: 1.857rem; }
 .ln select.input { width: auto; max-width: 16rem; }
+
+/* API tokens and apps (settings_tokens.js) */
+.st-tok { display: flex; flex-direction: column; gap: .429rem; }
+.st-tok-h { font-size: .786rem; text-transform: uppercase; letter-spacing: .06em; color: var(--fg-3); margin-top: .286rem; }
+.st-tok-row { display: flex; flex-wrap: wrap; align-items: center; gap: .286rem .571rem; padding: .143rem 0; border-bottom: 1px solid var(--border); }
+.st-tok-name { font-weight: 600; } .st-tok-self { background: var(--accent-bg); }
+.st-tok-new { padding: .571rem; border: 1px dashed var(--accent); border-radius: var(--radius); display: flex; flex-direction: column; gap: .286rem; }
+.st-tok-secret { user-select: all; overflow-wrap: anywhere; }

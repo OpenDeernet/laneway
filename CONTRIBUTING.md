@@ -34,8 +34,11 @@ LWC is a company-managed fixture project; keep its data varied.
 `cd e2e/web && npm ci && npx playwright test` (`CHROMIUM=/path` uses an
 installed browser). Both fail on a request the demo can't answer
 (`LANEWAY_DEMO_UNHANDLED`); serve it in `internal/demo`, shaped as the
-contract recording has it. Each web test's worst INP and CLS (web-vitals)
-go to `test-results/vitals.json` and the CI job summary. `perf.spec.mjs`
+contract recording has it. `LANEWAY_DEMO_FLAVOUR=laneway` (in Playwright
+`test.use({ flavour: 'laneway' })`) makes the demo laneway-server: serve
+laneway-server's own endpoints there, never in the plain demo. Each web
+test's worst INP and CLS (web-vitals) go to `test-results/vitals.json` and
+the CI job summary. `perf.spec.mjs`
 holds INP to budgets on a big board (50ms moving, 100ms the rest), in CI
 one test at a time: `INP_BUDGETS=1 npx playwright test tests/perf.spec.mjs
 --workers=1` (`CPU_SLOWDOWN=4` for a slower machine).

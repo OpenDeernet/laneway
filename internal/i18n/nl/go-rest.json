@@ -187,7 +187,7 @@
   "laneway web on %s": "laneway web op %s",
   "laneway web on %s · connect it to Jira there": "laneway web op %s · koppel het daar aan Jira",
   "laneway: -cert and -key go together": "laneway: -cert en -key horen bij elkaar",
-  "laneway: unknown command %q (list, view, create, move, web, rules, setup, prompt, hook, index, completion)": "laneway: onbekend commando %q (list, view, create, move, web, rules, setup, prompt, hook, index, completion)",
+  "laneway: unknown command %q (list, view, create, move, web, rules, setup, prompt, hook, index, token, apps, completion)": "laneway: onbekend commando %q (list, view, create, move, web, rules, setup, prompt, hook, index, token, apps, completion)",
   "list: the query": "list: de query",
   "logged %s": "%s geboekt",
   "lower-case letters, digits, - and _ only": "alleen kleine letters, cijfers, - en _",
@@ -303,5 +303,16 @@
   "usage: laneway view [-format plain|json] KEY": "gebruik: laneway view [-format plain|json] SLEUTEL",
   "view: -format is plain or json": "view: -format is plain of json",
   "watching %s every %s": "%s volgen, elke %s",
-  "no worklogs": "geen werklogs"
+  "no worklogs": "geen werklogs",
+  "%s: copy it now, it shows only once; it expires %s": "%s: kopieer het nu, het is maar één keer te zien; het verloopt %s",
+  "(this app)": "(deze app)",
+  "create: the days it lives (default the site's)": "create: de dagen dat het geldig is (standaard die van de site)",
+  "days is 1 or more, or empty for the site's default": "dagen is 1 of meer, of leeg voor de standaard van de site",
+  "give it a label": "geef het een label",
+  "revoked %s": "%s ingetrokken",
+  "revoked every token": "alle tokens ingetrokken",
+  "the site is Jira: its tokens are on %s": "de site is Jira: de tokens staan op %s",
+  "this sign-in can't make tokens; make one on %s": "met deze aanmelding kun je geen tokens maken; maak er een op %s",
+  "usage: laneway apps list\n       laneway apps revoke ID\n\nThe apps you signed in to a laneway-server site with; revoke signs one\nout. -config and -site go after apps.": "gebruik: laneway apps list\n         laneway apps revoke ID\n\nDe apps waarmee je bent ingelogd op een laneway-server-site; revoke logt\ner een uit. -config en -site komen na apps.",
+  "usage: laneway token list\n       laneway token create [-days N] LABEL\n       laneway token revoke ID\n       laneway token revoke-all\n\nYour API tokens on a laneway-server site: list them, make one (its secret\nis printed once), revoke one or all. -days is how long it lives (default\nthe site's). -config and -site go after token.": "gebruik: laneway token list\n         laneway token create [-days N] LABEL\n         laneway token revoke ID\n         laneway token revoke-all\n\nJe API-tokens op een laneway-server-site: toon ze, maak er een (het geheim\nwordt één keer getoond), trek er een of alle in. -days is hoe lang het\ngeldig is (standaard die van de site). -config en -site komen na token."
 }

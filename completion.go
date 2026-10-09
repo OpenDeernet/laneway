@@ -55,12 +55,16 @@ var commandFlags = map[string][]string{
 	"rules":  {"-config", "-site", "-on", "-key", "-summary", "-type", "-status", "-from-status", "-assignee", "-priority", "-points", "-watch", "-by-me"},
 	"setup":  {"-config", "-site"},
 	"mr":     {"-config"},
+	"token":  {"-config", "-site", "-days"},
+	"apps":   {"-config", "-site"},
 }
 
 var commandArgs = map[string][]string{
 	"hook":       {"install"},
 	"index":      {"clear"},
 	"rules":      {"list", "test", "watch"},
+	"token":      {"list", "create", "revoke", "revoke-all"},
+	"apps":       {"list", "revoke"},
 	"completion": {"bash", "zsh", "fish"},
 }
 
@@ -114,7 +118,7 @@ func completeCmd(args []string, out io.Writer) int {
 	case strings.HasPrefix(cur, "-"):
 		words = commandFlags[cmd]
 	case cmd == "":
-		words = []string{"list", "view", "create", "move", "prompt", "hook", "rules", "index", "setup", "mr", "completion"}
+		words = []string{"list", "view", "create", "move", "prompt", "hook", "rules", "index", "setup", "mr", "token", "apps", "completion"}
 	case (cmd == "view" || cmd == "move") && positional == 0:
 		words = cachedKeys(cfgPath, site)
 	case positional == 0:

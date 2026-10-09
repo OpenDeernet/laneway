@@ -103,6 +103,10 @@ tabs show where keys and screens differ; beyond that:
   drop the image instead.
 - **Settings** add the browser's own look: themes, fonts, density. Key
   remaps made there are kept per site, not in `config.yaml`.
+- **API tokens and apps** of a laneway-server site are under Settings ›
+  Jira site: revoke a token or an app, make a token (its secret shows
+  once). On Jira it links to Atlassian's token page. The terminal has
+  `laneway token` and `laneway apps` instead.
 - **Agents' terminals** are the same `herdr agent attach`, drawn by
   xterm.js. A second window on the same agent takes it over; the first
   says so. The browser keeps `ctrl+w`, `ctrl+t` and `ctrl+n` unless

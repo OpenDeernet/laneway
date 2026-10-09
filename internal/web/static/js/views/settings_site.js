@@ -1,7 +1,9 @@
 // Settings > Jira site: this site's projects (jira.projects, or sites.<name>.projects: first in the project picker,
-// the first one opened at start), picked from the site's projects; Server: restarting laneway web.
+// the first one opened at start), picked from the site's projects, and your API tokens and apps (settings_tokens.js);
+// Server: restarting laneway web.
 import { h } from '../lib/dom.js';
 import { restart } from '../lib/sites.js';
+import { tokenOptions } from './settings_tokens.js';
 import { T } from '../lib/i18n.js';
 
 export function siteOptions(app, refresh) {
@@ -30,6 +32,7 @@ export function siteOptions(app, refresh) {
         mine().length ? mine().map(k => h('span.chip.st-proj', k, h('button.st-proj-x', { tabindex: -1, title: T('Remove %s', k), 'aria-label': T('Remove %s', k), onclick: e => { e.stopPropagation(); drop(k); } }, '×'))) : h('span.faint', T('none')),
         h('button.btn.ghost', { tabindex: -1, onclick: edit }, T('Edit'))),
       change: edit, reset: () => { if (mine().length) save([]); } },
+    ...tokenOptions(app, refresh),
     { name: 'Restart', section: 'Server', advanced: true,
       desc: T('starts laneway web again: the config read anew, for options marked restart needed'),
       render: () => h('span.st-val', h('button.btn', { tabindex: -1, onclick: () => restart(app) }, T('Restart'))),

@@ -20,6 +20,17 @@ the key.
 
 > **Try it:** `laneway list -format json | jq -r '.[].key'`.
 
+On a laneway-server site, `laneway token` lists, makes and revokes your
+API tokens, and `laneway apps` the apps you signed in with:
+
+```sh
+laneway token create -days 30 'CI pipeline'   # the secret, printed once
+laneway token list
+laneway apps revoke 7
+```
+
+See [Tokens](../reference/cli.md#tokens).
+
 ## Completion
 
 ```sh
