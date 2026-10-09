@@ -203,6 +203,14 @@ func (h *hosted) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "/auth/login":
 		h.startLogin(w, r, r.URL.Query().Get("next"))
 		return
+	case "/sw.js":
+		// No service worker for many people: it would serve pages from
+		// the cache, past the sign-in. This one replaces one a browser
+		// still has (from laneway web on the same address, or before).
+		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-cache")
+		io.WriteString(w, hostedNoWorker)
+		return
 	}
 	account := h.session(r)
 	if account == "" {
@@ -418,6 +426,16 @@ func (h *hosted) sweep(ctx context.Context) {
 		}
 	}
 }
+
+// hostedNoWorker takes the place of a service worker: it clears laneway's
+// caches, unregisters and reloads the pages it held.
+const hostedNoWorker = `self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', e => e.waitUntil((async () => {
+  for (const k of await caches.keys()) if (k.startsWith('lw-')) await caches.delete(k);
+  await self.registration.unregister();
+  for (const c of await self.clients.matchAll({ type: 'window' })) c.navigate(c.url);
+})()));
+`
 
 // hostedUI is a person's ui: without what acts on this machine: the
 // options that run commands, and those that read its files or fetch

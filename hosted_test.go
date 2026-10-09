@@ -132,6 +132,16 @@ func TestHostedGateway(t *testing.T) {
 			t.Errorf("signed-out answer %v", b)
 		}
 	}
+	// No service worker: one that unregisters, served signed out too.
+	if res, _ := anon.Get(gw.URL + "/sw.js"); res.StatusCode != 200 {
+		t.Errorf("sw.js signed out: %d", res.StatusCode)
+	} else {
+		b, _ := io.ReadAll(res.Body)
+		res.Body.Close()
+		if !strings.Contains(string(b), "unregister()") || strings.Contains(string(b), "respondWith") {
+			t.Errorf("sw.js %s", b)
+		}
+	}
 	via := browserFor()
 	if res, err := via.Get(gw.URL + "/auth/login?next=" + url.QueryEscape("/board/ABC/2?x=1")); err != nil || res.Request.URL.RequestURI() != "/board/ABC/2?x=1" {
 		t.Errorf("sign-in through /auth/login landed at %v %v", res.Request.URL, err)
