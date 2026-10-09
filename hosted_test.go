@@ -123,6 +123,21 @@ func TestHostedGateway(t *testing.T) {
 	anon := &http.Client{}
 	if res, _ := anon.Get(gw.URL + "/api/session"); res.StatusCode != 401 {
 		t.Errorf("API signed out: %d", res.StatusCode)
+	} else {
+		// A page from the browser's cache learns where to sign in.
+		var b map[string]string
+		json.NewDecoder(res.Body).Decode(&b)
+		res.Body.Close()
+		if b["signedOut"] != "/auth/login" {
+			t.Errorf("signed-out answer %v", b)
+		}
+	}
+	via := browserFor()
+	if res, err := via.Get(gw.URL + "/auth/login?next=" + url.QueryEscape("/board/ABC/2?x=1")); err != nil || res.Request.URL.RequestURI() != "/board/ABC/2?x=1" {
+		t.Errorf("sign-in through /auth/login landed at %v %v", res.Request.URL, err)
+	}
+	if res, _ := browserFor().Get(gw.URL + "/auth/login?next=" + url.QueryEscape("//evil.example/")); res.Request.URL.Host != gu(gw.URL) {
+		t.Errorf("an outside next was followed: %v", res.Request.URL)
 	}
 	ada := browserFor()
 	res, err := ada.Get(gw.URL + "/board/ABC/1")
@@ -217,6 +232,9 @@ func TestHostedGateway(t *testing.T) {
 		t.Errorf("sign-in kept after logout: %s", raw)
 	}
 }
+
+// gu is a URL's host.
+func gu(raw string) string { u, _ := url.Parse(raw); return u.Host }
 
 func TestHostedUI(t *testing.T) {
 	u := hostedUI(config.UIConfig{LLM: "rm -rf ~", Calendar: "/etc/passwd", StaleDays: 4})

@@ -200,14 +200,21 @@ func (h *hosted) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "/auth/logout":
 		h.logout(w, r)
 		return
+	case "/auth/login":
+		h.startLogin(w, r, r.URL.Query().Get("next"))
+		return
 	}
 	account := h.session(r)
 	if account == "" {
 		if strings.HasPrefix(r.URL.Path, "/api/") {
-			http.Error(w, i18n.T("signed out; reload the page to sign in"), http.StatusUnauthorized)
+			// The page may come from the browser's cache: it signs in
+			// at signedOut (api.js).
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnauthorized)
+			json.NewEncoder(w).Encode(map[string]string{"error": i18n.T("signed out; reload the page to sign in"), "signedOut": "/auth/login"})
 			return
 		}
-		h.startLogin(w, r)
+		h.startLogin(w, r, r.URL.RequestURI())
 		return
 	}
 	app, err := h.app(account)
@@ -219,8 +226,8 @@ func (h *hosted) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // startLogin sends the browser to laneway-server's sign-in, to come back
-// to /auth/callback and then where it was going.
-func (h *hosted) startLogin(w http.ResponseWriter, r *http.Request) {
+// to /auth/callback and then to next (a path here).
+func (h *hosted) startLogin(w http.ResponseWriter, r *http.Request, next string) {
 	if r.Method != http.MethodGet {
 		http.Error(w, i18n.T("signed out; reload the page to sign in"), http.StatusUnauthorized)
 		return
@@ -231,8 +238,7 @@ func (h *hosted) startLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	state, _ := url.Parse(l.AuthURL)
-	next := r.URL.RequestURI()
-	if !strings.HasPrefix(next, "/") || strings.HasPrefix(next, "//") || strings.HasPrefix(next, "/auth/") {
+	if !strings.HasPrefix(next, "/") || strings.HasPrefix(next, "//") || strings.HasPrefix(next, "/auth/") || strings.ContainsAny(next, "\\\r\n\t") {
 		next = "/"
 	}
 	h.mu.Lock()
