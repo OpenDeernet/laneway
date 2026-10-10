@@ -15,7 +15,7 @@ const LISTS = new Set(['Links', 'Attachments', 'Comments', 'Labels', 'Watches', 
   'Sprints', 'Issues', 'Columns', 'Statuses', 'Subtasks', 'Kids', 'Mentions', 'Threads', 'Histories',
   'FixVersions', 'Components', 'Warnings', 'Options', 'AllowedValues', 'Entries', 'Results', 'Changes',
   'Activity', 'Agents', 'Views', 'Groups', 'Filters', 'QuickFilters', 'Branches', 'Commits',
-  'PullRequests', 'Builds', 'Deployments', 'BlockedBy', 'References', 'Choices', 'Moves', 'Items', 'Rules']);
+  'PullRequests', 'Builds', 'Deployments', 'BlockedBy', 'References', 'Choices', 'Moves', 'Items', 'Rules', 'Replies']);
 export function lists(v) {
   if (Array.isArray(v)) { for (const x of v) if (x && typeof x === 'object') lists(x); }
   else if (v && typeof v === 'object') {

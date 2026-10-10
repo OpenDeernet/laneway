@@ -345,5 +345,8 @@
   "bad dashboard id": "ongeldig dashboard-id",
   "bad gadget id": "ongeldig gadget-id",
   "no such gadget": "die gadget bestaat niet",
-  "not a time zone": "geen tijdzone"
+  "not a time zone": "geen tijdzone",
+  "a page needs a title": "een pagina heeft een titel nodig",
+  "bad wiki id": "ongeldig wiki-id",
+  "the page changed meanwhile: reload it": "de pagina is intussen gewijzigd: laad hem opnieuw"
 }

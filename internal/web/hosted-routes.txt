@@ -44,6 +44,15 @@ on  GET /api/confluence/pages/{id}
 on  GET /api/dashboards
 on  GET /api/dashboards/{id}
 on  GET /api/dashboards/{id}/gadgets/{gid}
+on  GET /api/wiki/spaces
+on  GET /api/wiki/spaces/{id}/pages
+on  GET /api/wiki/search
+on  GET /api/wiki/pages/{id}/edit
+on  PUT /api/wiki/pages/{id}
+on  POST /api/wiki/pages
+on  DELETE /api/wiki/pages/{id}
+on  GET /api/wiki/pages/{id}/comments
+on  POST /api/wiki/pages/{id}/comments
 on  GET /api/drafts/{id}
 on  GET /api/emoji
 on  GET /api/emoji/table

@@ -246,7 +246,7 @@ var sliceKeys = []string{
 	"Sprints", "Issues", "Columns", "Statuses", "Subtasks", "Kids", "Mentions", "Threads", "Histories",
 	"FixVersions", "Components", "Warnings", "Options", "AllowedValues", "Entries", "Results", "Changes",
 	"Activity", "Agents", "Views", "Groups", "Filters", "QuickFilters", "Branches", "Commits",
-	"PullRequests", "Builds", "Deployments", "BlockedBy", "References", "Choices", "Moves", "Items", "Rules",
+	"PullRequests", "Builds", "Deployments", "BlockedBy", "References", "Choices", "Moves", "Items", "Rules", "Replies",
 }
 
 var nullKeys = func() [][2][]byte {

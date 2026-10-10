@@ -1,0 +1,30 @@
+/* Wiki: a space's page tree beside the page (views/wiki.js). */
+.wk { display: grid; grid-template-columns: minmax(14rem, 18rem) minmax(0, 1fr); height: 100%; min-height: 0; }
+@media (max-width: 50rem) { .wk { grid-template-columns: minmax(0, 1fr); } .wk-side { max-height: 40vh; } }
+.wk-side { display: grid; gap: var(--pad); align-content: start; padding: calc(var(--pad) * 1.5); border-right: 1px solid var(--bg-3); overflow: auto; min-height: 0; }
+.wk-tree ul { list-style: none; margin: 0; padding-left: 1rem; }
+.wk-tree > ul { padding-left: 0; }
+.wk-row { display: flex; align-items: center; gap: .143rem; border-radius: var(--radius, 4px); }
+.wk-row a { flex: 1; min-width: 0; padding: .143rem .286rem; color: inherit; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wk-row:hover { background: var(--bg-2); }
+.wk-row.on { background: var(--bg-3); }
+.wk-row.on a { font-weight: 600; }
+.wk-tog { width: 1.286rem; height: 1.286rem; flex: none; display: inline-grid; place-items: center; padding: 0; border: 0; background: none; color: var(--fg-2); cursor: pointer; }
+.wk-hits { display: grid; gap: .286rem; }
+.wk-hit { display: block; padding: .286rem; border-radius: var(--radius, 4px); color: inherit; text-decoration: none; }
+.wk-hit:hover { background: var(--bg-2); }
+.wk-hit-t { font-weight: 600; }
+.wk-hit-x { font-size: .857rem; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.wk-main { overflow: auto; padding: calc(var(--pad) * 2) calc(var(--pad) * 3); min-width: 0; }
+.wk-main > * { max-width: 56rem; }
+.wk-crumbs { margin-bottom: .286rem; font-size: .857rem; }
+.wk-crumbs a { color: inherit; }
+.wk-head { display: flex; align-items: center; gap: var(--pad); flex-wrap: wrap; }
+.wk-head h1 { margin: 0; font-size: 1.571rem; }
+.wk-body { margin-top: calc(var(--pad) * 1.5); }
+.wk-comments { margin-top: calc(var(--pad) * 3); border-top: 1px solid var(--bg-3); padding-top: var(--pad); display: grid; gap: var(--pad); }
+.wk-c { display: grid; gap: .286rem; }
+.wk-reply { margin-left: 1.5rem; padding-left: var(--pad); border-left: 2px solid var(--bg-3); }
+.wk-c-who { font-size: .857rem; }
+.wk-edit { display: grid; gap: var(--pad); margin-top: var(--pad); }
+.wk-title { font-size: 1.286rem; font-weight: 600; }
