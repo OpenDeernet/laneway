@@ -1390,5 +1390,7 @@
   "Versions": "Versies",
   "History": "Geschiedenis",
   "%d change": "%d wijziging",
-  "%d changes": "%d wijzigingen"
+  "%d changes": "%d wijzigingen",
+  "edited %s": "%s bewerkt",
+  "edited": "bewerkt"
 }

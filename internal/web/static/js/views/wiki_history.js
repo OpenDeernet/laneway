@@ -135,8 +135,8 @@ export function openHistory(app, o) {
     clear(info).append(...[
       icon('rotate-ccw-clock'),
       ui.avatar(v.Author || '?', v.AvatarURL, 18),
+      h('span.wkh-who', v.Author || v.AuthorID || ''),
       h('b', T('v%d of %d', v.Number, vs[vs.length - 1].Number)),
-      h('span', v.Author || v.AuthorID || ''),
       h('span.dim', { title: dateTime(v.Created) }, shortDate(v.Created)),
       v.Message ? h('span.wkh-msg', '“' + v.Message + '”') : null,
       v.Minor ? h('span.chip', T('minor')) : null,

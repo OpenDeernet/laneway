@@ -15,10 +15,13 @@ import (
 // Confluence pages linked from an issue, read as markdown with the site's
 // own login: Confluence Cloud lives on the same host as Jira, under /wiki.
 
-// Page is a Confluence page as the panel shows it.
+// Page is a Confluence page as the panel shows it, with who saved its
+// latest version and when.
 type Page struct {
-	ID, Title, URL string
-	Markdown       string
+	ID, Title, URL               string
+	Markdown                     string
+	Version                      int
+	Author, AuthorAvatar, Edited string
 }
 
 var pagePathRe = regexp.MustCompile(`/wiki/spaces/[^/]+/pages/(\d+)`)
@@ -52,9 +55,14 @@ func (c *Client) ConfluencePage(ctx context.Context, id string) (Page, error) {
 		return Page{}, errNotConfigured
 	}
 	var resp struct {
-		ID    string `json:"id"`
-		Title string `json:"title"`
-		Body  struct {
+		ID      string `json:"id"`
+		Title   string `json:"title"`
+		Version struct {
+			Number    int    `json:"number"`
+			AuthorID  string `json:"authorId"`
+			CreatedAt string `json:"createdAt"`
+		} `json:"version"`
+		Body struct {
 			ADF struct {
 				Value string `json:"value"` // the document as a JSON string
 			} `json:"atlas_doc_format"`
@@ -78,7 +86,16 @@ func (c *Client) ConfluencePage(ctx context.Context, id string) (Page, error) {
 	if base == "" {
 		base = c.baseURL + "/wiki"
 	}
-	return Page{ID: resp.ID, Title: safeterm.Line(resp.Title), URL: base + resp.Links.WebUI, Markdown: safeterm.Text(md)}, nil
+	pg := Page{ID: resp.ID, Title: safeterm.Line(resp.Title), URL: base + resp.Links.WebUI, Markdown: safeterm.Text(md),
+		Version: resp.Version.Number, Edited: resp.Version.CreatedAt}
+	if a := resp.Version.AuthorID; a != "" {
+		who, ok := c.versionAuthors(ctx, id, 1)[a]
+		if !ok {
+			who[0], who[1] = c.wikiUser(ctx, a)
+		}
+		pg.Author, pg.AuthorAvatar = who[0], who[1]
+	}
+	return pg, nil
 }
 
 // pageMarkdown is a page body as markdown: an image of attachments atts

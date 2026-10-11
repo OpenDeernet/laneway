@@ -120,6 +120,10 @@ export default async function mount(el, { app, params, query, scope }) {
         h('button.btn.ghost', { onclick: () => showHistory(id), title: T('Its versions, and what each changed (h)'), 'aria-label': T('History') }, icon('rotate-ccw-clock')),
         p.URL ? h('a.btn.ghost', { href: p.URL, target: '_blank', rel: 'noopener noreferrer', title: T('Open on the site'), 'aria-label': T('Open on the site') }, icon('external-link')) : null,
         h('button.btn.ghost', { onclick: () => remove(id, p.Title), title: T('Move to the trash'), 'aria-label': T('Move to the trash') }, icon('trash-2')))),
+      // Who saved it last, and when: the history a click away.
+      p.Version ? h('button.wk-by', { type: 'button', onclick: () => showHistory(id), title: T('Its versions, and what each changed (h)') },
+        p.Author ? ui.avatar(p.Author, p.AuthorAvatar, 18) : null, p.Author ? h('span.wk-by-who', p.Author) : null,
+        h('span', p.Edited ? T('edited %s', ago(Date.parse(p.Edited))) : T('edited')), h('span', '·'), h('span', T('v%d', p.Version))) : null,
       body, comments);
     body.ondblclick = e => { if (!e.target.closest('a,input,img,summary')) edit(id); };
     loadComments(id, comments);

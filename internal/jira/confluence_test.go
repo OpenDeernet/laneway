@@ -27,7 +27,7 @@ func TestPageID(t *testing.T) {
 
 // TestConfluencePage: the page's ADF reads as markdown, a macro as a line
 // naming it, an image of its own attachments by id, another by its name;
-// PageImage downloads one.
+// who saved it last named from the version list; PageImage downloads one.
 func TestConfluencePage(t *testing.T) {
 	media := func(id, alt string) any {
 		return map[string]any{"type": "mediaSingle", "content": []any{map[string]any{"type": "media", "attrs": map[string]any{"id": id, "alt": alt}}}}
@@ -44,7 +44,9 @@ func TestConfluencePage(t *testing.T) {
 				t.Errorf("%s", r.URL)
 			}
 			b, _ := json.Marshal(string(doc))
-			fmt.Fprintf(w, `{"id":"42","title":"Release plan","body":{"atlas_doc_format":{"value":%s}},"_links":{"webui":"/spaces/ENG/pages/42"}}`, b)
+			fmt.Fprintf(w, `{"id":"42","title":"Release plan","version":{"number":4,"authorId":"u3","createdAt":"2026-09-22T08:45:11Z"},"body":{"atlas_doc_format":{"value":%s}},"_links":{"webui":"/spaces/ENG/pages/42"}}`, b)
+		case "/wiki/rest/api/content/42/version":
+			fmt.Fprint(w, `{"results":[{"number":4,"by":{"accountId":"u3","displayName":"Cas","profilePicture":{"path":"/wiki/aa-avatar/u3"}}}]}`)
 		case "/wiki/api/v2/pages/42/attachments":
 			fmt.Fprint(w, `{"results":[{"id":"att77","title":"diagram.png","fileId":"f1","mediaType":"image/png"}]}`)
 		case "/wiki/api/v2/attachments/att77":
@@ -62,7 +64,8 @@ func TestConfluencePage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if p.Title != "Release plan" || p.URL != srv.URL+"/wiki/spaces/ENG/pages/42" {
+	if p.Title != "Release plan" || p.URL != srv.URL+"/wiki/spaces/ENG/pages/42" || p.Version != 4 || p.Author != "Cas" ||
+		p.AuthorAvatar != srv.URL+"/wiki/aa-avatar/u3" || p.Edited != "2026-09-22T08:45:11Z" {
 		t.Errorf("page %+v", p)
 	}
 	for _, want := range []string{"# Plan", "_[toc macro]_", "![diagram.png](confluence:77)", "_[image: elsewhere.png]_"} {

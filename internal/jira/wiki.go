@@ -347,9 +347,9 @@ func (c *Client) wikiPicture(p string) string {
 }
 
 // versionAuthors are the names and pictures of who saved page id's latest
-// versions, as its v1 version list carries them: a site that won't show
+// n versions, as its v1 version list carries them: a site that won't show
 // someone's profile still names them there. Empty when the site lacks it.
-func (c *Client) versionAuthors(ctx context.Context, id string) map[string][2]string {
+func (c *Client) versionAuthors(ctx context.Context, id string, n int) map[string][2]string {
 	var resp struct {
 		Results []struct {
 			By struct {
@@ -363,7 +363,7 @@ func (c *Client) versionAuthors(ctx context.Context, id string) map[string][2]st
 		} `json:"results"`
 	}
 	out := map[string][2]string{}
-	if c.do(ctx, http.MethodGet, "/wiki/rest/api/content/"+url.PathEscape(id)+"/version?limit=200", "page "+id+" version authors", nil, &resp) != nil {
+	if c.do(ctx, http.MethodGet, "/wiki/rest/api/content/"+url.PathEscape(id)+"/version?limit="+strconv.Itoa(n), "page "+id+" version authors", nil, &resp) != nil {
 		return out
 	}
 	for _, r := range resp.Results {
@@ -405,7 +405,7 @@ func (c *Client) PageVersions(ctx context.Context, id string) ([]PageVersion, er
 	sort.Slice(vs, func(i, j int) bool { return vs[i].Number < vs[j].Number })
 	var atts []pageAttachment
 	attsRead := false
-	people := c.versionAuthors(ctx, id)
+	people := c.versionAuthors(ctx, id, 200)
 	out := make([]PageVersion, 0, len(vs))
 	for _, v := range vs {
 		raw, title := json.RawMessage(v.Page.Body.ADF.Value), v.Page.Title
