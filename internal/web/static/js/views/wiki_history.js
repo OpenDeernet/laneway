@@ -26,8 +26,8 @@ export function openHistory(app, o) {
   const titleEl = h('h1');
   const restoreLabel = h('span');
   const restoreBtn = h('button.btn', { onclick: () => restore() }, icon('undo-2'), ' ', restoreLabel);
-  const head = h('div.wk-head', titleEl, h('span.spacer'), restoreBtn,
-    h('button.btn.ghost', { onclick: () => o.close(), title: T('Back to now (esc)') }, icon('x'), ' ', T('Close history')));
+  const head = h('div.wk-head', titleEl, h('span.wk-acts', restoreBtn,
+    h('button.btn.ghost', { onclick: () => o.close(), title: T('Back to now (esc)') }, icon('x'), ' ', T('Close history'))));
   const strip = h('div.wkh-strip', { role: 'slider', tabindex: 0, 'aria-label': T('Versions') });
   const info = h('div.wkh-info');
   const bar = h('div.wkh-bar', strip, info);

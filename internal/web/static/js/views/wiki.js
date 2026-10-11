@@ -114,12 +114,12 @@ export default async function mount(el, { app, params, query, scope }) {
     const comments = h('section.wk-comments', h('h3', T('Comments')));
     clear(main).append(
       crumbs(id),
-      h('div.wk-head', h('h1', p.Title), h('span.spacer'),
+      h('div.wk-head', h('h1', p.Title), h('span.wk-acts',
         h('button.btn', { onclick: () => edit(id), title: T('Edit (e)') }, icon('pencil'), ' ', T('Edit')),
-        h('button.btn.ghost', { onclick: () => newPage(id), title: T('New page under this one (n)') }, icon('plus'), ' ', T('New page')),
-        h('button.btn.ghost', { onclick: () => showHistory(id), title: T('Its versions, and what each changed (h)') }, icon('rotate-ccw-clock'), ' ', T('History')),
-        p.URL ? h('a.btn.ghost', { href: p.URL, target: '_blank', rel: 'noopener noreferrer' }, T('Open on the site'), ' ', icon('external-link')) : null,
-        h('button.btn.ghost', { onclick: () => remove(id, p.Title), title: T('Move to the trash') }, icon('trash-2'))),
+        h('button.btn.ghost', { onclick: () => newPage(id), title: T('New page under this one (n)'), 'aria-label': T('New page') }, icon('plus')),
+        h('button.btn.ghost', { onclick: () => showHistory(id), title: T('Its versions, and what each changed (h)'), 'aria-label': T('History') }, icon('rotate-ccw-clock')),
+        p.URL ? h('a.btn.ghost', { href: p.URL, target: '_blank', rel: 'noopener noreferrer', title: T('Open on the site'), 'aria-label': T('Open on the site') }, icon('external-link')) : null,
+        h('button.btn.ghost', { onclick: () => remove(id, p.Title), title: T('Move to the trash'), 'aria-label': T('Move to the trash') }, icon('trash-2')))),
       body, comments);
     body.ondblclick = e => { if (!e.target.closest('a,input,img,summary')) edit(id); };
     loadComments(id, comments);

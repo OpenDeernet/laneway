@@ -21,8 +21,11 @@
 .wk-main > * { max-width: 56rem; }
 .wk-crumbs { margin-bottom: .286rem; font-size: .857rem; }
 .wk-crumbs a { color: inherit; }
-.wk-head { display: flex; align-items: center; gap: var(--pad); flex-wrap: wrap; }
-.wk-head h1 { margin: 0; font-size: 1.571rem; }
+/* The title, its actions beside it as one group: below it when the pane is narrow. */
+.wk-head { display: flex; align-items: flex-start; gap: var(--pad); }
+.wk-head h1 { flex: 1; min-width: 0; margin: 0; font-size: 1.571rem; overflow-wrap: anywhere; }
+.wk-acts { display: flex; align-items: center; gap: .143rem; flex: none; }
+@media (max-width: 50rem) { .wk-head { flex-wrap: wrap; } }
 .wk-body { margin-top: calc(var(--pad) * 1.5); }
 .wk-comments { margin-top: calc(var(--pad) * 3); border-top: 1px solid var(--bg-3); padding-top: var(--pad); display: grid; gap: var(--pad); }
 .wk-c { display: grid; gap: .286rem; }
