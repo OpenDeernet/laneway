@@ -9,6 +9,7 @@ import { render as md } from '../lib/md.js';
 import { mdEdit } from '../lib/mdedit.js';
 import { ago } from '../lib/fmt.js';
 import { T } from '../lib/i18n.js';
+import { grip } from '../lib/grip.js';
 
 const LAST = 'wiki.space'; // the space opened last, per site
 
@@ -17,7 +18,15 @@ export default async function mount(el, { app, params, scope }) {
   const { api, ui } = app;
   const side = h('aside.wk-side');
   const main = h('main.wk-main');
-  el.append(h('div.wk', side, main));
+  const gripEl = h('div.wk-grip', { title: T('Drag to resize'), role: 'separator' });
+  const wk = h('div.wk', side, gripEl, main);
+  el.append(wk);
+  // The tree's share of the width, kept in prefs (20% by default).
+  const showSide = p => wk.style.setProperty('--wk-side', p + '%');
+  const savedSide = Number(app.prefs.get('wikiSide', ''));
+  showSide(savedSide >= 10 && savedSide <= 50 ? savedSide : 20);
+  grip(gripEl, { def: 20, min: 10, max: 50, show: showSide, keep: p => { showSide(p); app.prefs.set('wikiSide', p === 20 ? '' : String(p)); },
+    pct: ev => { const b = wk.getBoundingClientRect(); return (ev.clientX - b.left) * 100 / b.width; } });
   let dead = false, editor = null;
   const cleanup = () => { dead = true; if (editor) editor.dispose(); };
 

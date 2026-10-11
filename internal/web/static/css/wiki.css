@@ -1,7 +1,9 @@
 /* Wiki: a space's page tree beside the page (views/wiki.js). */
-.wk { display: grid; grid-template-columns: minmax(14rem, 18rem) minmax(0, 1fr); height: 100%; min-height: 0; }
-@media (max-width: 50rem) { .wk { grid-template-columns: minmax(0, 1fr); } .wk-side { max-height: 40vh; } }
-.wk-side { display: grid; gap: var(--pad); align-content: start; padding: calc(var(--pad) * 1.5); border-right: 1px solid var(--bg-3); overflow: auto; min-height: 0; }
+.wk { position: relative; display: grid; grid-template-columns: var(--wk-side, 20%) minmax(0, 1fr); height: 100%; min-height: 0; }
+.wk-grip { position: absolute; top: 0; bottom: 0; left: calc(var(--wk-side, 20%) - .214rem); width: .429rem; cursor: col-resize; z-index: 1; touch-action: none; }
+.wk-grip:hover, .wk-grip.drag { background: var(--accent); opacity: .5; }
+@media (max-width: 50rem) { .wk { grid-template-columns: minmax(0, 1fr); } .wk-side { max-height: 40vh; } .wk-grip { display: none; } }
+.wk-side { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--pad); align-content: start; padding: calc(var(--pad) * 1.5); border-right: 1px solid var(--bg-3); overflow: auto; min-height: 0; }
 .wk-tree ul { list-style: none; margin: 0; padding-left: 1rem; }
 .wk-tree > ul { padding-left: 0; }
 .wk-row { display: flex; align-items: center; gap: .143rem; border-radius: var(--radius, 4px); }
