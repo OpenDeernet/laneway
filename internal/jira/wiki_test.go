@@ -96,8 +96,8 @@ func TestWiki(t *testing.T) {
 
 // A page's history: versions oldest first whatever order the site sends,
 // one the list leaves the body out of read on its own, each author looked
-// up once (in Confluence when Jira doesn't know them); and a restore as
-// Confluence's v1 operation.
+// up once (from the v1 version list, else Jira, else Confluence); and a
+// restore as Confluence's v1 operation.
 func TestPageVersions(t *testing.T) {
 	para := func(s string) string {
 		b, _ := json.Marshal(`{"type":"doc","version":1,"content":[{"type":"paragraph","content":[{"type":"text","text":"` + s + `"}]}]}`)
@@ -114,6 +114,7 @@ func TestPageVersions(t *testing.T) {
 				t.Errorf("versions %s", r.URL)
 			}
 			io.WriteString(w, `{"results":[`+
+				`{"number":4,"authorId":"u3","createdAt":"2026-10-04T10:00:00Z","page":{"title":"Policy","body":{"atlas_doc_format":{"value":`+para("Keep logs a year")+`}}}},`+
 				`{"number":3,"message":"fix","authorId":"u1","createdAt":"2026-10-03T10:00:00Z","page":{"title":"Policy","body":{"atlas_doc_format":{"value":`+para("Keep logs a year")+`}}}},`+
 				`{"number":2,"minorEdit":true,"authorId":"u2","createdAt":"2026-10-02T10:00:00Z","page":{"title":"Policy"}},`+
 				`{"number":1,"authorId":"u1","createdAt":"2026-10-01T10:00:00Z","page":{"title":"Draft","body":{"atlas_doc_format":{"value":`+para("Keep logs")+`}}}}]}`)
@@ -134,6 +135,9 @@ func TestPageVersions(t *testing.T) {
 			io.WriteString(w, `{"displayName":"Bea","profilePicture":{"path":"/wiki/aa-avatar/u2"}}`)
 		case "POST /wiki/rest/api/content/11/version":
 			json.Unmarshal(body, &restore)
+		case "GET /wiki/rest/api/content/11/version":
+			// u3 has a profile no one may look up: named only here.
+			io.WriteString(w, `{"results":[{"number":4,"by":{"accountId":"u3","publicName":"Cas","profilePicture":{"path":"/wiki/aa-avatar/u3"}}}]}`)
 		default:
 			t.Errorf("unexpected %s %s", r.Method, r.URL)
 			w.WriteHeader(http.StatusNotFound)
@@ -144,7 +148,7 @@ func TestPageVersions(t *testing.T) {
 	ctx := context.Background()
 
 	vs, err := c.PageVersions(ctx, "11")
-	if err != nil || len(vs) != 3 {
+	if err != nil || len(vs) != 4 {
 		t.Fatalf("versions %+v %v", vs, err)
 	}
 	if vs[0].Number != 1 || vs[0].Title != "Draft" || !strings.Contains(vs[0].Markdown, "Keep logs") || vs[0].Author != "Ann u1" || vs[0].AvatarURL != "https://a.test/u1" {
@@ -155,6 +159,9 @@ func TestPageVersions(t *testing.T) {
 	}
 	if vs[2].Message != "fix" || !strings.Contains(vs[2].Markdown, "a year") {
 		t.Errorf("v3 %+v", vs[2])
+	}
+	if vs[3].Author != "Cas" || vs[3].AvatarURL != srv.URL+"/wiki/aa-avatar/u3" {
+		t.Errorf("v4 %+v", vs[3])
 	}
 	if users != 2 {
 		t.Errorf("%d user lookups, want 2", users)

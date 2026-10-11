@@ -330,15 +330,48 @@ func (c *Client) wikiUser(ctx context.Context, id string) (name, avatar string) 
 	if name == "" {
 		return id, ""
 	}
-	switch p := cu.ProfilePicture.Path; {
+	return safeterm.Line(name), c.wikiPicture(cu.ProfilePicture.Path)
+}
+
+// wikiPicture is a Confluence profile picture's URL.
+func (c *Client) wikiPicture(p string) string {
+	switch {
 	case strings.HasPrefix(p, "https://"):
-		avatar = p
+		return p
 	case strings.HasPrefix(p, "/wiki/"):
-		avatar = c.baseURL + p
+		return c.baseURL + p
 	case strings.HasPrefix(p, "/"):
-		avatar = c.baseURL + "/wiki" + p
+		return c.baseURL + "/wiki" + p
 	}
-	return safeterm.Line(name), avatar
+	return ""
+}
+
+// versionAuthors are the names and pictures of who saved page id's latest
+// versions, as its v1 version list carries them: a site that won't show
+// someone's profile still names them there. Empty when the site lacks it.
+func (c *Client) versionAuthors(ctx context.Context, id string) map[string][2]string {
+	var resp struct {
+		Results []struct {
+			By struct {
+				AccountID      string `json:"accountId"`
+				DisplayName    string `json:"displayName"`
+				PublicName     string `json:"publicName"`
+				ProfilePicture struct {
+					Path string `json:"path"`
+				} `json:"profilePicture"`
+			} `json:"by"`
+		} `json:"results"`
+	}
+	out := map[string][2]string{}
+	if c.do(ctx, http.MethodGet, "/wiki/rest/api/content/"+url.PathEscape(id)+"/version?limit=200", "page "+id+" version authors", nil, &resp) != nil {
+		return out
+	}
+	for _, r := range resp.Results {
+		if name := firstNonEmptyStr(r.By.DisplayName, r.By.PublicName); r.By.AccountID != "" && name != "" {
+			out[r.By.AccountID] = [2]string{safeterm.Line(name), c.wikiPicture(r.By.ProfilePicture.Path)}
+		}
+	}
+	return out
 }
 
 // maxPageVersions is how many of a page's latest versions its history reads.
@@ -372,7 +405,7 @@ func (c *Client) PageVersions(ctx context.Context, id string) ([]PageVersion, er
 	sort.Slice(vs, func(i, j int) bool { return vs[i].Number < vs[j].Number })
 	var atts []pageAttachment
 	attsRead := false
-	people := map[string][2]string{}
+	people := c.versionAuthors(ctx, id)
 	out := make([]PageVersion, 0, len(vs))
 	for _, v := range vs {
 		raw, title := json.RawMessage(v.Page.Body.ADF.Value), v.Page.Title
