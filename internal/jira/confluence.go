@@ -69,15 +69,25 @@ func (c *Client) ConfluencePage(ctx context.Context, id string) (Page, error) {
 		return Page{}, err
 	}
 	raw := json.RawMessage(resp.Body.ADF.Value)
-	media := pageMedia(raw)
 	var atts []pageAttachment
-	if len(media) > 0 {
+	if len(pageMedia(raw)) > 0 {
 		atts, _ = c.pageAttachments(ctx, id) // without them, the images stand as their names
 	}
+	md := pageMarkdown(raw, atts)
+	base := strings.TrimSuffix(resp.Links.Base, "/")
+	if base == "" {
+		base = c.baseURL + "/wiki"
+	}
+	return Page{ID: resp.ID, Title: safeterm.Line(resp.Title), URL: base + resp.Links.WebUI, Markdown: safeterm.Text(md)}, nil
+}
+
+// pageMarkdown is a page body as markdown: an image of attachments atts
+// as ![name](confluence:ID), any other by its name.
+func pageMarkdown(raw json.RawMessage, atts []pageAttachment) string {
 	// By the name the markdown carries: some images (in table cells) are
 	// not written at all, so their order does not line up.
 	byName := map[string]string{}
-	for _, m := range media {
+	for _, m := range pageMedia(raw) {
 		for _, a := range atts {
 			n, ok := strings.CutPrefix(a.ID, "att")
 			if ok && (a.FileID == m.id && m.id != "" || a.Title == m.alt) && strings.Trim(n, "0123456789") == "" && strings.HasPrefix(a.MediaType, "image/") {
@@ -88,18 +98,13 @@ func (c *Client) ConfluencePage(ctx context.Context, id string) (Page, error) {
 			}
 		}
 	}
-	md := pageImageRe.ReplaceAllStringFunc(adfToMarkdown(raw), func(s string) string {
+	return pageImageRe.ReplaceAllStringFunc(adfToMarkdown(raw), func(s string) string {
 		alt := pageImageRe.FindStringSubmatch(s)[1]
 		if n := byName[alt]; n != "" {
 			return "![" + alt + "](" + PageImageScheme + n + ")"
 		}
 		return "_[image: " + alt + "]_"
 	})
-	base := strings.TrimSuffix(resp.Links.Base, "/")
-	if base == "" {
-		base = c.baseURL + "/wiki"
-	}
-	return Page{ID: resp.ID, Title: safeterm.Line(resp.Title), URL: base + resp.Links.WebUI, Markdown: safeterm.Text(md)}, nil
 }
 
 // pageImageRe is an image of the page's: its name (its media id and size

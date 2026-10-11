@@ -93,3 +93,76 @@ func TestWiki(t *testing.T) {
 		t.Fatalf("search %+v %v", hits, err)
 	}
 }
+
+// A page's history: versions oldest first whatever order the site sends,
+// one the list leaves the body out of read on its own, each author looked
+// up once (in Confluence when Jira doesn't know them); and a restore as
+// Confluence's v1 operation.
+func TestPageVersions(t *testing.T) {
+	para := func(s string) string {
+		b, _ := json.Marshal(`{"type":"doc","version":1,"content":[{"type":"paragraph","content":[{"type":"text","text":"` + s + `"}]}]}`)
+		return string(b)
+	}
+	users := 0
+	var restore map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		body, _ := io.ReadAll(r.Body)
+		switch r.Method + " " + r.URL.Path {
+		case "GET /wiki/api/v2/pages/11/versions":
+			if r.URL.Query().Get("body-format") != "atlas_doc_format" {
+				t.Errorf("versions %s", r.URL)
+			}
+			io.WriteString(w, `{"results":[`+
+				`{"number":3,"message":"fix","authorId":"u1","createdAt":"2026-10-03T10:00:00Z","page":{"title":"Policy","body":{"atlas_doc_format":{"value":`+para("Keep logs a year")+`}}}},`+
+				`{"number":2,"minorEdit":true,"authorId":"u2","createdAt":"2026-10-02T10:00:00Z","page":{"title":"Policy"}},`+
+				`{"number":1,"authorId":"u1","createdAt":"2026-10-01T10:00:00Z","page":{"title":"Draft","body":{"atlas_doc_format":{"value":`+para("Keep logs")+`}}}}]}`)
+		case "GET /wiki/api/v2/pages/11":
+			if r.URL.Query().Get("version") != "2" {
+				t.Errorf("page %s", r.URL)
+			}
+			io.WriteString(w, `{"title":"Policy","body":{"atlas_doc_format":{"value":`+para("Keep logs a month")+`}}}`)
+		case "GET /rest/api/3/user":
+			users++
+			// u2 has no Jira: Confluence knows them.
+			if r.URL.Query().Get("accountId") == "u2" {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+			io.WriteString(w, `{"displayName":"Ann `+r.URL.Query().Get("accountId")+`","avatarUrls":{"48x48":"https://a.test/`+r.URL.Query().Get("accountId")+`"}}`)
+		case "GET /wiki/rest/api/user":
+			io.WriteString(w, `{"displayName":"Bea","profilePicture":{"path":"/wiki/aa-avatar/u2"}}`)
+		case "POST /wiki/rest/api/content/11/version":
+			json.Unmarshal(body, &restore)
+		default:
+			t.Errorf("unexpected %s %s", r.Method, r.URL)
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+	c := New(Config{BaseURL: srv.URL, Email: "me@x.test", APIToken: "tok"})
+	ctx := context.Background()
+
+	vs, err := c.PageVersions(ctx, "11")
+	if err != nil || len(vs) != 3 {
+		t.Fatalf("versions %+v %v", vs, err)
+	}
+	if vs[0].Number != 1 || vs[0].Title != "Draft" || !strings.Contains(vs[0].Markdown, "Keep logs") || vs[0].Author != "Ann u1" || vs[0].AvatarURL != "https://a.test/u1" {
+		t.Errorf("v1 %+v", vs[0])
+	}
+	if !vs[1].Minor || !strings.Contains(vs[1].Markdown, "a month") || vs[1].Author != "Bea" || vs[1].AvatarURL != srv.URL+"/wiki/aa-avatar/u2" {
+		t.Errorf("v2 %+v", vs[1])
+	}
+	if vs[2].Message != "fix" || !strings.Contains(vs[2].Markdown, "a year") {
+		t.Errorf("v3 %+v", vs[2])
+	}
+	if users != 2 {
+		t.Errorf("%d user lookups, want 2", users)
+	}
+	if err := c.RestorePage(ctx, "11", 1, "Restored version 1"); err != nil {
+		t.Fatal(err)
+	}
+	if p, _ := restore["params"].(map[string]any); restore["operationKey"] != "restore" || p["versionNumber"] != float64(1) || p["restoreTitle"] != true {
+		t.Errorf("restore %v", restore)
+	}
+}

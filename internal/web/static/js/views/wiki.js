@@ -1,6 +1,6 @@
 // Wiki: the site's Confluence (or laneway-server's wiki). Spaces, a space's page tree beside the page, the page as it
-// reads, edited in the description's editor (visual or markdown), pages made under it, its comments and replies, and
-// a search over the pages' text.
+// reads, edited in the description's editor (visual or markdown), pages made under it, its comments and replies, its
+// history (wiki_history.js, ?v= the version shown) and a search over the pages' text.
 import { h, clear, debounce } from '../lib/dom.js';
 import * as store from '../lib/store.js';
 import { css } from '../lib/css.js';
@@ -10,16 +10,18 @@ import { mdEdit } from '../lib/mdedit.js';
 import { ago } from '../lib/fmt.js';
 import { T } from '../lib/i18n.js';
 import { grip } from '../lib/grip.js';
+import { openHistory } from './wiki_history.js';
 
 const LAST = 'wiki.space'; // the space opened last, per site
 
-export default async function mount(el, { app, params, scope }) {
+export default async function mount(el, { app, params, query, scope }) {
   css('wiki'); css('issue');
   const { api, ui } = app;
   const side = h('aside.wk-side');
   const main = h('main.wk-main');
   const gripEl = h('div.wk-grip', { title: T('Drag to resize'), role: 'separator' });
-  const wk = h('div.wk', side, gripEl, main);
+  const rail = h('div.wkh-rail', { hidden: true }); // a history's changes, beside the scrollbar
+  const wk = h('div.wk', side, gripEl, main, rail);
   el.append(wk);
   // The tree's share of the width, kept in prefs (20% by default).
   const showSide = p => wk.style.setProperty('--wk-side', p + '%');
@@ -27,8 +29,8 @@ export default async function mount(el, { app, params, scope }) {
   showSide(savedSide >= 10 && savedSide <= 50 ? savedSide : 20);
   grip(gripEl, { def: 20, min: 10, max: 50, show: showSide, keep: p => { showSide(p); app.prefs.set('wikiSide', p === 20 ? '' : String(p)); },
     pct: ev => { const b = wk.getBoundingClientRect(); return (ev.clientX - b.left) * 100 / b.width; } });
-  let dead = false, editor = null;
-  const cleanup = () => { dead = true; if (editor) editor.dispose(); };
+  let dead = false, editor = null, hist = null;
+  const cleanup = () => { dead = true; if (editor) editor.dispose(); if (hist) hist.dispose(); };
 
   let spaces;
   try { spaces = await api.get('/wiki/spaces'); } catch (e) { main.append(h('div.empty', h('h2', T('No wiki')), h('p', e.message))); return cleanup; }
@@ -90,6 +92,7 @@ export default async function mount(el, { app, params, scope }) {
   }
 
   // ---- the page
+  const pageImage = n => '/api/confluence/images/' + encodeURIComponent(n);
   const crumbs = id => {
     const out = [];
     for (let p = pages.find(x => x.ID === id); p && p.ParentID; p = pages.find(x => x.ID === p.ParentID)) {
@@ -107,13 +110,14 @@ export default async function mount(el, { app, params, scope }) {
     try { p = await api.get('/confluence/pages/' + id, { fresh: true }); } catch (e) { clear(main).append(h('p.err', e.message)); return; }
     if (dead) return;
     const body = h('div.md.wk-body');
-    body.append(p.Markdown && p.Markdown.trim() ? md(p.Markdown, { pageImage: n => '/api/confluence/images/' + encodeURIComponent(n) }) : h('p.faint', T('This page is empty. Press e to write it.')));
+    body.append(p.Markdown && p.Markdown.trim() ? md(p.Markdown, { pageImage }) : h('p.faint', T('This page is empty. Press e to write it.')));
     const comments = h('section.wk-comments', h('h3', T('Comments')));
     clear(main).append(
       crumbs(id),
       h('div.wk-head', h('h1', p.Title), h('span.spacer'),
         h('button.btn', { onclick: () => edit(id), title: T('Edit (e)') }, icon('pencil'), ' ', T('Edit')),
         h('button.btn.ghost', { onclick: () => newPage(id), title: T('New page under this one (n)') }, icon('plus'), ' ', T('New page')),
+        h('button.btn.ghost', { onclick: () => showHistory(id), title: T('Its versions, and what each changed (h)') }, icon('rotate-ccw-clock'), ' ', T('History')),
         p.URL ? h('a.btn.ghost', { href: p.URL, target: '_blank', rel: 'noopener noreferrer' }, T('Open on the site'), ' ', icon('external-link')) : null,
         h('button.btn.ghost', { onclick: () => remove(id, p.Title), title: T('Move to the trash') }, icon('trash-2'))),
       body, comments);
@@ -140,8 +144,26 @@ export default async function mount(el, { app, params, scope }) {
     if (after) { after.replaceWith(e.el); e.focus(); } else box.append(e.el);
   }
 
+  // ---- the history: the page as it read at each version, the changes marked
+  function showHistory(id, version) {
+    if (editor || hist || !id) return;
+    hist = openHistory(app, { main, rail, id, version, pageImage, head: () => crumbs(id),
+      setVersion: n => app.setQuery({ v: n }),
+      close: () => leaveHistory(id),
+      restored: async () => { leaveHistory(id); await loadTree(); } });
+  }
+  function leaveHistory(id) {
+    if (!hist) return;
+    hist.dispose(); hist = null;
+    app.setQuery({ v: null });
+    main.scrollTop = 0;
+    showPage(id);
+  }
+  const inHistory = () => !!hist;
+
   async function edit(id) {
     if (editor) return;
+    if (hist) { ui.toast(T('The history only looks  ·  esc back to now')); return; }
     let d;
     try { d = await api.get('/wiki/pages/' + id + '/edit', { fresh: true }); } catch (e) { return ui.errToast(e); }
     if (dead) return;
@@ -161,6 +183,7 @@ export default async function mount(el, { app, params, scope }) {
 
   async function newPage(parent) {
     if (editor) return;
+    if (hist) { hist.dispose(); hist = null; app.setQuery({ v: null }); }
     const title = h('input.input.wk-title', { placeholder: T('Title'), 'aria-label': T('Title') });
     editor = mdEdit(app, { doc: null, rows: 18, label: T('Create'), allowEmpty: true, draft: 'wiki:new:' + space.ID + ':' + (parent || 'top'),
       placeholder: T('Write the page… (/ inserts)'),
@@ -185,10 +208,19 @@ export default async function mount(el, { app, params, scope }) {
   }
 
   scope.bind('e', () => { if (!editor) edit(params.page || space.HomepageID); }, T('Edit the page'));
-  scope.bind('n', () => { if (!editor) newPage(params.page || ''); }, T('New page under this one'));
+  scope.bind('n', () => { if (!editor) newPage(params.page || ''); }, T('New page under this one'), { when: () => !hist });
+  scope.bind('h', () => (hist ? leaveHistory(params.page || space.HomepageID) : showHistory(params.page || space.HomepageID)), T('History: the page’s versions and their changes'));
+  scope.bind('ArrowLeft', () => hist.step(-1), T('History: an older version'), { when: inHistory });
+  scope.bind('ArrowRight', () => hist.step(1), T('History: a newer version'), { when: inHistory });
+  scope.bind('d', () => hist.diff(), T('History: the changes or the clean page'), { when: inHistory });
+  scope.bind('n', () => hist.jump(1), T('History: next change'), { when: inHistory });
+  scope.bind('N', () => hist.jump(-1), T('History: previous change'), { when: inHistory });
+  scope.bind('Escape', () => leaveHistory(params.page || space.HomepageID), T('History: back to now'), { when: inHistory });
   scope.bind('/', () => q.focus(), T('Search the wiki'));
 
   await loadTree();
-  if (!dead) showPage(params.page || space.HomepageID);
+  const v = Number(query && query.v);
+  if (!dead && v > 0 && (params.page || space.HomepageID)) showHistory(params.page || space.HomepageID, v);
+  else if (!dead) showPage(params.page || space.HomepageID);
   return cleanup;
 }

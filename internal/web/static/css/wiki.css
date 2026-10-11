@@ -30,3 +30,65 @@
 .wk-c-who { font-size: .857rem; }
 .wk-edit { display: grid; gap: var(--pad); margin-top: var(--pad); }
 .wk-title { font-size: 1.286rem; font-weight: 600; }
+/* The history (views/wiki_history.js): a strip of versions over the page, its changes marked. */
+.wkh-bar { position: sticky; top: calc(var(--pad) * -2); z-index: 2; margin: var(--pad) 0 0; padding-top: var(--pad); background: var(--bg); border-bottom: 1px solid var(--bg-3); }
+.wkh-strip { display: flex; align-items: stretch; gap: 1px; height: 3.429rem; padding: 0 1px; cursor: pointer; touch-action: none; user-select: none; border-radius: var(--radius, 4px); overflow: hidden; }
+.wkh-strip:focus-visible { outline: 2px solid var(--accent); }
+.wkh-strip.drag { cursor: grabbing; }
+.wkh-v { flex: 1 1 0; min-width: 2px; max-width: 2.571rem; display: flex; flex-direction: column; border-radius: 2px; position: relative; }
+.wkh-v:hover { background: var(--bg-2); }
+.wkh-v.in { background: var(--accent-bg); }
+.wkh-v.on, .wkh-v.base { background: var(--accent-bg); box-shadow: inset 0 -2px var(--accent); }
+.wkh-v.base { box-shadow: inset 0 -2px var(--fg-3); }
+.wkh-up, .wkh-dn { flex: 1; display: flex; justify-content: center; }
+.wkh-up { align-items: flex-end; border-bottom: 1px solid var(--bg-3); }
+.wkh-dn { align-items: flex-start; }
+.wkh-a, .wkh-d { width: min(70%, .857rem); min-width: 2px; transition: height .25s ease-out; }
+.wkh-a { background: var(--ok); border-radius: 2px 2px 0 0; }
+.wkh-d { background: var(--err); border-radius: 0 0 2px 2px; }
+.wkh-v.on .wkh-a, .wkh-v.on .wkh-d { filter: saturate(1.3) brightness(1.1); }
+/* A minor edit, or one that changed no words: a dot on the line. */
+.wkh-v.minor .wkh-a, .wkh-v.minor .wkh-d { display: none; }
+.wkh-v.minor::after { content: ''; position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px 0 0 -2px; border-radius: 50%; background: var(--fg-3); }
+.wkh-v.on.minor::after { background: var(--accent); }
+.wkh-v.wait .wkh-up { border-bottom-style: dotted; }
+.wkh-info { display: flex; align-items: center; flex-wrap: wrap; gap: .429rem .571rem; padding: .429rem 0; font-size: .857rem; color: var(--fg-2); }
+.wkh-info > .ico { color: var(--accent); }
+.wkh-info b { color: var(--fg); }
+.wkh-msg { font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 24rem; }
+.wkh-from { border: 0; cursor: pointer; display: inline-flex; align-items: center; gap: .143rem; }
+.wkh-count { font-family: var(--font-mono); }
+.wkh-plus { color: var(--ok); } .wkh-minus { color: var(--err); }
+.wkh-seg { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.wkh-seg .btn { border: 0; border-radius: 0; background: transparent; padding: .071rem .571rem; font-size: .857rem; color: var(--fg-2); }
+.wkh-seg .btn.on { background: var(--bg-3); color: var(--fg); }
+.wkh-nav { display: inline-flex; align-items: center; }
+.wkh-nav .btn { padding: .071rem .286rem; }
+.wkh-pos { min-width: 4.5em; text-align: center; font-variant-numeric: tabular-nums; }
+.wkh-keys { font-size: .786rem; }
+@media (max-width: 50rem) { .wkh-keys { display: none; } }
+.wk-head h1 ins, .wk-head h1 del { text-decoration-thickness: 2px; }
+/* The changes on the page: a bar beside a block that came, went or changed; words in it marked. */
+.wkh-body ins { text-decoration: none; background: color-mix(in srgb, var(--ok) 22%, transparent); border-radius: 2px; }
+.wkh-body del, .wk-head h1 del { color: var(--err); text-decoration: line-through; background: color-mix(in srgb, var(--err) 12%, transparent); border-radius: 2px; }
+.wk-head h1 ins { text-decoration: none; background: color-mix(in srgb, var(--ok) 22%, transparent); }
+.wkh-b { position: relative; padding-left: .857rem; margin-left: -.857rem; border-radius: 0 var(--radius, 4px) var(--radius, 4px) 0; }
+.wkh-b::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; border-radius: 2px; }
+.wkh-b.wkh-add::before { background: var(--ok); }
+.wkh-b.wkh-del::before { background: var(--err); }
+.wkh-b.wkh-chg::before { background: var(--accent); }
+.wkh-b.wkh-del { opacity: .6; }
+.wkh-b.wkh-del > * { text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--err) 70%, transparent); }
+.wkh-b.wkh-add { background: color-mix(in srgb, var(--ok) 6%, transparent); }
+.wkh-b.wkh-at { outline: 2px solid var(--accent); outline-offset: 2px; }
+.wkh-b.wkh-flash { animation: wkh-flash 1.1s ease-out; }
+@keyframes wkh-flash { from { background-color: color-mix(in srgb, var(--accent) 22%, transparent); } }
+.wkh-fold { display: flex; align-items: center; gap: .286rem; width: 100%; margin: .571rem 0; padding: .143rem .571rem; font: inherit; font-size: .857rem; color: var(--fg-3); background: var(--bg-2); border: 1px dashed var(--bg-3); border-radius: var(--radius, 4px); cursor: pointer; }
+.wkh-fold:hover { color: var(--fg); background: var(--bg-3); }
+.wkh-none { margin-bottom: var(--pad); }
+/* Beside the scrollbar: where on the page the changes are. */
+.wkh-rail { position: absolute; top: 0; right: 0; bottom: 0; width: .429rem; pointer-events: none; }
+.wkh-tick { position: absolute; right: 1px; width: .357rem; min-height: 3px; padding: 0; border: 0; border-radius: 1px; pointer-events: auto; cursor: pointer; opacity: .8; }
+.wkh-tick.add { background: var(--ok); } .wkh-tick.del { background: var(--err); } .wkh-tick.chg { background: var(--accent); }
+@media (prefers-reduced-motion: reduce) { .wkh-b.wkh-flash { animation: none; } .wkh-a, .wkh-d { transition: none; } }
+.wkh-body del + ins, .wk-head h1 del + ins { margin-left: .214em; }

@@ -129,6 +129,27 @@ func init() {
 		}
 		return nil, s.Client().DeletePage(ctx, id)
 	})
+	get("/wiki/pages/{id}/versions", func(ctx context.Context, s *Server, r *http.Request) (any, error) {
+		id, err := wikiID(r, "id")
+		if err != nil {
+			return nil, err
+		}
+		return s.Client().PageVersions(ctx, id)
+	})
+	post("/wiki/pages/{id}/restore", func(ctx context.Context, s *Server, r *http.Request) (any, error) {
+		id, err := wikiID(r, "id")
+		if err != nil {
+			return nil, err
+		}
+		b, err := Body[struct{ Version int }](r)
+		if err != nil {
+			return nil, err
+		}
+		if b.Version < 1 {
+			return nil, badRequest(i18n.T("bad version"))
+		}
+		return nil, s.Client().RestorePage(ctx, id, b.Version, i18n.Tf("Restored version %d", b.Version))
+	})
 	get("/wiki/pages/{id}/comments", func(ctx context.Context, s *Server, r *http.Request) (any, error) {
 		id, err := wikiID(r, "id")
 		if err != nil {

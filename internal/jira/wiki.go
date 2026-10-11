@@ -46,6 +46,15 @@ type WikiComment struct {
 	Replies                       []WikiComment
 }
 
+// PageVersion is a saved version of a page: who saved it, when and why,
+// and the page as it read then.
+type PageVersion struct {
+	Number                                        int
+	AuthorID, Author, AvatarURL, Created, Message string
+	Minor                                         bool
+	Title, Markdown                               string
+}
+
 // WikiHit is a page a wiki search found.
 type WikiHit struct {
 	ID, Title, SpaceKey, Excerpt string
@@ -293,13 +302,118 @@ func (c *Client) PageComments(ctx context.Context, id string) ([]WikiComment, er
 // wikiUserName is a person's display name on the site; their id when the
 // site won't say.
 func (c *Client) wikiUserName(ctx context.Context, id string) string {
+	name, _ := c.wikiUser(ctx, id)
+	return name
+}
+
+// wikiUser is a person's display name (their id when the site won't say)
+// and avatar: from Jira, else from Confluence (someone without Jira).
+func (c *Client) wikiUser(ctx context.Context, id string) (name, avatar string) {
 	var u struct {
-		DisplayName string `json:"displayName"`
+		DisplayName string            `json:"displayName"`
+		AvatarURLs  map[string]string `json:"avatarUrls"`
 	}
-	if err := c.do(ctx, http.MethodGet, "/rest/api/3/user?accountId="+url.QueryEscape(id), "user "+id, nil, &u); err != nil || u.DisplayName == "" {
-		return id
+	if err := c.do(ctx, http.MethodGet, "/rest/api/3/user?accountId="+url.QueryEscape(id), "user "+id, nil, &u); err == nil && u.DisplayName != "" {
+		return safeterm.Line(u.DisplayName), u.AvatarURLs["48x48"]
 	}
-	return safeterm.Line(u.DisplayName)
+	var cu struct {
+		DisplayName    string `json:"displayName"`
+		PublicName     string `json:"publicName"`
+		ProfilePicture struct {
+			Path string `json:"path"`
+		} `json:"profilePicture"`
+	}
+	if err := c.do(ctx, http.MethodGet, "/wiki/rest/api/user?accountId="+url.QueryEscape(id), "user "+id, nil, &cu); err != nil {
+		return id, ""
+	}
+	name = firstNonEmptyStr(cu.DisplayName, cu.PublicName)
+	if name == "" {
+		return id, ""
+	}
+	switch p := cu.ProfilePicture.Path; {
+	case strings.HasPrefix(p, "https://"):
+		avatar = p
+	case strings.HasPrefix(p, "/wiki/"):
+		avatar = c.baseURL + p
+	case strings.HasPrefix(p, "/"):
+		avatar = c.baseURL + "/wiki" + p
+	}
+	return safeterm.Line(name), avatar
+}
+
+// maxPageVersions is how many of a page's latest versions its history reads.
+const maxPageVersions = 250
+
+// PageVersions are page id's versions, oldest first (its latest
+// maxPageVersions), each with the page as it read then.
+func (c *Client) PageVersions(ctx context.Context, id string) ([]PageVersion, error) {
+	if !c.Enabled() {
+		return nil, errNotConfigured
+	}
+	type version struct {
+		Number    int    `json:"number"`
+		Message   string `json:"message"`
+		MinorEdit bool   `json:"minorEdit"`
+		AuthorID  string `json:"authorId"`
+		CreatedAt string `json:"createdAt"`
+		Page      struct {
+			Title string `json:"title"`
+			Body  struct {
+				ADF struct {
+					Value string `json:"value"`
+				} `json:"atlas_doc_format"`
+			} `json:"body"`
+		} `json:"page"`
+	}
+	vs, err := wikiPages[version](ctx, c, "/wiki/api/v2/pages/"+url.PathEscape(id)+"/versions?body-format=atlas_doc_format&sort=-modified-date&limit=50", "page "+id+" versions", maxPageVersions)
+	if err != nil {
+		return nil, err
+	}
+	sort.Slice(vs, func(i, j int) bool { return vs[i].Number < vs[j].Number })
+	var atts []pageAttachment
+	attsRead := false
+	people := map[string][2]string{}
+	out := make([]PageVersion, 0, len(vs))
+	for _, v := range vs {
+		raw, title := json.RawMessage(v.Page.Body.ADF.Value), v.Page.Title
+		// A site that leaves a version's body out of the list: the page at it.
+		if len(raw) == 0 {
+			var pg struct {
+				Title string `json:"title"`
+				Body  struct {
+					ADF struct {
+						Value string `json:"value"`
+					} `json:"atlas_doc_format"`
+				} `json:"body"`
+			}
+			n := strconv.Itoa(v.Number)
+			if err := c.do(ctx, http.MethodGet, "/wiki/api/v2/pages/"+url.PathEscape(id)+"?body-format=atlas_doc_format&version="+n, "page "+id+" version "+n, nil, &pg); err != nil {
+				return nil, err
+			}
+			raw, title = json.RawMessage(pg.Body.ADF.Value), pg.Title
+		}
+		if !attsRead && len(pageMedia(raw)) > 0 {
+			atts, _ = c.pageAttachments(ctx, id) // without them, the images stand as their names
+			attsRead = true
+		}
+		who, ok := people[v.AuthorID]
+		if !ok && v.AuthorID != "" {
+			who[0], who[1] = c.wikiUser(ctx, v.AuthorID)
+			people[v.AuthorID] = who
+		}
+		out = append(out, PageVersion{Number: v.Number, AuthorID: v.AuthorID, Author: who[0], AvatarURL: who[1], Created: v.CreatedAt,
+			Message: safeterm.Line(v.Message), Minor: v.MinorEdit, Title: safeterm.Line(title), Markdown: safeterm.Text(pageMarkdown(raw, atts))})
+	}
+	return out, nil
+}
+
+// RestorePage saves version n of page id as its latest, title included.
+func (c *Client) RestorePage(ctx context.Context, id string, n int, message string) error {
+	if !c.Enabled() {
+		return errNotConfigured
+	}
+	req := map[string]any{"operationKey": "restore", "params": map[string]any{"versionNumber": n, "message": message, "restoreTitle": true}}
+	return c.do(ctx, http.MethodPost, "/wiki/rest/api/content/"+url.PathEscape(id)+"/version", "page "+id+" restore", req, nil)
 }
 
 // AddPageComment writes a footer comment on page id, or a reply to

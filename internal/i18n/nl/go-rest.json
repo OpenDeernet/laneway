@@ -348,5 +348,7 @@
   "not a time zone": "geen tijdzone",
   "a page needs a title": "een pagina heeft een titel nodig",
   "bad wiki id": "ongeldig wiki-id",
-  "the page changed meanwhile: reload it": "de pagina is intussen gewijzigd: laad hem opnieuw"
+  "the page changed meanwhile: reload it": "de pagina is intussen gewijzigd: laad hem opnieuw",
+  "bad version": "ongeldige versie",
+  "Restored version %d": "Versie %d teruggezet"
 }

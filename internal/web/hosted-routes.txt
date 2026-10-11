@@ -51,6 +51,8 @@ on  GET /api/wiki/pages/{id}/edit
 on  PUT /api/wiki/pages/{id}
 on  POST /api/wiki/pages
 on  DELETE /api/wiki/pages/{id}
+on  GET /api/wiki/pages/{id}/versions
+on  POST /api/wiki/pages/{id}/restore
 on  GET /api/wiki/pages/{id}/comments
 on  POST /api/wiki/pages/{id}/comments
 on  GET /api/drafts/{id}
