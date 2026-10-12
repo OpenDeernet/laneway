@@ -52,7 +52,7 @@ async function ask(app, id, keys, project) {
     case 'sprint': {
       const s = await app.api.get(`/projects/${project}/sprints`);
       const o = await app.ui.pick({ title: `Move ${n} issues to`, items: [{ ID: 0, Name: T('Backlog') }, ...s.Sprints], label: x => x.Name, detail: x => x.State || '' });
-      return o && { edit: { Field: 'sprint', Sprint: o.ID }, what: T('%d → %s', n, o.Name) };
+      return o && { edit: { Field: 'sprint', Sprint: o.ID }, what: T('%d → %s', n, o.Name), patch: { field: 'sprint', value: o.Name } };
     }
     case 'flag+': return { edit: { Field: 'flag', On: true }, what: T('%d flagged', n) };
     case 'flag-': return { edit: { Field: 'flag', On: false }, what: T('%d unflagged', n) };
@@ -83,7 +83,7 @@ export async function openBulk(app, keys) {
 
 const CHUNK = 4;
 
-async function run(app, keys, { edit, what }) {
+async function run(app, keys, { edit, what, patch }) {
   let stop = false;
   const bar = h('progress', { max: keys.length, value: 0 });
   const label = h('div.dim', `0 / ${keys.length}`);
@@ -97,7 +97,10 @@ async function run(app, keys, { edit, what }) {
     try {
       const r = await app.api.post('/bulk', { Keys: chunk, Edit: edit });
       res.Done.push(...r.Done); Object.assign(res.Undo, r.Undo); Object.assign(res.Failed, r.Failed);
-      for (const k of r.Done) app.bus.emit('issue:changed', { key: k, what: `${k}: ${what}` });
+      for (const k of r.Done) {
+        if (patch) app.bus.emit('issue:patch', { key: k, ...patch });
+        app.bus.emit('issue:changed', { key: k, what: `${k}: ${what}` });
+      }
     } catch (e) { for (const k of chunk) res.Failed[k] = e.message; }
     n += chunk.length;
     bar.value = n; label.textContent = `${n} / ${keys.length}`;

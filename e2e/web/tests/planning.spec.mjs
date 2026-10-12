@@ -99,6 +99,47 @@ test('two issues dragged into a sprint: one move, one rank', async ({ page }) =>
   expect(await order()).toEqual(before);
 });
 
+// A bulk move (X) while Jira's lists still have the issues where they were: no
+// issue in two places, none back where it came from.
+test('a bulk move holds while Jira catches up', async ({ page }) => {
+  let stale = null;
+  await page.route('**/api/plan/*', async route => {
+    const res = await route.fetch();
+    if (!stale) stale = await res.text();
+    await route.fulfill({ response: res, body: stale });
+  });
+  await page.keyboard.press('R');
+  await expect.poll(() => stale).not.toBeNull();
+  await select(page, 'DEMO-17');
+  await page.keyboard.press('x');
+  await page.keyboard.press('x');
+  await page.keyboard.press('X');
+  await pick(page, 'Sprint / backlog');
+  await pick(page, 'Sprint 13', /Sprint 13/);
+  await page.getByRole('dialog').getByRole('button', { name: 'Apply' }).click();
+  await expect(head(page, 'Sprint 13')).toContainText('5 issues');
+  await expect(head(page, 'Backlog')).toContainText('2 issues');
+  await page.waitForTimeout(3500);
+  await expect(head(page, 'Sprint 13')).toContainText('5 issues');
+  await expect(head(page, 'Backlog')).toContainText('2 issues');
+  await expect(row(page, 'DEMO-17')).toHaveCount(1);
+});
+
+// Jira's sprint and backlog lists can disagree for a moment; an issue in both shows once,
+// where its sprint field says.
+test('an issue Jira lists twice shows once', async ({ page }) => {
+  await page.route('**/api/plan/*', async route => {
+    const res = await route.fetch(), d = await res.json();
+    const c = d.Backlog.Cards.find(x => x.Key === 'DEMO-17');
+    d.Sprints.find(s => s.Name === 'Sprint 13').Cards.push(c);
+    await route.fulfill({ response: res, json: d });
+  });
+  await page.keyboard.press('R');
+  await expect(head(page, 'Backlog')).toContainText('4 issues');
+  await expect(row(page, 'DEMO-17')).toHaveCount(1);
+  await expect(head(page, 'Sprint 13')).toContainText('3 issues');
+});
+
 test('K ranks an issue up', async ({ page }) => {
   const above = async (a, b) => (await row(page, a).boundingBox()).y < (await row(page, b).boundingBox()).y;
   expect(await above('DEMO-18', 'DEMO-19')).toBe(true);

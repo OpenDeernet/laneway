@@ -130,6 +130,14 @@ export default async function mount(el, { app, params, scope, context, toolbar }
     const sec = (id, sprint, name, cards, total) => ({ id, sprint, name, cards, rest: Math.max((total || 0) - cards.length, 0) });
     sections = (d.Sprints || []).map(s => sec(s.ID, s, s.Name, s.Cards || [], s.Total));
     sections.push(sec(0, null, T('Backlog'), (d.Backlog && d.Backlog.Cards) || [], d.Backlog && d.Backlog.Total));
+    // Jira's lists can disagree for a moment: an issue in two sections stays in the one its sprint names.
+    const where = new Map();
+    for (const s of sections) for (const c of s.cards) where.set(c.Key, [...(where.get(c.Key) || []), s]);
+    for (const [k, ss] of where) {
+      if (ss.length < 2) continue;
+      const keep = ss.find(s => s.cards.find(c => c.Key === k).Sprint === (s.sprint ? s.sprint.Name : '')) || ss[0];
+      for (const s of ss) if (s !== keep) s.cards = s.cards.filter(c => c.Key !== k);
+    }
     const now = Date.now();
     ops = ops.filter(o => !o.done || now - o.done < OP_TTL);
     for (const o of ops) place(o, o.jql === jql);
@@ -434,9 +442,11 @@ export default async function mount(el, { app, params, scope, context, toolbar }
   }
 
   // place puts op.keys, in order, in section op.to before/after op.anchor (at its end when the anchor
-  // is not there). A card no section has comes from op.cards when inject.
+  // is not there). A card no section has comes from op.cards when inject. A loose op (a move made
+  // elsewhere) leaves cards be once they are in op.to only, where Jira ranks them.
   function place(op, inject) {
     const to = secOf(op.to); if (!to) return;
+    if (op.loose && op.keys.every(k => sections.every(s => (s === to) === s.cards.some(c => c.Key === k)))) return;
     const have = new Map();
     for (const s of sections) for (const c of s.cards) if (op.keys.includes(c.Key)) have.set(c.Key, c);
     for (const s of sections) s.cards = s.cards.filter(c => !op.keys.includes(c.Key));
@@ -700,10 +710,24 @@ export default async function mount(el, { app, params, scope, context, toolbar }
   }, T('clear filters and selection'), { ...G, input: true, when: () => document.activeElement === filterIn || filtering() || sel.size > 0 });
 
   const offTimer = ['timer', 'timer:tick'].map(ev => app.bus.on(ev, paint));
-  const offBus = app.bus.on('issue:changed', () => { if (writing || Date.now() - lastWrite < 1500) return; load(true); });
+  // A change made elsewhere (the bulk dialog, the issue panel) reloads, and once more a little later as
+  // Jira's lists trail it; a sprint change shows at once, as a move made here does.
+  function adopt(key, name) {
+    const to = sections.find(s => s.name === name), c = sections.flatMap(s => s.cards).find(x => x.Key === key);
+    if (!to || !c) return;
+    const op = { keys: [key], to: to.id, anchor: null, after: false, cards: [c], jql: jqlOf(), loose: true, done: Date.now() };
+    ops.push(op); place(op, true); relayout();
+  }
+  let soon = 0, later = 0;
+  const offPatch = app.bus.on('issue:patch', ev => { if (ev && ev.field === 'sprint') adopt(ev.key, ev.value); });
+  const offBus = app.bus.on('issue:changed', () => {
+    if (writing || Date.now() - lastWrite < 1500) return;
+    clearTimeout(soon); clearTimeout(later);
+    soon = setTimeout(() => load(true), 200); later = setTimeout(() => load(true), 3000);
+  });
   const onWide = () => { paintSide(); relayout(); };
   wide.addEventListener('change', onWide);
-  const off = () => { offBus(); offM(); offTimer.forEach(f => f()); wide.removeEventListener('change', onWide); };
+  const off = () => { offBus(); offPatch(); clearTimeout(soon); clearTimeout(later); offM(); offTimer.forEach(f => f()); wide.removeEventListener('change', onWide); };
   const offM = onMetrics(() => relayout(true));
 
   await load();
