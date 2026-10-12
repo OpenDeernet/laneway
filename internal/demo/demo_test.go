@@ -52,6 +52,32 @@ func TestDemoBoard(t *testing.T) {
 	}
 }
 
+// TestDemoBacklogNoDone: as Jira's, the backlog leaves out a done issue in
+// no sprint; a sprint shows its done ones.
+func TestDemoBacklogNoDone(t *testing.T) {
+	c, _ := demoClient(t)
+	ctx := context.Background()
+	boards, _ := c.Boards(ctx, project)
+	b := boards[0].ID
+	sprints, _ := c.Sprints(ctx, b)
+	cards, _, err := c.SprintIssues(ctx, b, sprints[0].ID, "", pointsField)
+	if err != nil {
+		t.Fatal(err)
+	}
+	i := slices.IndexFunc(cards, func(c jira.Card) bool { return c.Done })
+	if i < 0 {
+		t.Fatal("no done issue in the active sprint")
+	}
+	key := cards[i].Key
+	if err := c.MoveToBacklog(ctx, key); err != nil {
+		t.Fatal(err)
+	}
+	backlog, _, err := c.BacklogIssues(ctx, b, "", pointsField)
+	if err != nil || slices.ContainsFunc(backlog, func(c jira.Card) bool { return c.Key == key || c.Done }) {
+		t.Errorf("backlog has %s or a done issue: %v", key, err)
+	}
+}
+
 // TestDemoWrites: a move, a comment and a worklog stay, in memory.
 func TestDemoWrites(t *testing.T) {
 	c, s := demoClient(t)

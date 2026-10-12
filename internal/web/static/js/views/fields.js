@@ -65,7 +65,11 @@ export function bulkUndo(app, what, res) {
   if (!res.Undo || !Object.keys(res.Undo).length) return null;
   return pushUndo(app, what, async () => {
     const r = await app.api.post('/bulk', { Each: res.Undo });
-    for (const k of r.Done || []) app.bus.emit('issue:changed', { key: k });
+    for (const k of r.Done || []) {
+      const u = res.Undo[k];
+      if (u && u.Field === 'sprint') app.bus.emit('issue:patch', { key: k, field: 'sprint', id: u.Sprint });
+      app.bus.emit('issue:changed', { key: k });
+    }
     const bad = Object.keys(r.Failed || {});
     if (bad.length) throw new Error(T('%d not undone: %s', bad.length, bad.join(', ')));
   });

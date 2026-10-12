@@ -140,6 +140,28 @@ test('an issue Jira lists twice shows once', async ({ page }) => {
   await expect(head(page, 'Sprint 13')).toContainText('3 issues');
 });
 
+// Jira's backlog leaves done issues out: moving one there asks, and it goes from the list.
+test('a done issue to the backlog asks first, and u brings it back', async ({ page }) => {
+  const key = await page.locator('.lrow[data-key]', { has: page.locator('.cat-done') }).first().getAttribute('data-key');
+  await select(page, key);
+  await page.keyboard.press('m');
+  await pick(page, 'Backlog');
+  const dlg = page.getByRole('dialog');
+  await expect(dlg).toContainText(key + ' is done');
+  await dlg.getByRole('button', { name: 'Cancel' }).click();
+  await expect(row(page, key)).toHaveCount(1);
+  await page.keyboard.press('m');
+  await pick(page, 'Backlog');
+  const moved = page.waitForResponse('**/api/plan/move');
+  await dlg.getByRole('button', { name: 'Move' }).click();
+  await expect(row(page, key)).toHaveCount(0);
+  await moved;
+  await page.keyboard.press('u');
+  await expect(row(page, key)).toHaveCount(1);
+  await page.reload();
+  await expect(row(page, key)).toHaveCount(1);
+});
+
 test('K ranks an issue up', async ({ page }) => {
   const above = async (a, b) => (await row(page, a).boundingBox()).y < (await row(page, b).boundingBox()).y;
   expect(await above('DEMO-18', 'DEMO-19')).toBe(true);

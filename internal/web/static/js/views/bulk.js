@@ -52,7 +52,7 @@ async function ask(app, id, keys, project) {
     case 'sprint': {
       const s = await app.api.get(`/projects/${project}/sprints`);
       const o = await app.ui.pick({ title: `Move ${n} issues to`, items: [{ ID: 0, Name: T('Backlog') }, ...s.Sprints], label: x => x.Name, detail: x => x.State || '' });
-      return o && { edit: { Field: 'sprint', Sprint: o.ID }, what: T('%d → %s', n, o.Name), patch: { field: 'sprint', value: o.Name } };
+      return o && { edit: { Field: 'sprint', Sprint: o.ID }, what: T('%d → %s', n, o.Name), patch: { field: 'sprint', value: o.Name, id: o.ID } };
     }
     case 'flag+': return { edit: { Field: 'flag', On: true }, what: T('%d flagged', n) };
     case 'flag-': return { edit: { Field: 'flag', On: false }, what: T('%d unflagged', n) };

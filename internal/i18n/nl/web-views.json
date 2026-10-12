@@ -1392,5 +1392,8 @@
   "%d change": "%d wijziging",
   "%d changes": "%d wijzigingen",
   "edited %s": "%s bewerkt",
-  "edited": "bewerkt"
+  "edited": "bewerkt",
+  "%s are done. Jira leaves done issues out of the backlog: they show nowhere in planning after.": "%s zijn gereed. Jira laat gerede issues uit de backlog: ze staan daarna nergens in de planning.",
+  "%s is done. Jira leaves done issues out of the backlog: it shows nowhere in planning after.": "%s is gereed. Jira laat gerede issues uit de backlog: het staat daarna nergens in de planning.",
+  "Move to the backlog?": "Naar de backlog verplaatsen?"
 }

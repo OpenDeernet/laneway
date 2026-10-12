@@ -121,6 +121,7 @@ export default async function mount(el, { app, params, scope, context, toolbar }
   // ---- data
   const secOf = id => sections.find(s => s.id === id);
   function build(d, jql) {
+    const prev = sections;
     data = d; columns = d.Columns || [];
     for (const id of qf) if (!qfs().some(q => q.ID === id)) qf.delete(id);
     renderChips();
@@ -138,9 +139,7 @@ export default async function mount(el, { app, params, scope, context, toolbar }
       const keep = ss.find(s => s.cards.find(c => c.Key === k).Sprint === (s.sprint ? s.sprint.Name : '')) || ss[0];
       for (const s of ss) if (s !== keep) s.cards = s.cards.filter(c => c.Key !== k);
     }
-    const now = Date.now();
-    ops = ops.filter(o => !o.done || now - o.done < OP_TTL);
-    for (const o of ops) place(o, o.jql === jql);
+    hold(prev, jql);
     for (const k of [...sel]) if (!sections.some(s => s.cards.some(c => c.Key === k))) sel.delete(k);
     if (side != null && !secOf(side)) side = defaultSide();
     paintSide();
@@ -166,6 +165,7 @@ export default async function mount(el, { app, params, scope, context, toolbar }
       const d = await app.api.get('/plan/' + board.ID + (jql ? '?jql=' + encodeURIComponent(jql) : ''), { fresh });
       if (my !== token) return;
       if (d.Calendar && !data) app.ui.toast('ui.calendar: ' + d.Calendar, { kind: 'err' });
+      if (drag) { drag.loaded = [d, jql]; return; } // the list stays put under the pointer; dragend shows it
       build(d, jql); relayout(true);
     } catch (e) {
       if (my !== token) return;
@@ -281,9 +281,10 @@ export default async function mount(el, { app, params, scope, context, toolbar }
       p.tops = []; p.total = 0;
       for (const r of p.rows) { p.tops.push(p.total); p.total += r.h; }
       p.space.style.height = p.total + 'px';
-      for (const [k, n] of p.live) { n.remove(); p.live.delete(k); }
     }
     if (!paneOf(cur)) cur = stopsOf(left)[0] || stopsOf(right)[0] || '';
+    // Now, and over the rows already there: a click that lands while a load relays them still counts.
+    for (const p of panes) paintPane(p);
     paint();
   }
   const idOf = r => (r.k === 'h' ? 'h:' + r.s.id : r.k === 'c' ? r.c.Key : '');
@@ -303,7 +304,7 @@ export default async function mount(el, { app, params, scope, context, toolbar }
     const { rows, tops, live, scroller, space } = p;
     const sb = scroller.offsetWidth - scroller.clientWidth;
     if (sb !== p.sb) { p.sb = sb; p.head.style.paddingRight = `calc(var(--pad) + ${sb}px)`; }
-    if (!rows.length) return;
+    if (!rows.length) { for (const n of live.values()) n.remove(); live.clear(); return; }
     const vt = scroller.scrollTop, vb = vt + scroller.clientHeight;
     const a = Math.max(rowAtY(p, vt) - 6, 0), b = Math.min(rowAtY(p, vb) + 6, rows.length - 1);
     const want = new Set();
@@ -428,44 +429,74 @@ export default async function mount(el, { app, params, scope, context, toolbar }
     setCur(key, false, shift);
   }
 
-  // ---- writes: optimistic and queued. Jira's agile lists trail a write by seconds, so every load
-  // replays the recent moves (ops) over what it got; a failed write drops its own and reloads.
-  const OP_TTL = 20000;
-  let queue = Promise.resolve(), ops = [];
-  function enqueue(fn, keys, op) {
+  // ---- writes: optimistic and queued, reloaded from the server if one fails
+  let queue = Promise.resolve();
+  function enqueue(fn, keys) {
     writing++; lastWrite = Date.now();
-    ops.push(op);
-    queue = queue.then(fn).then(() => { op.done = Date.now(); for (const k of keys) app.bus.emit('issue:changed', { key: k }); })
-      .catch(e => { ops = ops.filter(o => o !== op); app.ui.errToast(e); load(true); })
-      .finally(() => { writing--; lastWrite = Date.now(); });
+    queue = queue.then(fn).then(() => { for (const k of keys) app.bus.emit('issue:changed', { key: k }); })
+      .catch(e => { held.clear(); app.ui.errToast(e); load(true); })
+      .finally(() => { writing--; lastWrite = heldAt = Date.now(); });
     return queue;
   }
 
-  // place puts op.keys, in order, in section op.to before/after op.anchor (at its end when the anchor
-  // is not there). A card no section has comes from op.cards when inject. A loose op (a move made
-  // elsewhere) leaves cards be once they are in op.to only, where Jira ranks them.
-  function place(op, inject) {
-    const to = secOf(op.to); if (!to) return;
-    if (op.loose && op.keys.every(k => sections.every(s => (s === to) === s.cards.some(c => c.Key === k)))) return;
-    const have = new Map();
-    for (const s of sections) for (const c of s.cards) if (op.keys.includes(c.Key)) have.set(c.Key, c);
-    for (const s of sections) s.cards = s.cards.filter(c => !op.keys.includes(c.Key));
-    const cards = op.keys.map(k => have.get(k) || (inject && op.cards.find(c => c.Key === k))).filter(Boolean)
-      .map(c => ({ ...c, Sprint: to.sprint ? to.sprint.Name : '' }));
-    let idx = op.anchor ? to.cards.findIndex(c => c.Key === op.anchor) : -1;
-    idx = idx < 0 ? to.cards.length : idx + (op.after ? 1 : 0);
+  // held: the sections a recent move touched, id → whether their order counts or only which issues
+  // they have. Jira's lists trail a write by seconds, and one answer that agrees may come before an
+  // older one: until HOLD after the last write a held section stays as it is here (with Jira's fields),
+  // and while Jira shows it otherwise the board loads again every second, to take Jira's after.
+  const HOLD = 10000;
+  const held = new Map();
+  let heldJql = '', heldAt = 0, retry = 0;
+  function touch(ids, order) {
+    heldJql = jqlOf(); heldAt = Date.now();
+    for (const id of ids) held.set(id, held.get(id) || order);
+  }
+  function hold(prev, jql) {
+    clearTimeout(retry);
+    if (!held.size) return;
+    if (jql !== heldJql || (!writing && Date.now() - heldAt > HOLD)) { held.clear(); return; }
+    const pairs = [...held].map(([id, order]) => [prev.find(s => s.id === id), secOf(id), order]).filter(([a, b]) => a && b);
+    const keys = s => s.cards.map(c => c.Key);
+    const same = pairs.every(([a, b, order]) => order ? keys(a).join() === keys(b).join() : keys(a).length === keys(b).length && keys(a).every(k => keys(b).includes(k)));
+    const fresh = new Map(sections.flatMap(s => s.cards).map(c => [c.Key, c])), kept = new Set();
+    for (const [a, b] of pairs) {
+      b.cards = a.cards.map(c => (fresh.has(c.Key) ? { ...fresh.get(c.Key), Sprint: c.Sprint } : c));
+      for (const c of b.cards) kept.add(c.Key);
+    }
+    for (const s of sections) if (!held.has(s.id)) s.cards = s.cards.filter(c => !kept.has(c.Key));
+    if (!same) retry = setTimeout(() => load(true), 1000);
+  }
+
+  // put moves keys' cards, in their order, to section `to` before/after anchor (its end without one).
+  function put(keys, to, anchor, after) {
+    const cards = [];
+    for (const s of sections) for (const c of s.cards) if (keys.includes(c.Key)) cards.push({ ...c, Sprint: to.sprint ? to.sprint.Name : '' });
+    for (const s of sections) s.cards = s.cards.filter(c => !keys.includes(c.Key));
+    cards.sort((a, b) => keys.indexOf(a.Key) - keys.indexOf(b.Key));
+    let idx = anchor ? to.cards.findIndex(c => c.Key === anchor) : -1;
+    idx = idx < 0 ? to.cards.length : idx + (after ? 1 : 0);
     to.cards.splice(idx, 0, ...cards);
   }
 
   // Move keys to section `to`, before/after anchor. Without one they go to the edge nearest where
   // they came from: the top of a section further down, the bottom of one further up.
-  function moveCards(keyList, to, anchor, after, { undoable = true } = {}) {
+  // A done issue moved to the backlog asks first: Jira's backlog leaves done issues out, so it shows
+  // nowhere after. Said yes, it goes from the list at once; u brings it back.
+  const gone = new Map();
+  function moveCards(keyList, to, anchor, after, { undoable = true, sure = false } = {}) {
+    to = to && secOf(to.id); // a load while a picker was open rebuilt the sections
     if (!keyList.length || !to || (anchor && keyList.includes(anchor))) return;
     const order = [], from = new Map();
     for (const s of sections) for (const c of s.cards) if (keyList.includes(c.Key)) { order.push(c); from.set(c.Key, s); }
     if (!order.length) return;
     const keys = order.map(c => c.Key);
     const crossing = keys.filter(k => from.get(k) !== to);
+    const done = to.id ? [] : order.filter(c => c.Done && from.get(c.Key) !== to).map(c => c.Key);
+    if (done.length && !sure) {
+      return app.ui.confirm({
+        title: T('Move to the backlog?'), ok: T('Move'),
+        text: Tn(done.length, '%s is done. Jira leaves done issues out of the backlog: it shows nowhere in planning after.', '%s are done. Jira leaves done issues out of the backlog: they show nowhere in planning after.', done.join(', ')),
+      }).then(ok => ok && moveCards(keyList, to, anchor, after, { undoable, sure: true }));
+    }
     if (!anchor) {
       const rest = to.cards.filter(c => !keyList.includes(c.Key));
       const down = sections.indexOf(from.get(keys[0])) < sections.indexOf(to);
@@ -479,18 +510,24 @@ export default async function mount(el, { app, params, scope, context, toolbar }
         return { id: s.id, keys: ks, anchor: (prev || next || {}).Key || null, after: !!prev };
       });
       import('./fields.js').then(m => m.pushUndo(app, T('the move of %s to %s', crossing.length === 1 ? crossing[0] : Tn(crossing.length, '%d issue', '%d issues', crossing.length), to.name), () => {
+        const backlog = secOf(0);
+        for (const k of done) if (backlog && !backlog.cards.some(c => c.Key === k)) backlog.cards.push(gone.get(k));
         for (const b of back) moveCards(b.keys, secOf(b.id), b.anchor, b.after, { undoable: false });
         relayout();
         return queue;
       }));
     }
-    const op = { keys, to: to.id, anchor, after, cards: order, jql: jqlOf() };
-    place(op, true);
+    touch([...new Set(order.map(c => from.get(c.Key).id)), to.id], true);
+    put(keys, to, anchor, after);
+    if (done.length) {
+      for (const c of to.cards) if (done.includes(c.Key)) gone.set(c.Key, c);
+      to.cards = to.cards.filter(c => !done.includes(c.Key));
+    }
     relayout();
     return enqueue(async () => {
       if (crossing.length) await app.api.post('/plan/move', { Keys: crossing, Sprint: to.id });
       if (anchor) await app.api.post('/plan/rank', { Keys: keys, Other: anchor, After: after });
-    }, keys, op);
+    }, keys);
   }
 
   // J/K: swap with the neighbour
@@ -653,12 +690,14 @@ export default async function mount(el, { app, params, scope, context, toolbar }
       if (!drag) return;
       const t = dropAt(p, e); if (!t) return;
       e.preventDefault();
-      const ks = drag.keys;
+      const ks = drag.keys, loaded = drag.loaded;
       dropEl.hidden = true; drag = null;
-      if (sorted(p) && ks.every(k => t.s.cards.some(c => c.Key === k))) return;
+      if (loaded) { build(...loaded); relayout(); }
+      if (sorted(p) && ks.every(k => secOf(t.s.id).cards.some(c => c.Key === k))) return;
       moveCards(ks, t.s, t.anchor, t.after);
     });
     scroller.addEventListener('dragend', () => {
+      if (drag && drag.loaded) { build(...drag.loaded); relayout(true); }
       for (const q of panes) q.dropEl.hidden = true;
       for (const q of panes) for (const n of q.live.values()) n.firstChild && n.firstChild.classList.remove('dragging');
       drag = null; paint();
@@ -712,14 +751,14 @@ export default async function mount(el, { app, params, scope, context, toolbar }
   const offTimer = ['timer', 'timer:tick'].map(ev => app.bus.on(ev, paint));
   // A change made elsewhere (the bulk dialog, the issue panel) reloads, and once more a little later as
   // Jira's lists trail it; a sprint change shows at once, as a move made here does.
-  function adopt(key, name) {
-    const to = sections.find(s => s.name === name), c = sections.flatMap(s => s.cards).find(x => x.Key === key);
-    if (!to || !c) return;
-    const op = { keys: [key], to: to.id, anchor: null, after: false, cards: [c], jql: jqlOf(), loose: true, done: Date.now() };
-    ops.push(op); place(op, true); relayout();
+  function adopt(key, id, name) {
+    const to = id != null ? secOf(id) : sections.find(s => s.name === name), from = sections.find(s => s.cards.some(c => c.Key === key));
+    if (!to || !from || from === to) return;
+    touch([from.id, to.id], false); // where in it is Jira's to say
+    put([key], to, null, false); relayout();
   }
   let soon = 0, later = 0;
-  const offPatch = app.bus.on('issue:patch', ev => { if (ev && ev.field === 'sprint') adopt(ev.key, ev.value); });
+  const offPatch = app.bus.on('issue:patch', ev => { if (ev && ev.field === 'sprint') adopt(ev.key, ev.id, ev.value); });
   const offBus = app.bus.on('issue:changed', () => {
     if (writing || Date.now() - lastWrite < 1500) return;
     clearTimeout(soon); clearTimeout(later);
@@ -727,8 +766,8 @@ export default async function mount(el, { app, params, scope, context, toolbar }
   });
   const onWide = () => { paintSide(); relayout(); };
   wide.addEventListener('change', onWide);
-  const off = () => { offBus(); offPatch(); clearTimeout(soon); clearTimeout(later); offM(); offTimer.forEach(f => f()); wide.removeEventListener('change', onWide); };
-  const offM = onMetrics(() => relayout(true));
+  const off = () => { offBus(); offPatch(); clearTimeout(soon); clearTimeout(later); clearTimeout(retry); offM(); offTimer.forEach(f => f()); wide.removeEventListener('change', onWide); };
+  const offM = onMetrics(() => { for (const p of panes) for (const n of p.live.values()) n._sig = ''; relayout(); });
 
   await load();
   loadVelocity();

@@ -405,7 +405,8 @@ func (s *Server) read(p string, q map[string][]string) (any, bool) {
 		}
 		return map[string]any{"values": out, "isLast": true}, true
 	case b + "/backlog":
-		return s.page(s.filter(s.board(func(i *issue) bool { return i.sprint == 0 && i.typ != "Sub-task" }), get("jql")), get("fields")), true
+		// As Jira's: a done issue in no sprint is on no list.
+		return s.page(s.filter(s.board(func(i *issue) bool { return i.sprint == 0 && i.typ != "Sub-task" && i.status.cat != "done" }), get("jql")), get("fields")), true
 	case b + "/issue":
 		return s.page(s.filter(s.board(func(*issue) bool { return true }), get("jql")), get("fields")), true
 	case b + "/features":
