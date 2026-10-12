@@ -204,3 +204,52 @@ func TestConfluencePageMacros(t *testing.T) {
 		t.Errorf("got\n%s\nwant\n%s", got, want)
 	}
 }
+
+// TestRecentlyUpdatedMacro: on Confluence the macro is a CQL search,
+// newest first, each change as its link, who and when.
+func TestRecentlyUpdatedMacro(t *testing.T) {
+	var cqls []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/rest/api/3/serverInfo":
+			fmt.Fprint(w, `{"deploymentType":"Cloud"}`)
+		case "/wiki/api/v2/pages/42":
+			doc := `{"type":"doc","version":1,"content":[` +
+				`{"type":"extension","attrs":{"extensionKey":"recently-updated","parameters":{"macroParams":{"types":{"value":"page"},"max":{"value":"5"},"hideHeading":{"value":"true"}}}}},` +
+				`{"type":"extension","attrs":{"extensionKey":"recently-updated","parameters":{"macroParams":{"spaces":{"value":"@self, OPS -ARCH"},"labels":{"value":"iso +audit -draft"},"types":{"value":"-attachment"},"author":{"value":"557058:a"},"theme":{"value":"sidebar"}}}}}]}`
+			b, _ := json.Marshal(doc)
+			fmt.Fprintf(w, `{"id":"42","title":"Guide","spaceId":"7","body":{"atlas_doc_format":{"value":%s}}}`, b)
+		case "/wiki/api/v2/spaces/7":
+			fmt.Fprint(w, `{"id":"7","key":"ISO","homepageId":"1"}`)
+		case "/wiki/rest/api/search":
+			cqls = append(cqls, r.URL.Query().Get("limit")+" "+r.URL.Query().Get("cql"))
+			fmt.Fprint(w, `{"results":[`+
+				`{"title":"Policy","url":"/spaces/ISO/pages/9/Policy","lastModified":"2026-10-10T12:22:46.000Z","content":{"type":"page","version":{"by":{"displayName":"Cas"}}}},`+
+				`{"title":"Re: Policy","url":"/spaces/ISO/pages/9/Policy?focusedCommentId=3","lastModified":"2026-10-09T08:00:00.000Z","content":{"type":"comment","version":{"by":{"displayName":"Ada"}},"container":{"title":"Policy"}}}]}`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+	c := New(Config{BaseURL: srv.URL, Email: "me@x.test", APIToken: "tok"})
+	p, err := c.ConfluencePage(context.Background(), "42")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{
+		`5 type in (page) AND (space in ("ISO")) order by lastmodified desc`,
+		`15 type in (page,blogpost,comment) AND (space in ("ISO","OPS")) AND space not in ("ARCH") AND label in ("iso") AND label = "audit" AND label not in ("draft") AND contributor in ("557058:a") order by lastmodified desc`,
+	}
+	if strings.Join(cqls, "\n") != strings.Join(want, "\n") {
+		t.Errorf("cql\n%s\nwant\n%s", strings.Join(cqls, "\n"), strings.Join(want, "\n"))
+	}
+	u := srv.URL + "/wiki/spaces/ISO/pages/9/Policy"
+	for _, w := range []string{
+		"- [Policy](" + u + ") · Cas · <date>2026-10-10</date>\n- [Comment on Policy](" + u + "?focusedCommentId=3) · Ada · <date>2026-10-09</date>",
+		"### Recently Updated\n\n- [Policy](" + u + ") · <date>2026-10-10</date>",
+	} {
+		if !strings.Contains(p.Markdown, w) {
+			t.Errorf("no\n%s\nin\n%s", w, p.Markdown)
+		}
+	}
+}

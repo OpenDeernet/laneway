@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // Against Confluence the client expands, when it reads a page, the macros
@@ -44,6 +45,7 @@ type wikiMacros struct {
 	doc    []adfNode
 	spaces map[string][]treePage // by space id
 	keys   map[string]string     // space key → id
+	infos  map[string][2]string  // space id → key, home page
 }
 
 // expandPageMacros answers raw with toc, children and pagetree expanded;
@@ -53,7 +55,7 @@ func (c *Client) expandPageMacros(ctx context.Context, raw json.RawMessage, page
 	if !strings.Contains(string(raw), `"extensionKey"`) || json.Unmarshal(raw, &doc) != nil || doc.Type != "doc" {
 		return raw
 	}
-	w := &wikiMacros{c: c, ctx: ctx, page: page, doc: doc.Content, spaces: map[string][]treePage{}, keys: map[string]string{}}
+	w := &wikiMacros{c: c, ctx: ctx, page: page, doc: doc.Content, spaces: map[string][]treePage{}, keys: map[string]string{}, infos: map[string][2]string{}}
 	doc.Content = w.expandAll(doc.Content)
 	out, err := json.Marshal(doc)
 	if err != nil {
@@ -93,6 +95,8 @@ func (w *wikiMacros) expand(key string, p map[string]string) (out []adfNode, ok 
 		out, ok = w.children(p)
 	case "pagetree":
 		out, ok = w.pagetree(p)
+	case "recently-updated":
+		out, ok = w.recentlyUpdated(p)
 	}
 	return out, ok
 }
@@ -457,14 +461,23 @@ func (w *wikiMacros) pagetree(p map[string]string) ([]adfNode, bool) {
 }
 
 // home is a space's home page, "" (its top) when it can't be read.
-func (w *wikiMacros) home(spaceID string) string {
+func (w *wikiMacros) home(spaceID string) string { return w.spaceInfo(spaceID)[1] }
+
+// spaceInfo is a space's key and home page, read once.
+func (w *wikiMacros) spaceInfo(spaceID string) [2]string {
+	if v, ok := w.infos[spaceID]; ok {
+		return v
+	}
 	var resp struct {
+		Key        string      `json:"key"`
 		HomepageID json.Number `json:"homepageId"`
 	}
-	if w.c.do(w.ctx, http.MethodGet, "/wiki/api/v2/spaces/"+url.PathEscape(spaceID), "space "+spaceID, nil, &resp) != nil {
-		return ""
+	var v [2]string
+	if w.c.do(w.ctx, http.MethodGet, "/wiki/api/v2/spaces/"+url.PathEscape(spaceID), "space "+spaceID, nil, &resp) == nil {
+		v = [2]string{resp.Key, resp.HomepageID.String()}
 	}
-	return resp.HomepageID.String()
+	w.infos[spaceID] = v
+	return v
 }
 
 // naturalCompare orders "Step 2" before "Step 10".
@@ -493,4 +506,156 @@ func leadingDigits(s string) int {
 		n++
 	}
 	return n
+}
+
+// ---- recently-updated: a CQL search, newest first
+
+// recentlyUpdated lists the newest changes Confluence's search finds for
+// the macro's spaces, labels, types and authors; a search Confluence
+// refuses leaves the macro as it is.
+func (w *wikiMacros) recentlyUpdated(p map[string]string) ([]adfNode, bool) {
+	cql, ok := w.recentCQL(p)
+	if !ok {
+		return nil, false
+	}
+	var resp struct {
+		Results []struct {
+			Title        string `json:"title"`
+			URL          string `json:"url"`
+			LastModified string `json:"lastModified"`
+			Content      struct {
+				Type    string `json:"type"`
+				Version struct {
+					By struct {
+						DisplayName string `json:"displayName"`
+					} `json:"by"`
+				} `json:"version"`
+				Container struct {
+					Title string `json:"title"`
+				} `json:"container"`
+			} `json:"content"`
+		} `json:"results"`
+	}
+	n := min(max(atoiOr(cmp.Or(p["max"], "15"), 15), 1), 200)
+	path := "/wiki/rest/api/search?limit=" + strconv.Itoa(n) + "&expand=content.version,content.container&cql=" + url.QueryEscape(cql)
+	if w.c.do(w.ctx, http.MethodGet, path, "recently updated", nil, &resp) != nil {
+		return nil, false
+	}
+	var out []adfNode
+	if p["hideHeading"] != "true" {
+		out = append(out, adfNode{Type: "heading", Attrs: map[string]any{"level": float64(3)}, Content: []adfNode{{Type: "text", Text: "Recently Updated"}}})
+	}
+	if len(resp.Results) == 0 {
+		return append(out, para("Nothing updated yet.", adfMark{Type: "em"})), true
+	}
+	list := adfNode{Type: "bulletList"}
+	for _, r := range resp.Results {
+		text := r.Title
+		switch r.Content.Type {
+		case "comment":
+			text = "Comment on " + cmp.Or(r.Content.Container.Title, strings.TrimPrefix(r.Title, "Re: "))
+		case "attachment":
+			if r.Content.Container.Title != "" {
+				text = r.Title + " on " + r.Content.Container.Title
+			}
+		}
+		line := []adfNode{{Type: "text", Text: text, Marks: []adfMark{{Type: "link", Attrs: map[string]any{"href": w.c.baseURL + "/wiki" + r.URL}}}}}
+		if who := r.Content.Version.By.DisplayName; who != "" && p["theme"] != "sidebar" {
+			line = append(line, adfNode{Type: "text", Text: " · " + who})
+		}
+		if t, err := time.Parse(time.RFC3339, r.LastModified); err == nil {
+			line = append(line, adfNode{Type: "text", Text: " · "}, adfNode{Type: "date", Attrs: map[string]any{"timestamp": strconv.FormatInt(t.UnixMilli(), 10)}})
+		}
+		list.Content = append(list.Content, adfNode{Type: "listItem", Content: []adfNode{{Type: "paragraph", Content: line}}})
+	}
+	return append(out, list), true
+}
+
+// recentCQL is the macro's search: spaces (@self by default), labels and
+// types (a - before one leaves it out, a + one is required) and authors.
+func (w *wikiMacros) recentCQL(p map[string]string) (string, bool) {
+	quoted := func(ws []string) string {
+		q := make([]string, len(ws))
+		for i, v := range ws {
+			q[i] = strconv.Quote(v)
+		}
+		return strings.Join(q, ",")
+	}
+	var clauses []string
+	// split sorts a list into its plain, + and - words.
+	split := func(s string) (plain, plus, minus []string) {
+		for _, v := range strings.FieldsFunc(s, func(r rune) bool { return r == ',' || r == ' ' }) {
+			switch {
+			case strings.HasPrefix(v, "+"):
+				plus = append(plus, v[1:])
+			case strings.HasPrefix(v, "-"):
+				minus = append(minus, v[1:])
+			default:
+				plain = append(plain, v)
+			}
+		}
+		return plain, plus, minus
+	}
+	// Types: those named (all four when none is), less those after a -.
+	news := func(t string) string { return strings.Replace(t, "news", "blogpost", 1) }
+	plain, plus, minus := split(strings.ToLower(p["types"]))
+	types := slices.Concat(plain, plus)
+	if len(types) == 0 {
+		types = []string{"page", "blogpost", "comment", "attachment"}
+	}
+	types = slices.DeleteFunc(slices.Clone(types), func(t string) bool {
+		return slices.ContainsFunc(minus, func(m string) bool { return news(m) == news(t) })
+	})
+	for i, t := range types {
+		types[i] = news(t)
+	}
+	if len(types) == 0 {
+		return "", false
+	}
+	clauses = append(clauses, "type in ("+strings.Join(types, ",")+")")
+	plain, plus, minus = split(cmp.Or(p["spaces"], "@self"))
+	var keys, spaceOr []string
+	for _, k := range append(plain, plus...) {
+		switch strings.ToLower(k) {
+		case "@all", "*":
+			spaceOr = append(spaceOr, "") // no space clause
+		case "@self":
+			key := w.spaceInfo(w.page.SpaceID)[0]
+			if key == "" {
+				return "", false
+			}
+			keys = append(keys, key)
+		case "@global":
+			spaceOr = append(spaceOr, "space.type = global")
+		case "@personal":
+			spaceOr = append(spaceOr, "space.type = personal")
+		case "@favorite", "@favourite":
+			spaceOr = append(spaceOr, "space in favouriteSpaces()")
+		default:
+			keys = append(keys, k)
+		}
+	}
+	if len(keys) > 0 {
+		spaceOr = append(spaceOr, "space in ("+quoted(keys)+")")
+	}
+	if !slices.Contains(spaceOr, "") && len(spaceOr) > 0 {
+		clauses = append(clauses, "("+strings.Join(spaceOr, " OR ")+")")
+	}
+	if len(minus) > 0 {
+		clauses = append(clauses, "space not in ("+quoted(minus)+")")
+	}
+	plain, plus, minus = split(strings.ToLower(p["labels"]))
+	if len(plain) > 0 {
+		clauses = append(clauses, "label in ("+quoted(plain)+")")
+	}
+	for _, l := range plus {
+		clauses = append(clauses, "label = "+strconv.Quote(l))
+	}
+	if len(minus) > 0 {
+		clauses = append(clauses, "label not in ("+quoted(minus)+")")
+	}
+	if authors := strings.FieldsFunc(p["author"], func(r rune) bool { return r == ',' || r == ' ' }); len(authors) > 0 {
+		clauses = append(clauses, "contributor in ("+quoted(authors)+")")
+	}
+	return strings.Join(clauses, " AND ") + " order by lastmodified desc", true
 }
