@@ -120,7 +120,7 @@ export default async function mount(el, { app, params, scope, context, toolbar }
 
   // ---- data
   const secOf = id => sections.find(s => s.id === id);
-  function build(d) {
+  function build(d, jql) {
     data = d; columns = d.Columns || [];
     for (const id of qf) if (!qfs().some(q => q.ID === id)) qf.delete(id);
     renderChips();
@@ -130,6 +130,9 @@ export default async function mount(el, { app, params, scope, context, toolbar }
     const sec = (id, sprint, name, cards, total) => ({ id, sprint, name, cards, rest: Math.max((total || 0) - cards.length, 0) });
     sections = (d.Sprints || []).map(s => sec(s.ID, s, s.Name, s.Cards || [], s.Total));
     sections.push(sec(0, null, T('Backlog'), (d.Backlog && d.Backlog.Cards) || [], d.Backlog && d.Backlog.Total));
+    const now = Date.now();
+    ops = ops.filter(o => !o.done || now - o.done < OP_TTL);
+    for (const o of ops) place(o, o.jql === jql);
     for (const k of [...sel]) if (!sections.some(s => s.cards.some(c => c.Key === k))) sel.delete(k);
     if (side != null && !secOf(side)) side = defaultSide();
     paintSide();
@@ -147,14 +150,15 @@ export default async function mount(el, { app, params, scope, context, toolbar }
     paintSide(); relayout();
     if (id == null && paneOf(cur) !== left) setCur(left.last || stopsOf(left)[0] || '');
   }
+  const jqlOf = () => qfs().filter(q => qf.has(q.ID)).map(q => '(' + q.JQL + ')').join(' AND ');
   async function load(fresh) {
     const my = ++token;
     try {
-      const jql = qfs().filter(q => qf.has(q.ID)).map(q => '(' + q.JQL + ')').join(' AND ');
+      const jql = jqlOf();
       const d = await app.api.get('/plan/' + board.ID + (jql ? '?jql=' + encodeURIComponent(jql) : ''), { fresh });
       if (my !== token) return;
       if (d.Calendar && !data) app.ui.toast('ui.calendar: ' + d.Calendar, { kind: 'err' });
-      build(d); relayout(true);
+      build(d, jql); relayout(true);
     } catch (e) {
       if (my !== token) return;
       if (!data) clear(left.scroller).append(h('div.empty', h('h2', T('Could not load')), h('p', e.message), h('button.btn', { onclick: () => load(true) }, T('Retry'))));
@@ -416,45 +420,67 @@ export default async function mount(el, { app, params, scope, context, toolbar }
     setCur(key, false, shift);
   }
 
-  // ---- writes: optimistic, queued, reloaded from the server if one fails
-  let queue = Promise.resolve(), settle = 0;
-  function enqueue(fn, keys) {
+  // ---- writes: optimistic and queued. Jira's agile lists trail a write by seconds, so every load
+  // replays the recent moves (ops) over what it got; a failed write drops its own and reloads.
+  const OP_TTL = 20000;
+  let queue = Promise.resolve(), ops = [];
+  function enqueue(fn, keys, op) {
     writing++; lastWrite = Date.now();
-    queue = queue.then(fn).then(() => { clearTimeout(settle); settle = setTimeout(() => load(true), 500); for (const k of keys || []) app.bus.emit('issue:changed', { key: k }); })
-      .catch(e => { app.ui.errToast(e); load(true); })
+    ops.push(op);
+    queue = queue.then(fn).then(() => { op.done = Date.now(); for (const k of keys) app.bus.emit('issue:changed', { key: k }); })
+      .catch(e => { ops = ops.filter(o => o !== op); app.ui.errToast(e); load(true); })
       .finally(() => { writing--; lastWrite = Date.now(); });
     return queue;
   }
-  const rank = (key, other, after) => app.api.post('/issues/' + key + '/rank', { Other: other, After: after });
 
-  // Move keys to section `to`, before/after anchor (or to its end).
-  function moveCards(keyList, to, anchor, after) {
-    if (!keyList.length || !to) return;
+  // place puts op.keys, in order, in section op.to before/after op.anchor (at its end when the anchor
+  // is not there). A card no section has comes from op.cards when inject.
+  function place(op, inject) {
+    const to = secOf(op.to); if (!to) return;
+    const have = new Map();
+    for (const s of sections) for (const c of s.cards) if (op.keys.includes(c.Key)) have.set(c.Key, c);
+    for (const s of sections) s.cards = s.cards.filter(c => !op.keys.includes(c.Key));
+    const cards = op.keys.map(k => have.get(k) || (inject && op.cards.find(c => c.Key === k))).filter(Boolean)
+      .map(c => ({ ...c, Sprint: to.sprint ? to.sprint.Name : '' }));
+    let idx = op.anchor ? to.cards.findIndex(c => c.Key === op.anchor) : -1;
+    idx = idx < 0 ? to.cards.length : idx + (op.after ? 1 : 0);
+    to.cards.splice(idx, 0, ...cards);
+  }
+
+  // Move keys to section `to`, before/after anchor. Without one they go to the edge nearest where
+  // they came from: the top of a section further down, the bottom of one further up.
+  function moveCards(keyList, to, anchor, after, { undoable = true } = {}) {
+    if (!keyList.length || !to || (anchor && keyList.includes(anchor))) return;
     const order = [], from = new Map();
-    for (const s of sections) for (const c of s.cards) if (keyList.includes(c.Key)) { order.push(c); from.set(c.Key, s.id); }
-    if (anchor && keyList.includes(anchor)) return;
-    for (const s of sections) s.cards = s.cards.filter(c => !keyList.includes(c.Key));
-    let idx = to.cards.length;
-    if (anchor) { idx = to.cards.findIndex(c => c.Key === anchor); idx = idx < 0 ? to.cards.length : idx + (after ? 1 : 0); }
-    const moved = order.map(c => ({ ...c, Sprint: to.sprint ? to.sprint.Name : '' }));
-    to.cards.splice(idx, 0, ...moved);
-    const crossing = order.filter(c => from.get(c.Key) !== to.id).map(c => c.Key);
-    relayout();
-    const names = order.map(c => c.Key);
-    if (crossing.length) {
-      // u moves them back to where each came from (TUI recordSprintUndo)
-      const back = new Map();
-      for (const k of crossing) back.set(from.get(k), [...(back.get(from.get(k)) || []), k]);
-      import('./fields.js').then(m => m.pushUndo(app, T('the move of %s to %s', crossing.length === 1 ? crossing[0] : Tn(crossing.length, '%d issue', '%d issues', crossing.length), to.name), async () => {
-        for (const [id, ks] of back) await app.api.post('/plan/move', { Keys: ks, Sprint: id });
-        for (const k of crossing) app.bus.emit('issue:changed', { key: k });
-        load(true);
+    for (const s of sections) for (const c of s.cards) if (keyList.includes(c.Key)) { order.push(c); from.set(c.Key, s); }
+    if (!order.length) return;
+    const keys = order.map(c => c.Key);
+    const crossing = keys.filter(k => from.get(k) !== to);
+    if (!anchor) {
+      const rest = to.cards.filter(c => !keyList.includes(c.Key));
+      const down = sections.indexOf(from.get(keys[0])) < sections.indexOf(to);
+      if (rest.length) { anchor = down ? rest[0].Key : rest[rest.length - 1].Key; after = !down; }
+    }
+    if (crossing.length && undoable) {
+      // u puts them back beside the issue each left (TUI recordSprintUndo)
+      const back = [...new Set(crossing.map(k => from.get(k)))].map(s => {
+        const ks = crossing.filter(k => from.get(k) === s), i = s.cards.findIndex(c => c.Key === ks[0]);
+        const prev = s.cards.slice(0, i).findLast(c => !keyList.includes(c.Key)), next = s.cards.slice(i).find(c => !keyList.includes(c.Key));
+        return { id: s.id, keys: ks, anchor: (prev || next || {}).Key || null, after: !!prev };
+      });
+      import('./fields.js').then(m => m.pushUndo(app, T('the move of %s to %s', crossing.length === 1 ? crossing[0] : Tn(crossing.length, '%d issue', '%d issues', crossing.length), to.name), () => {
+        for (const b of back) moveCards(b.keys, secOf(b.id), b.anchor, b.after, { undoable: false });
+        relayout();
+        return queue;
       }));
     }
-    enqueue(async () => {
+    const op = { keys, to: to.id, anchor, after, cards: order, jql: jqlOf() };
+    place(op, true);
+    relayout();
+    return enqueue(async () => {
       if (crossing.length) await app.api.post('/plan/move', { Keys: crossing, Sprint: to.id });
-      if (anchor) { let prev = anchor, aft = after; for (const k of names) { await rank(k, prev, aft); prev = k; aft = true; } }
-    }, names);
+      if (anchor) await app.api.post('/plan/rank', { Keys: keys, Other: anchor, After: after });
+    }, keys, op);
   }
 
   // J/K: swap with the neighbour
@@ -462,12 +488,10 @@ export default async function mount(el, { app, params, scope, context, toolbar }
     const cc = curCard(); if (!cc || filtering()) return;
     const p = paneOf(cur) || left;
     if (sorted(p)) { app.ui.toast(T('Sorted by %s: J and K rank in the rank order, a click on the header brings it back', p.sort)); return; }
-    const cs = cc.s.cards, i = cs.indexOf(cc.c), j = i + d;
+    const cs = cc.s.cards, j = cs.indexOf(cc.c) + d;
     if (j < 0 || j >= cs.length) return;
-    const other = cs[j].Key;
-    [cs[i], cs[j]] = [cs[j], cs[i]];
-    relayout(); setCur(cc.c.Key);
-    enqueue(() => rank(cc.c.Key, other, d > 0), [cc.c.Key]);
+    moveCards([cc.c.Key], cc.s, cs[j].Key, d > 0, { undoable: false });
+    setCur(cc.c.Key);
   }
 
   async function moveTo() {
@@ -684,5 +708,5 @@ export default async function mount(el, { app, params, scope, context, toolbar }
 
   await load();
   loadVelocity();
-  return () => { token++; off(); clearTimeout(settle); document.removeEventListener('plan:action', onAction); };
+  return () => { token++; off(); document.removeEventListener('plan:action', onAction); };
 }

@@ -183,6 +183,7 @@ off POST /api/issues/{key}/work
 on  POST /api/jql/starred
 on  POST /api/me/avatar
 on  POST /api/plan/move
+on  POST /api/plan/rank
 on  POST /api/plan/sprints
 on  POST /api/plan/sprints/{id}/close
 on  POST /api/plan/sprints/{id}/start

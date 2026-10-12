@@ -106,6 +106,15 @@ func TestReportsAndPlanning(t *testing.T) {
 	if c := reportsPost(t, at("/plan/move"), map[string]any{"Keys": []string{}}); c != 400 {
 		t.Fatalf("empty move: %d", c)
 	}
+	if len(plan.Backlog.Cards) > 2 {
+		ks := []string{plan.Backlog.Cards[1].Key, plan.Backlog.Cards[2].Key}
+		if c := reportsPost(t, at("/plan/rank"), map[string]any{"Keys": ks, "Other": key, "After": true}); c != 200 {
+			t.Fatalf("rank: %d", c)
+		}
+	}
+	if c := reportsPost(t, at("/plan/rank"), map[string]any{"Keys": []string{key}, "Other": "nope"}); c != 400 {
+		t.Fatalf("bad rank: %d", c)
+	}
 	if c := reportsPost(t, at("/plan/sprints"), map[string]any{"Board": b, "Name": "DEMO Sprint X"}); c != 200 {
 		t.Fatalf("create: %d", c)
 	}

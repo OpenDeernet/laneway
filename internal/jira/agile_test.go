@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -241,6 +242,34 @@ func TestRank(t *testing.T) {
 	}
 	if got != `PUT /rest/agile/1.0/issue/rank {"issues":["ABC-2"],"rankBeforeIssue":"ABC-1"}` {
 		t.Errorf("request = %s", got)
+	}
+}
+
+// TestRankKeys: past 50 keys a second request ranks the rest after the last of the first.
+func TestRankKeys(t *testing.T) {
+	var got []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var b struct {
+			Issues []string
+			After  string `json:"rankAfterIssue"`
+			Before string `json:"rankBeforeIssue"`
+		}
+		json.NewDecoder(r.Body).Decode(&b)
+		got = append(got, fmt.Sprintf("%d %s..%s before=%s after=%s", len(b.Issues), b.Issues[0], b.Issues[len(b.Issues)-1], b.Before, b.After))
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer srv.Close()
+	keys := make([]string, 60)
+	for i := range keys {
+		keys[i] = fmt.Sprintf("ABC-%d", i+10)
+	}
+	c := New(Config{BaseURL: srv.URL, Email: "me@x.test", APIToken: "tok"})
+	if err := c.RankKeys(context.Background(), keys, "ABC-1", false); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"50 ABC-10..ABC-59 before=ABC-1 after=", "10 ABC-60..ABC-69 before= after=ABC-59"}
+	if !slices.Equal(got, want) {
+		t.Errorf("requests = %q, want %q", got, want)
 	}
 }
 

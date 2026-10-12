@@ -21,6 +21,7 @@ import (
 func init() {
 	get("/plan/{board}", planBundle)
 	post("/plan/move", planMove)
+	post("/plan/rank", planRank)
 	post("/plan/sprints", planCreateSprint)
 	post("/plan/sprints/{id}/start", planStartSprint)
 	post("/plan/sprints/{id}/close", planCloseSprint)
@@ -181,6 +182,30 @@ func planMove(ctx context.Context, s *Server, r *http.Request) (any, error) {
 		return nil, s.Client().MoveToBacklog(ctx, b.Keys...)
 	}
 	return nil, s.Client().MoveToSprint(ctx, b.Sprint, b.Keys...)
+}
+
+// planRank puts Keys, in their order, just before (After false) or after Other.
+func planRank(ctx context.Context, s *Server, r *http.Request) (any, error) {
+	b, err := Body[struct {
+		Keys  []string
+		Other string
+		After bool
+	}](r)
+	if err != nil {
+		return nil, err
+	}
+	if len(b.Keys) == 0 {
+		return nil, badRequest(i18n.T("no issues"))
+	}
+	for _, k := range b.Keys {
+		if !jira.ValidKey(k) {
+			return nil, badRequest(i18n.T("bad issue key"))
+		}
+	}
+	if !jira.ValidKey(b.Other) {
+		return nil, badRequest(i18n.T("bad issue key"))
+	}
+	return nil, s.Client().RankKeys(ctx, b.Keys, b.Other, b.After)
 }
 
 func planCreateSprint(ctx context.Context, s *Server, r *http.Request) (any, error) {

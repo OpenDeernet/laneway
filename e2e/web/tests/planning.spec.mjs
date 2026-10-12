@@ -33,6 +33,67 @@ test('m moves a backlog issue into the next sprint and back', async ({ page }) =
   await expect(head(page, 'Backlog')).toContainText('4 issues');
 });
 
+// Jira's agile lists trail a write by seconds: a reload that still has the old
+// sprints keeps the move instead of putting the issue back.
+test('a stale reload keeps a move', async ({ page }) => {
+  let stale = null;
+  await page.route('**/api/plan/*', async route => {
+    const res = await route.fetch();
+    if (!stale) stale = await res.text();
+    await route.fulfill({ response: res, body: stale });
+  });
+  await page.keyboard.press('R');
+  await expect.poll(() => stale).not.toBeNull();
+  await select(page, 'DEMO-17');
+  await page.keyboard.press('m');
+  const moved = page.waitForResponse('**/api/plan/move');
+  await pick(page, 'Sprint 13', /Sprint 13/);
+  await expect(head(page, 'Sprint 13')).toContainText('4 issues');
+  await moved;
+  await page.waitForTimeout(800);
+  const reloaded = page.waitForResponse('**/api/plan/*');
+  await page.keyboard.press('R');
+  await reloaded;
+  await expect(head(page, 'Sprint 13')).toContainText('4 issues');
+  await expect(head(page, 'Backlog')).toContainText('3 issues');
+});
+
+// A move without a place to drop goes to the edge nearest where it came from, in Jira too.
+test('a backlog issue moved up lands at the bottom of the sprint', async ({ page }) => {
+  await select(page, 'DEMO-17');
+  await page.keyboard.press('m');
+  const ranked = page.waitForResponse('**/api/plan/rank');
+  await pick(page, 'Sprint 13', /Sprint 13/);
+  await ranked;
+  await page.reload();
+  const y = async l => (await l.boundingBox()).y;
+  await expect(row(page, 'DEMO-17')).toBeVisible();
+  const at = await y(row(page, 'DEMO-17')), backlog = await y(head(page, 'Backlog'));
+  expect(at).toBeLessThan(backlog);
+  expect(backlog - at).toBeLessThan(50);
+});
+
+test('two issues dragged into a sprint: one move, one rank', async ({ page }) => {
+  const writes = [];
+  page.on('request', r => { if (r.method() === 'POST' && /\/api\/(plan|issues)\//.test(r.url())) writes.push(r.url().replace(/.*\/api/, '') + ' ' + r.postData()); });
+  await select(page, 'DEMO-17');
+  await page.keyboard.press('x'); // marks it, steps to the next
+  await page.keyboard.press('x');
+  const ranked = page.waitForResponse('**/api/plan/rank');
+  const first = await page.evaluate(() => {
+    const heads = [...document.querySelectorAll('.pl-abs')].sort((a, b) => a.getBoundingClientRect().y - b.getBoundingClientRect().y);
+    const i = heads.findIndex(n => /^Sprint 13/.test(n.textContent));
+    return heads[i + 1].querySelector('.l-key').textContent;
+  });
+  await row(page, 'DEMO-17').dragTo(row(page, first), { targetPosition: { x: 40, y: 4 } });
+  await ranked;
+  await expect(head(page, 'Sprint 13')).toContainText('5 issues');
+  expect(writes.filter(w => w.startsWith('/plan/move'))).toHaveLength(1);
+  expect(writes.filter(w => w.includes('/rank'))).toHaveLength(1);
+  await page.reload();
+  await expect(head(page, 'Sprint 13')).toContainText('5 issues');
+});
+
 test('K ranks an issue up', async ({ page }) => {
   const above = async (a, b) => (await row(page, a).boundingBox()).y < (await row(page, b).boundingBox()).y;
   expect(await above('DEMO-18', 'DEMO-19')).toBe(true);
