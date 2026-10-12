@@ -162,6 +162,23 @@ test('a done issue to the backlog asks first, and u brings it back', async ({ pa
   await expect(row(page, key)).toHaveCount(1);
 });
 
+test('a bulk move of a done issue to the backlog asks first', async ({ page }) => {
+  const key = await page.locator('.lrow[data-key]', { has: page.locator('.cat-done') }).first().getAttribute('data-key');
+  await select(page, key);
+  await page.keyboard.press('x');
+  await page.keyboard.press('X');
+  await pick(page, 'Sprint / backlog');
+  await expect(page.getByRole('dialog')).toContainText('Move 1 issues to');
+  await pick(page, 'Backlog');
+  const dlg = page.getByRole('dialog');
+  await expect(dlg).toContainText(key + ' is done');
+  await dlg.getByRole('button', { name: 'Move' }).click();
+  await expect(row(page, key)).toHaveCount(0);
+  await page.reload();
+  await expect(row(page, 'DEMO-17')).toBeVisible();
+  await expect(row(page, key)).toHaveCount(0);
+});
+
 test('K ranks an issue up', async ({ page }) => {
   const above = async (a, b) => (await row(page, a).boundingBox()).y < (await row(page, b).boundingBox()).y;
   expect(await above('DEMO-18', 'DEMO-19')).toBe(true);
@@ -206,4 +223,40 @@ test('a column edge drags to resize', async ({ page }) => {
   expect((await key.boundingBox()).width).toBeGreaterThan(w0 + 30);
   const cell = page.locator('.lrow', { hasText: 'DEMO-5' }).locator('.l-key');
   expect(Math.abs((await cell.boundingBox()).width - (await key.boundingBox()).width)).toBeLessThan(2);
+});
+
+// laneway-server's lists show a write at once: after your own move, someone else's shows on the
+// next load, not when the hold for Jira's lag runs out.
+test.describe('on laneway-server', () => {
+  test.use({ flavour: 'laneway' });
+  test("someone else's move shows at once after yours", async ({ page }) => {
+    await select(page, 'DEMO-17');
+    await page.keyboard.press('m');
+    const moved = page.waitForResponse('**/api/plan/move');
+    await pick(page, 'Sprint 13', /Sprint 13/);
+    await moved;
+    const board = await page.evaluate(() => performance.getEntriesByType('resource').map(e => e.name).find(u => /\/api\/plan\/\d+/.test(u)));
+    const sprint = (await (await page.request.get(board)).json()).Sprints.find(x => x.Name === 'Sprint 13').ID;
+    expect((await page.request.post(new URL('/api/plan/move', board).href, { data: { Keys: ['DEMO-18'], Sprint: sprint } })).ok()).toBe(true);
+    await page.keyboard.press('R');
+    await expect(head(page, 'Sprint 13')).toContainText('5 issues');
+  });
+
+  // The site's change stream (the demo has none: this stands in for it) loads planning again.
+  test("someone else's move shows without R", async ({ page }) => {
+    let tell;
+    const told = new Promise(r => { tell = r; });
+    await page.route('**/api/site/events', async route => {
+      const ch = await told;
+      await route.fulfill({ contentType: 'text/event-stream', body: `retry: 60000\n\nevent: change\ndata: ${JSON.stringify(ch)}\n\n` });
+    });
+    await page.reload();
+    await expect(row(page, 'DEMO-17')).toBeVisible();
+    const board = await page.evaluate(() => performance.getEntriesByType('resource').map(e => e.name).find(u => /\/api\/plan\/\d+/.test(u)));
+    const sprint = (await (await page.request.get(board)).json()).Sprints.find(x => x.Name === 'Sprint 13').ID;
+    expect((await page.request.post(new URL('/api/plan/move', board).href, { data: { Keys: ['DEMO-18'], Sprint: sprint } })).ok()).toBe(true);
+    await expect(head(page, 'Sprint 13')).toContainText('3 issues');
+    tell({ seq: 1, kind: 'issue', action: 'put', key: 'DEMO-18' });
+    await expect(head(page, 'Sprint 13')).toContainText('4 issues');
+  });
 });

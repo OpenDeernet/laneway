@@ -120,7 +120,7 @@ export default async function mount(el, { app, params, scope, context, toolbar }
 
   // ---- data
   const secOf = id => sections.find(s => s.id === id);
-  function build(d, jql) {
+  function build(d, jql, sent) {
     const prev = sections;
     data = d; columns = d.Columns || [];
     for (const id of qf) if (!qfs().some(q => q.ID === id)) qf.delete(id);
@@ -139,7 +139,7 @@ export default async function mount(el, { app, params, scope, context, toolbar }
       const keep = ss.find(s => s.cards.find(c => c.Key === k).Sprint === (s.sprint ? s.sprint.Name : '')) || ss[0];
       for (const s of ss) if (s !== keep) s.cards = s.cards.filter(c => c.Key !== k);
     }
-    hold(prev, jql);
+    hold(prev, jql, sent);
     for (const k of [...sel]) if (!sections.some(s => s.cards.some(c => c.Key === k))) sel.delete(k);
     if (side != null && !secOf(side)) side = defaultSide();
     paintSide();
@@ -159,14 +159,14 @@ export default async function mount(el, { app, params, scope, context, toolbar }
   }
   const jqlOf = () => qfs().filter(q => qf.has(q.ID)).map(q => '(' + q.JQL + ')').join(' AND ');
   async function load(fresh) {
-    const my = ++token;
+    const my = ++token, sent = Date.now();
     try {
       const jql = jqlOf();
       const d = await app.api.get('/plan/' + board.ID + (jql ? '?jql=' + encodeURIComponent(jql) : ''), { fresh });
       if (my !== token) return;
       if (d.Calendar && !data) app.ui.toast('ui.calendar: ' + d.Calendar, { kind: 'err' });
-      if (drag) { drag.loaded = [d, jql]; return; } // the list stays put under the pointer; dragend shows it
-      build(d, jql); relayout(true);
+      if (drag) { drag.loaded = [d, jql, sent]; return; } // the list stays put under the pointer; dragend shows it
+      build(d, jql, sent); relayout(true);
     } catch (e) {
       if (my !== token) return;
       if (!data) clear(left.scroller).append(h('div.empty', h('h2', T('Could not load')), h('p', e.message), h('button.btn', { onclick: () => load(true) }, T('Retry'))));
@@ -443,6 +443,7 @@ export default async function mount(el, { app, params, scope, context, toolbar }
   // they have. Jira's lists trail a write by seconds, and one answer that agrees may come before an
   // older one: until HOLD after the last write a held section stays as it is here (with Jira's fields),
   // and while Jira shows it otherwise the board loads again every second, to take Jira's after.
+  // laneway-server's lists don't trail: there a load sent after the last write is taken as it is.
   const HOLD = 10000;
   const held = new Map();
   let heldJql = '', heldAt = 0, retry = 0;
@@ -450,10 +451,11 @@ export default async function mount(el, { app, params, scope, context, toolbar }
     heldJql = jqlOf(); heldAt = Date.now();
     for (const id of ids) held.set(id, held.get(id) || order);
   }
-  function hold(prev, jql) {
+  function hold(prev, jql, sent) {
     clearTimeout(retry);
     if (!held.size) return;
-    if (jql !== heldJql || (!writing && Date.now() - heldAt > HOLD)) { held.clear(); return; }
+    const settled = data.Laneway ? sent > heldAt : Date.now() - heldAt > HOLD;
+    if (jql !== heldJql || (!writing && settled)) { held.clear(); return; }
     const pairs = [...held].map(([id, order]) => [prev.find(s => s.id === id), secOf(id), order]).filter(([a, b]) => a && b);
     const keys = s => s.cards.map(c => c.Key);
     const same = pairs.every(([a, b, order]) => order ? keys(a).join() === keys(b).join() : keys(a).length === keys(b).length && keys(a).every(k => keys(b).includes(k)));
@@ -752,12 +754,22 @@ export default async function mount(el, { app, params, scope, context, toolbar }
   // A change made elsewhere (the bulk dialog, the issue panel) reloads, and once more a little later as
   // Jira's lists trail it; a sprint change shows at once, as a move made here does.
   function adopt(key, id, name) {
-    const to = id != null ? secOf(id) : sections.find(s => s.name === name), from = sections.find(s => s.cards.some(c => c.Key === key));
+    const to = id != null ? secOf(id) : sections.find(s => s.name === name);
+    if (to && gone.has(key) && !sections.some(s => s.cards.some(c => c.Key === key))) secOf(0).cards.push(gone.get(key));
+    const from = sections.find(s => s.cards.some(c => c.Key === key));
     if (!to || !from || from === to) return;
     touch([from.id, to.id], false); // where in it is Jira's to say
-    put([key], to, null, false); relayout();
+    put([key], to, null, false);
+    const c = to.id ? null : to.cards.find(x => x.Key === key && x.Done);
+    if (c) { gone.set(key, c); to.cards = to.cards.filter(x => x !== c); }
+    relayout();
   }
-  let soon = 0, later = 0;
+  let soon = 0, later = 0, siteTimer = 0;
+  // laneway-server's change stream: a change in this project loads again, once for a burst.
+  const offSite = app.bus.on('site:change', ch => {
+    if (siteTimer || !(String(ch.key || '').startsWith(project + '-') || ch.kind === 'sprint' || ch.kind === 'board')) return;
+    siteTimer = setTimeout(() => { siteTimer = 0; if (!document.hidden) load(true); }, 1000);
+  });
   const offPatch = app.bus.on('issue:patch', ev => { if (ev && ev.field === 'sprint') adopt(ev.key, ev.id, ev.value); });
   const offBus = app.bus.on('issue:changed', () => {
     if (writing || Date.now() - lastWrite < 1500) return;
@@ -766,7 +778,7 @@ export default async function mount(el, { app, params, scope, context, toolbar }
   });
   const onWide = () => { paintSide(); relayout(); };
   wide.addEventListener('change', onWide);
-  const off = () => { offBus(); offPatch(); clearTimeout(soon); clearTimeout(later); clearTimeout(retry); offM(); offTimer.forEach(f => f()); wide.removeEventListener('change', onWide); };
+  const off = () => { offBus(); offPatch(); offSite(); clearTimeout(soon); clearTimeout(later); clearTimeout(retry); clearTimeout(siteTimer); offM(); offTimer.forEach(f => f()); wide.removeEventListener('change', onWide); };
   const offM = onMetrics(() => { for (const p of panes) for (const n of p.live.values()) n._sig = ''; relayout(); });
 
   await load();

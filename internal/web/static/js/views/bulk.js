@@ -51,8 +51,22 @@ async function ask(app, id, keys, project) {
     }
     case 'sprint': {
       const s = await app.api.get(`/projects/${project}/sprints`);
-      const o = await app.ui.pick({ title: `Move ${n} issues to`, items: [{ ID: 0, Name: T('Backlog') }, ...s.Sprints], label: x => x.Name, detail: x => x.State || '' });
-      return o && { edit: { Field: 'sprint', Sprint: o.ID }, what: T('%d → %s', n, o.Name), patch: { field: 'sprint', value: o.Name, id: o.ID } };
+      const o = await app.ui.pick({ title: T('Move %d issues to', n), items: [{ ID: 0, Name: T('Backlog') }, ...s.Sprints], label: x => x.Name, detail: x => x.State || '' });
+      if (!o) return null;
+      const q = { edit: { Field: 'sprint', Sprint: o.ID }, what: T('%d → %s', n, o.Name), patch: { field: 'sprint', value: o.Name, id: o.ID } };
+      if (o.ID) return q;
+      // Jira's backlog leaves done issues out: they would show nowhere in planning (as planning's m asks).
+      const listed = new Map(((app.listed && app.listed()) || []).map(c => [c.Key, c.Done]));
+      const unknown = keys.filter(k => !listed.has(k)).slice(0, 100);
+      const got = await Promise.all(unknown.map(k => app.api.get('/issues/' + k).catch(() => null)));
+      got.forEach((iss, i) => listed.set(unknown[i], !!iss && iss.StatusCategory === 'done'));
+      const done = keys.filter(k => listed.get(k));
+      if (!done.length) return q;
+      const ok = await app.ui.confirm({
+        title: T('Move to the backlog?'), ok: T('Move'),
+        text: Tn(done.length, '%s is done. Jira leaves done issues out of the backlog: it shows nowhere in planning after.', '%s are done. Jira leaves done issues out of the backlog: they show nowhere in planning after.', done.join(', ')),
+      });
+      return ok ? { ...q, asked: true } : null;
     }
     case 'flag+': return { edit: { Field: 'flag', On: true }, what: T('%d flagged', n) };
     case 'flag-': return { edit: { Field: 'flag', On: false }, what: T('%d unflagged', n) };
@@ -76,7 +90,7 @@ export async function openBulk(app, keys) {
     const q = await ask(app, a.id, keys, project);
     if (!q) return;
     const list = keys.slice(0, 12).join(', ') + (keys.length > 12 ? T(' and %d more', keys.length - 12) : '');
-    if (keys.length > 1 && !await app.ui.confirm({ title: T('Edit %d issues', keys.length), text: T('%s: %s', q.what, list), ok: T('Apply') })) return;
+    if (keys.length > 1 && !q.asked && !await app.ui.confirm({ title: T('Edit %d issues', keys.length), text: T('%s: %s', q.what, list), ok: T('Apply') })) return;
     return await run(app, keys, q);
   } catch (e) { app.ui.errToast(e); }
 }

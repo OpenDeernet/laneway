@@ -6,8 +6,9 @@ import { test, expect, pick } from '../fixtures.mjs';
 // More: FUZZ_SEEDS=1,2,3,4,5 FUZZ_STEPS=80 npx playwright test planning-fuzz
 const SEEDS = (process.env.FUZZ_SEEDS || '1,2,3').split(',').map(Number);
 const STEPS = Number(process.env.FUZZ_STEPS || 30);
-const LAG = 2500; // how far a list Jira answers may trail, at most (ms)
-const HOLD = 10000; // planning.js: how long a moved section stays as planning has it
+// Jira: how far a list it answers may trail, at most, and planning.js's HOLD, how long a moved section
+// stays as planning has it. laneway-server's lists don't trail.
+const FLAVOURS = { jira: { flavour: '', lag: 2500, hold: 10000 }, 'laneway-server': { flavour: 'laneway', lag: 0, hold: 0 } };
 
 test.use({ viewport: { width: 1400, height: 2400 } }); // every row painted
 
@@ -36,7 +37,7 @@ const doneKeys = page => page.evaluate(() => [...document.querySelectorAll('.lro
 
 // slowJira: writes wait up to 600ms; each list in a /plan answer is the server's from up to LAG
 // ago, every list from a moment of its own (so an issue moved can show in both, or neither).
-async function slowJira(page) {
+async function slowJira(page, LAG) {
   const hist = [];
   let url = '', writes = 0, poll = 0;
   const snap = async () => {
@@ -79,118 +80,121 @@ async function slowJira(page) {
   };
 }
 
-for (const seed of SEEDS) {
-  test(`planning fuzz, seed ${seed}`, async ({ page, app }) => {
-    test.setTimeout(60000 + STEPS * 4000);
-    const r = mulberry32(seed), any = xs => xs[Math.floor(r() * xs.length)];
-    const log = [];
-    const jira = await slowJira(page);
-    await page.goto(new URL('#/planning', app.url).href);
-    await expect(row(page, 'DEMO-17')).toBeVisible();
+for (const [site, { flavour, lag: LAG, hold: HOLD }] of Object.entries(FLAVOURS)) test.describe(site, () => {
+  test.use({ flavour });
+  for (const seed of SEEDS) {
+    test(`planning fuzz, seed ${seed}`, async ({ page, app }) => {
+      test.setTimeout(60000 + STEPS * 4000);
+      const r = mulberry32(seed), any = xs => xs[Math.floor(r() * xs.length)];
+      const log = [];
+      const jira = await slowJira(page, LAG);
+      await page.goto(new URL('#/planning', app.url).href);
+      await expect(row(page, 'DEMO-17')).toBeVisible();
 
-    const where = new Map(); // issue → the section the moves put it in
-    const adopt = v => { where.clear(); for (const s of v) for (const k of s.keys) where.set(k, s.name); };
-    adopt(await view(page));
-    let v = [];
-    const fail = msg => { throw new Error(`${msg}\nseed ${seed}, steps:\n  ${log.join('\n  ')}\nview:\n  ${v.map(s => s.name + ': ' + s.keys.join(' ')).join('\n  ')}\nfailed requests:\n  ${jira.errs.join('\n  ')}`); };
-    const check = async () => {
-      v = await view(page); const seen = new Map();
-      for (const s of v) for (const k of s.keys) {
-        if (seen.has(k)) fail(`${k} in ${seen.get(k)} and ${s.name}`);
-        seen.set(k, s.name);
-      }
-      for (const [k, s] of where) if (seen.get(k) !== s) fail(`${k} in ${seen.get(k) || 'no section'}, moved to ${s}`);
-      for (const k of seen.keys()) if (!where.has(k)) fail(`${k} showed up in ${seen.get(k)}`);
-      return v;
-    };
-    const select = async key => {
-      await row(page, key).click();
-      await expect(page.locator('.iss .iss-key')).toHaveText(key);
-      await page.keyboard.press('Escape');
-      await expect(page.locator('.iss')).toHaveCount(0);
-    };
-    const pickSection = name => pick(page, name, new RegExp(esc(name)));
-
-    for (let step = 0; step < STEPS; step++) {
-      await check();
-      if (process.env.FUZZ_TRACE) log.push('    ' + v.map(s => s.name.slice(0, 9) + ': ' + s.keys.join(' ')).join(' | '));
-      const names = v.map(s => s.name), done = new Set(await doneKeys(page));
-      // A done issue moved to the backlog is on no list after, as in Jira: planning asks first and
-      // takes it out. The bulk dialog doesn't ask, so it leaves those be.
-      const fits = (ks, to) => to !== 'Backlog' || !ks.some(x => done.has(x));
-      const moved = async (ks, to) => {
-        const out = to === 'Backlog' ? ks.filter(x => done.has(x) && where.get(x) !== 'Backlog') : [];
-        if (out.length) {
-          const dlg = page.getByRole('dialog');
-          await expect(dlg).toContainText('Jira leaves done issues out of the backlog');
-          await dlg.getByRole('button', { name: 'Move' }).click();
-          await expect(dlg).toHaveCount(0);
+      const where = new Map(); // issue → the section the moves put it in
+      const adopt = v => { where.clear(); for (const s of v) for (const k of s.keys) where.set(k, s.name); };
+      adopt(await view(page));
+      let v = [];
+      const fail = msg => { throw new Error(`${msg}\nseed ${seed}, steps:\n  ${log.join('\n  ')}\nview:\n  ${v.map(s => s.name + ': ' + s.keys.join(' ')).join('\n  ')}\nfailed requests:\n  ${jira.errs.join('\n  ')}`); };
+      const check = async () => {
+        v = await view(page); const seen = new Map();
+        for (const s of v) for (const k of s.keys) {
+          if (seen.has(k)) fail(`${k} in ${seen.get(k)} and ${s.name}`);
+          seen.set(k, s.name);
         }
-        for (const x of ks) out.includes(x) ? where.delete(x) : where.set(x, to);
+        for (const [k, s] of where) if (seen.get(k) !== s) fail(`${k} in ${seen.get(k) || 'no section'}, moved to ${s}`);
+        for (const k of seen.keys()) if (!where.has(k)) fail(`${k} showed up in ${seen.get(k)}`);
+        return v;
       };
-      const keys = v.flatMap(s => s.keys);
-      const k = any(keys), from = where.get(k), at = names.indexOf(from);
-      const roll = r();
-      if (roll < 0.2) {
-        const to = any(names);
-        log.push(`${k}: m → ${to}`);
-        await select(k); await page.keyboard.press('m'); await pickSection(to);
-        await moved([k], to);
-      } else if (roll < 0.35) {
-        const d = r() < 0.5 ? -1 : 1, to = names[at + d];
-        log.push(`${k}: ${d < 0 ? '[' : ']'}`);
-        await select(k); await page.keyboard.press(d < 0 ? '[' : ']');
-        if (to) await moved([k], to);
-      } else if (roll < 0.5) {
-        log.push(`${k}: ${r() < 0.5 ? 'J' : 'K'}`);
-        await select(k); await page.keyboard.press(log.at(-1).slice(-1));
-      } else if (roll < 0.7) {
-        const t = any(keys), after = r() < 0.5;
-        log.push(`${k}: drag ${after ? 'below' : 'above'} ${t}`);
-        await expect(row(page, t)).toBeVisible();
-        const box = await row(page, t).boundingBox();
-        await row(page, k).dragTo(row(page, t), { targetPosition: { x: 40, y: after ? box.height - 4 : 4 } });
-        if (t !== k) await moved([k], where.get(t));
-      } else if (roll < 0.85) {
-        const ks = [...new Set([k, any(keys), any(keys)].slice(0, 1 + Math.floor(r() * 3)))];
-        const bulk = r() < 0.5, to = any(names.filter(n => !bulk || fits(ks, n)));
-        log.push(`${ks.join(',')}: ${bulk ? 'X' : 'm'} → ${to}`);
-        for (const x of ks) { await select(x); await page.keyboard.press('x'); }
-        if (bulk) {
-          await page.keyboard.press('X'); await pick(page, 'Sprint / backlog'); await pickSection(to);
-          if (ks.length > 1) await page.getByRole('dialog').getByRole('button', { name: 'Apply' }).click();
-          await expect(page.getByRole('dialog')).toHaveCount(0);
-          await page.keyboard.press('Escape'); // the marks
-          for (const x of ks) where.set(x, to);
-        } else {
-          await page.keyboard.press('m'); await pickSection(to);
-          await moved(ks, to);
-        }
-      } else if (roll < 0.9) {
-        // u takes back the last move, a bulk one too: where it all went is the server's to say
-        log.push('u');
-        await page.keyboard.press('u');
-        await jira.settle(); await page.keyboard.press('R'); await sleep(800);
-        adopt(await view(page));
-      } else if (roll < 0.97) {
-        log.push('R');
-        await page.keyboard.press('R');
-      } else {
-        // a page reload drops what is queued: wait for the writes, not for Jira's lists
-        log.push('reload');
-        await expect.poll(async () => (await view(page)).length).toBeGreaterThan(0);
-        await jira.settle();
-        await page.reload();
-        await expect(row(page, k)).toBeVisible();
-      }
-      await sleep(r() * 400);
-    }
+      const select = async key => {
+        await row(page, key).click();
+        await expect(page.locator('.iss .iss-key')).toHaveText(key);
+        await page.keyboard.press('Escape');
+        await expect(page.locator('.iss')).toHaveCount(0);
+      };
+      const pickSection = name => pick(page, name, new RegExp(esc(name)));
 
-    await jira.settle(HOLD + LAG);
-    await page.keyboard.press('R');
-    await sleep(800);
-    const final = await check(), truth = await jira.truth();
-    jira.stop();
-    if (JSON.stringify(final) !== JSON.stringify(truth)) fail(`the view is not the server's:\n view   ${JSON.stringify(final)}\n server ${JSON.stringify(truth)}`);
-  });
-}
+      for (let step = 0; step < STEPS; step++) {
+        await check();
+        if (process.env.FUZZ_TRACE) log.push('    ' + v.map(s => s.name.slice(0, 9) + ': ' + s.keys.join(' ')).join(' | '));
+        const names = v.map(s => s.name), done = new Set(await doneKeys(page));
+        // A done issue moved to the backlog is on no list after, as in Jira: planning asks first and
+        // takes it out. The bulk dialog doesn't ask, so it leaves those be.
+        const fits = (ks, to) => to !== 'Backlog' || !ks.some(x => done.has(x));
+        const moved = async (ks, to) => {
+          const out = to === 'Backlog' ? ks.filter(x => done.has(x) && where.get(x) !== 'Backlog') : [];
+          if (out.length) {
+            const dlg = page.getByRole('dialog');
+            await expect(dlg).toContainText('Jira leaves done issues out of the backlog');
+            await dlg.getByRole('button', { name: 'Move' }).click();
+            await expect(dlg).toHaveCount(0);
+          }
+          for (const x of ks) out.includes(x) ? where.delete(x) : where.set(x, to);
+        };
+        const keys = v.flatMap(s => s.keys);
+        const k = any(keys), from = where.get(k), at = names.indexOf(from);
+        const roll = r();
+        if (roll < 0.2) {
+          const to = any(names);
+          log.push(`${k}: m → ${to}`);
+          await select(k); await page.keyboard.press('m'); await pickSection(to);
+          await moved([k], to);
+        } else if (roll < 0.35) {
+          const d = r() < 0.5 ? -1 : 1, to = names[at + d];
+          log.push(`${k}: ${d < 0 ? '[' : ']'}`);
+          await select(k); await page.keyboard.press(d < 0 ? '[' : ']');
+          if (to) await moved([k], to);
+        } else if (roll < 0.5) {
+          log.push(`${k}: ${r() < 0.5 ? 'J' : 'K'}`);
+          await select(k); await page.keyboard.press(log.at(-1).slice(-1));
+        } else if (roll < 0.7) {
+          const t = any(keys), after = r() < 0.5;
+          log.push(`${k}: drag ${after ? 'below' : 'above'} ${t}`);
+          await expect(row(page, t)).toBeVisible();
+          const box = await row(page, t).boundingBox();
+          await row(page, k).dragTo(row(page, t), { targetPosition: { x: 40, y: after ? box.height - 4 : 4 } });
+          if (t !== k) await moved([k], where.get(t));
+        } else if (roll < 0.85) {
+          const ks = [...new Set([k, any(keys), any(keys)].slice(0, 1 + Math.floor(r() * 3)))];
+          const bulk = r() < 0.5, to = any(names.filter(n => !bulk || fits(ks, n)));
+          log.push(`${ks.join(',')}: ${bulk ? 'X' : 'm'} → ${to}`);
+          for (const x of ks) { await select(x); await page.keyboard.press('x'); }
+          if (bulk) {
+            await page.keyboard.press('X'); await pick(page, 'Sprint / backlog'); await pickSection(to);
+            if (ks.length > 1) await page.getByRole('dialog').getByRole('button', { name: 'Apply' }).click();
+            await expect(page.getByRole('dialog')).toHaveCount(0);
+            await page.keyboard.press('Escape'); // the marks
+            for (const x of ks) where.set(x, to);
+          } else {
+            await page.keyboard.press('m'); await pickSection(to);
+            await moved(ks, to);
+          }
+        } else if (roll < 0.9) {
+          // u takes back the last move, a bulk one too: where it all went is the server's to say
+          log.push('u');
+          await page.keyboard.press('u');
+          await jira.settle(); await page.keyboard.press('R'); await sleep(800);
+          adopt(await view(page));
+        } else if (roll < 0.97) {
+          log.push('R');
+          await page.keyboard.press('R');
+        } else {
+          // a page reload drops what is queued: wait for the writes, not for Jira's lists
+          log.push('reload');
+          await expect.poll(async () => (await view(page)).length).toBeGreaterThan(0);
+          await jira.settle();
+          await page.reload();
+          await expect(row(page, k)).toBeVisible();
+        }
+        await sleep(r() * 400);
+      }
+
+      await jira.settle(HOLD + LAG);
+      await page.keyboard.press('R');
+      await sleep(800);
+      const final = await check(), truth = await jira.truth();
+      jira.stop();
+      if (JSON.stringify(final) !== JSON.stringify(truth)) fail(`the view is not the server's:\n view   ${JSON.stringify(final)}\n server ${JSON.stringify(truth)}`);
+    });
+  }
+});

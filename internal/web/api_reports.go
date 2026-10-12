@@ -144,9 +144,11 @@ func planBundle(ctx context.Context, s *Server, r *http.Request) (any, error) {
 			out[i].Mine = &planMine{Name: me.DisplayName, Capacity: left, Hours: busy.Hours()}
 		}
 	}
+	// Laneway: laneway-server's lists show a write at once, Jira's trail it.
+	lw, _ := c.Laneway(ctx)
 	res := map[string]any{
 		"Sprints": out, "Backlog": map[string]any{"Cards": backlog, "Total": btotal},
-		"PointsField": pf, "Columns": cfg.Columns, "QuickFilters": quick,
+		"PointsField": pf, "Columns": cfg.Columns, "QuickFilters": quick, "Laneway": lw,
 	}
 	if calErr != nil {
 		res["Calendar"] = calErr.Error()
