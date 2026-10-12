@@ -14,8 +14,8 @@ const CONTEXT = 1;   // unchanged blocks shown each side of a change
 const FOLD = 4;      // a longer unchanged run folds
 const MARKED = /[\uE000-\uE003]/;
 
-// openHistory(app, {main, rail, id, version, head, pageImage, close, restored}) → {step, diff, jump, at, dispose}.
-// main is the page's pane, rail the strip of change marks beside it; head(title) the crumbs to show above.
+// openHistory(app, {main, page, rail, id, version, head, pageImage, close, restored}) → {step, diff, jump, at, dispose}.
+// main is the page's scrolling pane, page the sheet in it, rail the strip of change marks beside it; head(title) the crumbs to show above.
 export function openHistory(app, o) {
   const { api, ui } = app;
   let dead = false, vs = null, cur = -1, base = -1, clean = app.prefs.get('wikiHistClean', '') === '1';
@@ -32,7 +32,7 @@ export function openHistory(app, o) {
   const info = h('div.wkh-info');
   const bar = h('div.wkh-bar', strip, info);
   const body = h('div.md.wk-body.wkh-body');
-  clear(o.main).append(o.head(), head, bar, body);
+  clear(o.page).append(o.head(), head, bar, body);
   titleEl.textContent = T('History');
   info.append(icon('rotate-ccw-clock'), ' ', T('reading the page’s history…  ·  esc cancels'));
   restoreBtn.hidden = true;

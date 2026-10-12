@@ -17,8 +17,10 @@
 .wk-hit:hover { background: var(--bg-2); }
 .wk-hit-t { font-weight: 600; }
 .wk-hit-x { font-size: .857rem; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.wk-main { overflow: auto; padding: calc(var(--pad) * 2) calc(var(--pad) * 3); min-width: 0; }
-.wk-main > * { max-width: 56rem; }
+.wk-main { overflow: auto; padding: 0 calc(var(--pad) * 2); min-width: 0; }
+/* The page: as wide as it reads, on the issue panel's background, full height. */
+.wk-page { max-width: 56rem; min-height: 100%; margin: 0 auto; padding: calc(var(--pad) * 2) calc(var(--pad) * 3); background: var(--bg-2); border-inline: 1px solid var(--border); }
+@media (max-width: 50rem) { .wk-main { padding: 0; } .wk-page { border-inline: 0; padding: calc(var(--pad) * 1.5); } }
 .wk-crumbs { margin-bottom: .286rem; font-size: .857rem; }
 .wk-crumbs a { color: inherit; }
 /* The title, its actions beside it as one group: below it when the pane is narrow. */
@@ -38,12 +40,12 @@
 .wk-edit { display: grid; gap: var(--pad); margin-top: var(--pad); }
 .wk-title { font-size: 1.286rem; font-weight: 600; }
 /* The history (views/wiki_history.js): a strip of versions over the page, its changes marked. */
-.wkh-bar { position: sticky; top: calc(var(--pad) * -2); z-index: 2; margin: var(--pad) 0 0; padding-top: var(--pad); background: var(--bg); border-bottom: 1px solid var(--bg-3); }
+.wkh-bar { position: sticky; top: 0; z-index: 2; margin: var(--pad) 0 0; padding-top: var(--pad); background: var(--bg-2); border-bottom: 1px solid var(--bg-3); }
 .wkh-strip { display: flex; align-items: stretch; gap: 1px; height: 3.429rem; padding: 0 1px; cursor: pointer; touch-action: none; user-select: none; border-radius: var(--radius, 4px); overflow: hidden; }
 .wkh-strip:focus-visible { outline: 2px solid var(--accent); }
 .wkh-strip.drag { cursor: grabbing; }
 .wkh-v { flex: 1 1 0; min-width: 2px; max-width: 2.571rem; display: flex; flex-direction: column; border-radius: 2px; position: relative; }
-.wkh-v:hover { background: var(--bg-2); }
+.wkh-v:hover { background: var(--bg-3); }
 .wkh-v.in { background: var(--accent-bg); }
 .wkh-v.on, .wkh-v.base { background: var(--accent-bg); box-shadow: inset 0 -2px var(--accent); }
 .wkh-v.base { box-shadow: inset 0 -2px var(--fg-3); }
@@ -91,7 +93,7 @@
 .wkh-b.wkh-at { outline: 2px solid var(--accent); outline-offset: 2px; }
 .wkh-b.wkh-flash { animation: wkh-flash 1.1s ease-out; }
 @keyframes wkh-flash { from { background-color: color-mix(in srgb, var(--accent) 22%, transparent); } }
-.wkh-fold { display: flex; align-items: center; gap: .286rem; width: 100%; margin: .571rem 0; padding: .143rem .571rem; font: inherit; font-size: .857rem; color: var(--fg-3); background: var(--bg-2); border: 1px dashed var(--bg-3); border-radius: var(--radius, 4px); cursor: pointer; }
+.wkh-fold { display: flex; align-items: center; gap: .286rem; width: 100%; margin: .571rem 0; padding: .143rem .571rem; font: inherit; font-size: .857rem; color: var(--fg-3); background: var(--bg); border: 1px dashed var(--border); border-radius: var(--radius, 4px); cursor: pointer; }
 .wkh-fold:hover { color: var(--fg); background: var(--bg-3); }
 .wkh-none { margin-bottom: var(--pad); }
 /* Beside the scrollbar: where on the page the changes are. */

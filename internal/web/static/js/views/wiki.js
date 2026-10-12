@@ -18,7 +18,8 @@ export default async function mount(el, { app, params, query, scope }) {
   css('wiki'); css('issue');
   const { api, ui } = app;
   const side = h('aside.wk-side');
-  const main = h('main.wk-main');
+  const page = h('div.wk-page'); // the page's width, on the panel's background
+  const main = h('main.wk-main', page);
   const gripEl = h('div.wk-grip', { title: T('Drag to resize'), role: 'separator' });
   const rail = h('div.wkh-rail', { hidden: true }); // a history's changes, beside the scrollbar
   const wk = h('div.wk', side, gripEl, main, rail);
@@ -33,9 +34,9 @@ export default async function mount(el, { app, params, query, scope }) {
   const cleanup = () => { dead = true; if (editor) editor.dispose(); if (hist) hist.dispose(); };
 
   let spaces;
-  try { spaces = await api.get('/wiki/spaces'); } catch (e) { main.append(h('div.empty', h('h2', T('No wiki')), h('p', e.message))); return cleanup; }
+  try { spaces = await api.get('/wiki/spaces'); } catch (e) { page.append(h('div.empty', h('h2', T('No wiki')), h('p', e.message))); return cleanup; }
   if (dead) return cleanup;
-  if (!spaces.length) { main.append(h('div.empty', h('h2', T('No wiki spaces')), h('p', T('Make a space on the site; it shows here.')))); return cleanup; }
+  if (!spaces.length) { page.append(h('div.empty', h('h2', T('No wiki spaces')), h('p', T('Make a space on the site; it shows here.')))); return cleanup; }
   const space = spaces.find(s => s.ID === params.space) || spaces.find(s => s.ID === store.get(LAST)) || spaces[0];
   store.set(LAST, space.ID);
 
@@ -104,15 +105,15 @@ export default async function mount(el, { app, params, query, scope }) {
 
   async function showPage(id) {
     if (editor) { editor.dispose(); editor = null; }
-    if (!id) { clear(main).append(h('div.empty', h('h2', space.Name), h('p', T('This space has no home page.')))); return; }
-    clear(main).append(h('div.dim', T('Loading…')));
+    if (!id) { clear(page).append(h('div.empty', h('h2', space.Name), h('p', T('This space has no home page.')))); return; }
+    clear(page).append(h('div.dim', T('Loading…')));
     let p;
-    try { p = await api.get('/confluence/pages/' + id, { fresh: true }); } catch (e) { clear(main).append(h('p.err', e.message)); return; }
+    try { p = await api.get('/confluence/pages/' + id, { fresh: true }); } catch (e) { clear(page).append(h('p.err', e.message)); return; }
     if (dead) return;
     const body = h('div.md.wk-body');
     body.append(p.Markdown && p.Markdown.trim() ? md(p.Markdown, { pageImage }) : h('p.faint', T('This page is empty. Press e to write it.')));
     const comments = h('section.wk-comments', h('h3', T('Comments')));
-    clear(main).append(
+    clear(page).append(
       crumbs(id),
       h('div.wk-head', h('h1', p.Title), h('span.wk-acts',
         h('button.btn', { onclick: () => edit(id), title: T('Edit (e)') }, icon('pencil'), ' ', T('Edit')),
@@ -151,7 +152,7 @@ export default async function mount(el, { app, params, query, scope }) {
   // ---- the history: the page as it read at each version, the changes marked
   function showHistory(id, version) {
     if (editor || hist || !id) return;
-    hist = openHistory(app, { main, rail, id, version, pageImage, head: () => crumbs(id),
+    hist = openHistory(app, { main, page, rail, id, version, pageImage, head: () => crumbs(id),
       setVersion: n => app.setQuery({ v: n }),
       close: () => leaveHistory(id),
       restored: async () => { leaveHistory(id); await loadTree(); } });
@@ -181,7 +182,7 @@ export default async function mount(el, { app, params, query, scope }) {
         editor.dispose(); editor = null;
         await loadTree(); showPage(id); ui.toast(T('Page saved'));
       } });
-    clear(main).append(crumbs(id), h('div.wk-edit', title, editor.el));
+    clear(page).append(crumbs(id), h('div.wk-edit', title, editor.el));
     editor.focus();
   }
 
@@ -199,7 +200,7 @@ export default async function mount(el, { app, params, query, scope }) {
         await loadTree(); app.go('/wiki/' + space.ID + '/' + r.ID);
       } });
     const under = parent && pages.find(p => p.ID === parent);
-    clear(main).append(h('h2', under ? T('New page under %s', under.Title) : T('New page in %s', space.Name)), h('div.wk-edit', title, editor.el));
+    clear(page).append(h('h2', under ? T('New page under %s', under.Title) : T('New page in %s', space.Name)), h('div.wk-edit', title, editor.el));
     title.focus();
   }
 
