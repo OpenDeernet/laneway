@@ -90,8 +90,13 @@ test('two issues dragged into a sprint: one move, one rank', async ({ page }) =>
   await expect(head(page, 'Sprint 13')).toContainText('5 issues');
   expect(writes.filter(w => w.startsWith('/plan/move'))).toHaveLength(1);
   expect(writes.filter(w => w.includes('/rank'))).toHaveLength(1);
+  const y = async k => (await row(page, k).boundingBox()).y;
+  const order = async () => [await y('DEMO-17'), await y('DEMO-18'), await y(first)];
+  const before = await order();
+  expect(before).toEqual([...before].sort((a, b) => a - b));
   await page.reload();
   await expect(head(page, 'Sprint 13')).toContainText('5 issues');
+  expect(await order()).toEqual(before);
 });
 
 test('K ranks an issue up', async ({ page }) => {
