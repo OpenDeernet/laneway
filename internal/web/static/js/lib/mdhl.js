@@ -155,7 +155,7 @@ export function lines(text, o = {}) {
       continue;
     }
     if ((m = BLOCK.exec(l))) { push('tag blo', mk(m[1]) + span('hl-blk', esc(m[2])) + mk(m[3])); frames.push({ kind: 'block' }); continue; }
-    if ((m = KEEP.exec(l))) { push('keep atom', mk(m[1]) + '<span class="hl-kn" data-l="' + esc(keptLabel(m[2])) + '" title="' + esc(T('Kept as it is in Jira: move or delete this line')) + '">' + mk(m[2]) + '</span>' + mk(m[3])); continue; }
+    if ((m = KEEP.exec(l))) { push('keep atom', mk(m[1]) + '<span class="hl-kn" data-l="' + esc(keptLabel(m[2])) + '" title="' + esc(o.wiki ? T('Kept as it is in Confluence: move or delete this line') : T('Kept as it is in Jira: move or delete this line')) + '">' + mk(m[2]) + '</span>' + mk(m[3])); continue; }
     if ((m = SHELL.exec(l))) { push('tag shell', mk(m[1]) + span('hl-shell', esc(m[2])) + mk(m[3])); continue; }
     if ((m = CARD.exec(l))) { push('card atom', mk(m[1]) + '<span class="hl-lt hl-card"' + href(m[2]) + '>' + esc(m[2]) + '</span>' + mk(m[3])); continue; }
     if (/^\s*<!--.*-->\s*$/.test(l)) { push(/^\s*<!-- ?keep:/.test(l) ? 'keep' : 'tag', span(/^\s*<!-- ?keep:/.test(l) ? 'hl-keep' : 'hl-tag', esc(l))); continue; }

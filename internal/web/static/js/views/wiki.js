@@ -143,7 +143,7 @@ export default async function mount(el, { app, params, query, scope }) {
     compose(box, id, '', null);
   }
   function compose(box, id, parent, after) {
-    const e = mdEdit(app, { doc: null, rows: 3, placeholder: parent ? T('Write a reply…') : T('Write a comment… (@ mentions, / inserts)'),
+    const e = mdEdit(app, { wiki: true, doc: null, rows: 3, placeholder: parent ? T('Write a reply…') : T('Write a comment… (@ mentions, / inserts)'),
       label: parent ? T('Reply') : T('Comment'), noCancel: !parent, cancel: () => e.el.remove(), draft: 'wiki:' + id + ':comment:' + (parent || 'new'),
       save: async doc => { await api.post('/wiki/pages/' + id + '/comments', { Doc: doc, Parent: parent }); loadComments(id, box); } });
     if (after) { after.replaceWith(e.el); e.focus(); } else box.append(e.el);
@@ -173,7 +173,7 @@ export default async function mount(el, { app, params, query, scope }) {
     try { d = await api.get('/wiki/pages/' + id + '/edit', { fresh: true }); } catch (e) { return ui.errToast(e); }
     if (dead) return;
     const title = h('input.input.wk-title', { value: d.Title, 'aria-label': T('Title') });
-    editor = mdEdit(app, { doc: d.Doc || null, value: d.Markdown || '', kept: d.Kept || [], editable: !!d.Editable, reason: d.Reason,
+    editor = mdEdit(app, { wiki: true, doc: d.Doc || null, value: d.Markdown || '', kept: d.Kept || [], editable: !!d.Editable, reason: d.Reason,
       rows: 18, label: T('Save'), allowEmpty: true, draft: 'wiki:' + id, placeholder: T('Write the page… (/ inserts)'),
       cancel: () => { editor.dispose(); editor = null; showPage(id); },
       save: async doc => {
@@ -190,7 +190,7 @@ export default async function mount(el, { app, params, query, scope }) {
     if (editor) return;
     if (hist) { hist.dispose(); hist = null; app.setQuery({ v: null }); }
     const title = h('input.input.wk-title', { placeholder: T('Title'), 'aria-label': T('Title') });
-    editor = mdEdit(app, { doc: null, rows: 18, label: T('Create'), allowEmpty: true, draft: 'wiki:new:' + space.ID + ':' + (parent || 'top'),
+    editor = mdEdit(app, { wiki: true, doc: null, rows: 18, label: T('Create'), allowEmpty: true, draft: 'wiki:new:' + space.ID + ':' + (parent || 'top'),
       placeholder: T('Write the page… (/ inserts)'),
       cancel: () => { editor.dispose(); editor = null; showPage(params.page || space.HomepageID); },
       save: async doc => {

@@ -644,9 +644,9 @@ function cardView(ctx) {
     return { dom, ignoreMutation: () => true };
   };
 }
-const keptView = (node) => {
+const keptView = (ctx) => (node) => {
   const inline = node.type === N.unknownInline;
-  const dom = h((inline ? 'span' : 'div') + '.rte-kept', { title: T('Kept as it is: edit it in Jira') }, icon('lock'), ' ', keptLabel(node.attrs.raw));
+  const dom = h((inline ? 'span' : 'div') + '.rte-kept', { title: ctx.wiki ? T('Kept as it is: edit it in Confluence') : T('Kept as it is: edit it in Jira') }, icon('lock'), ' ', keptLabel(node.attrs.raw));
   return { dom, ignoreMutation: () => true };
 };
 
@@ -656,7 +656,7 @@ export function rte(o) {
   const uploaded = new Set(); // media ids uploaded here: their pictures' sizes are written in
   let seq = 0;
   const ctx = {
-    site: o.site, onKey: o.onKey,
+    site: o.site, onKey: o.onKey, wiki: o.wiki,
     src: a => {
       if (!a) return '';
       if (a.type === 'external') return /^(data:image\/|blob:)/.test(a.url || '') ? a.url : '';
@@ -1089,7 +1089,7 @@ export function rte(o) {
   const view = new EditorView(scroller, {
     state: mk(o.doc),
     nodeViews: { mediaSingle: mediaSingleView(ctx), media: mediaView(ctx), taskItem: taskView, decisionItem: decisionView, panel: panelView(ctx), expand: expandView, nestedExpand: expandView,
-      codeBlock: codeView, status: statusView(ctx), date: dateView(ctx), inlineCard: cardView(ctx), unknownBlock: keptView, unknownInline: keptView },
+      codeBlock: codeView, status: statusView(ctx), date: dateView(ctx), inlineCard: cardView(ctx), unknownBlock: keptView(ctx), unknownInline: keptView(ctx) },
     attributes: { class: 'rte-pm', spellcheck: 'true', role: 'textbox', 'aria-multiline': 'true', 'aria-label': o.placeholder || T('Text') },
     handlePaste,
     handleDrop: (v, e, slice, moved) => {

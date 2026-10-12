@@ -8,7 +8,7 @@
 // preview. Both: full screen, pasted or dropped files, drafts.
 //
 //   const e = mdEdit(app, {doc | value, kept, editable, reason, rows, placeholder, mono, issueKey, project, label, save, cancel,
-//                          allowEmpty, noCancel, people() → Map(name → accountId), mdOpts() → render options, onFiles(files), hint,
+//                          allowEmpty, noCancel, wiki (a Confluence page or comment: kept nodes say so), people() → Map(name → accountId), mdOpts() → render options, onFiles(files), hint,
 //                          draft: an id ("comment:KEY", "desc:KEY", "desc:KEY:comment:ID") kept in the state file as the TUI's drafts,
 //                          base: the Base of the document it edits, kept with the draft and handed to save})
 //   With doc (ADF; null for none) it edits a document: save(doc, base); kept, editable and reason are the
@@ -122,7 +122,7 @@ export function mdEdit(app, o) {
     lines: t => {
       const ns = names(), sig = ns.join('\u0001') + (glyph('smile') ? '+' : '');
       if (sig !== cacheSig) { cache.clear(); cacheSig = sig; }
-      return lines(t, { names: ns, emoji: glyph, img, cache });
+      return lines(t, { names: ns, emoji: glyph, img, cache, wiki: o.wiki });
     }, enter, paste, type: wrapWith });
   const pop = h('div.mention-pop', { hidden: true, role: 'listbox' });
   const preview = h('div.md.ed-preview', { hidden: true });
@@ -324,7 +324,7 @@ export function mdEdit(app, o) {
     const m = await loadRte();
     if (disposed) return;
     if (r) { r.setDoc(doc); return; }
-    r = m.rte({ doc, placeholder: o.placeholder, rows: o.rows || 4, issueKey: o.issueKey, project: o.project, site: app.session && app.session.baseURL,
+    r = m.rte({ doc, placeholder: o.placeholder, rows: o.rows || 4, issueKey: o.issueKey, project: o.project, site: app.session && app.session.baseURL, wiki: o.wiki,
       isKey: o.mdOpts && o.mdOpts().isKey, onKey: o.mdOpts && o.mdOpts().onKey, people: o.people, api, ui,
       upload: o.issueKey && o.onFiles ? o.onFiles : null, onFiles: !o.issueKey && o.onFiles ? o.onFiles : null,
       convert: async text => (await api.post('/adf/doc', { Markdown: text, Kept: [], People: mentionsIn(text, [], people()) })).Doc,
