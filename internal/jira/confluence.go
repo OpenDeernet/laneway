@@ -73,6 +73,10 @@ func (c *Client) ConfluencePage(ctx context.Context, id string) (Page, error) {
 		} `json:"_links"`
 	}
 	path := "/wiki/api/v2/pages/" + url.PathEscape(id) + "?body-format=atlas_doc_format"
+	// laneway-server expands macros for the reader; Confluence's stay names.
+	if lw, _ := c.Laneway(ctx); lw {
+		path += "&laneway-macros=expand"
+	}
 	if err := c.do(ctx, http.MethodGet, path, "page "+id, nil, &resp); err != nil {
 		return Page{}, err
 	}

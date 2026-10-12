@@ -40,11 +40,13 @@ func TestConfluencePage(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/wiki/api/v2/pages/42":
-			if r.URL.Query().Get("body-format") != "atlas_doc_format" {
+			if r.URL.Query().Get("body-format") != "atlas_doc_format" || r.URL.Query().Has("laneway-macros") {
 				t.Errorf("%s", r.URL)
 			}
 			b, _ := json.Marshal(string(doc))
 			fmt.Fprintf(w, `{"id":"42","title":"Release plan","version":{"number":4,"authorId":"u3","createdAt":"2026-09-22T08:45:11Z"},"body":{"atlas_doc_format":{"value":%s}},"_links":{"webui":"/spaces/ENG/pages/42"}}`, b)
+		case "/rest/api/3/serverInfo":
+			fmt.Fprint(w, `{"deploymentType":"Cloud"}`)
 		case "/wiki/rest/api/content/42/version":
 			fmt.Fprint(w, `{"results":[{"number":4,"by":{"accountId":"u3","displayName":"Cas","profilePicture":{"path":"/wiki/aa-avatar/u3"}}}]}`)
 		case "/wiki/api/v2/pages/42/attachments":
@@ -75,6 +77,29 @@ func TestConfluencePage(t *testing.T) {
 	}
 	if b, err := c.PageImage(context.Background(), "77"); string(b) != "PNG" || err != nil {
 		t.Errorf("PageImage = %q, %v", b, err)
+	}
+}
+
+// TestConfluencePageLanewayMacros: laneway-server is asked to expand the
+// page's macros.
+func TestConfluencePageLanewayMacros(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/rest/api/3/serverInfo":
+			fmt.Fprint(w, `{"lanewayServerVersion":"0.1.0"}`)
+		case "/wiki/api/v2/pages/42":
+			if r.URL.Query().Get("laneway-macros") != "expand" {
+				t.Errorf("%s", r.URL)
+			}
+			fmt.Fprint(w, `{"id":"42","title":"T","body":{"atlas_doc_format":{"value":"{\"type\":\"doc\",\"version\":1,\"content\":[]}"}}}`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+	c := New(Config{BaseURL: srv.URL, Email: "me@x.test", APIToken: "tok"})
+	if _, err := c.ConfluencePage(context.Background(), "42"); err != nil {
+		t.Fatal(err)
 	}
 }
 
