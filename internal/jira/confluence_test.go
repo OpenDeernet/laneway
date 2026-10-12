@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestPageID(t *testing.T) {
@@ -251,5 +252,22 @@ func TestRecentlyUpdatedMacro(t *testing.T) {
 		if !strings.Contains(p.Markdown, w) {
 			t.Errorf("no\n%s\nin\n%s", w, p.Markdown)
 		}
+	}
+}
+
+// TestRecentListSocial: the social theme groups a person's changes in a
+// row under their name.
+func TestRecentListSocial(t *testing.T) {
+	day := func(d int) time.Time { return time.Date(2026, 10, d, 9, 0, 0, 0, time.UTC) }
+	list := recentList([]recentChange{
+		{text: "Policy", href: "https://x.test/1", who: "Cas", when: day(10)},
+		{text: "Notes", href: "https://x.test/2", who: "Cas", when: day(9)},
+		{text: "Comment on Policy", href: "https://x.test/1", who: "Ada", when: day(8)},
+	}, "social")
+	doc, _ := json.Marshal(adfNode{Type: "doc", Content: []adfNode{list}})
+	want := "- **Cas** · <date>2026-10-10</date>\n  - [Policy](https://x.test/1) · <date>2026-10-10</date>\n  - [Notes](https://x.test/2) · <date>2026-10-09</date>\n" +
+		"- **Ada** · <date>2026-10-08</date>\n  - [Comment on Policy](https://x.test/1) · <date>2026-10-08</date>"
+	if got := DocMarkdown(doc); got != want {
+		t.Errorf("got\n%s\nwant\n%s", got, want)
 	}
 }

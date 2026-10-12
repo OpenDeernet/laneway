@@ -92,6 +92,9 @@ a.issue-ref { font-family: var(--font-mono); font-size: .95em; }
 .md-panel.p-success { border-color: var(--ok); background: color-mix(in srgb, var(--ok) 10%, transparent); }
 .md-panel.p-warning { border-color: var(--warn); background: color-mix(in srgb, var(--warn) 12%, transparent); }
 .md-panel.p-error { border-color: var(--err); background: color-mix(in srgb, var(--err) 10%, transparent); }
+.md-layout { display: flex; flex-wrap: wrap; gap: 1.5rem; align-items: flex-start; margin: .5em 0; }
+.md-column { flex: 1 1 calc(var(--w, 50) * 1% - 1.5rem); min-width: min(15rem, 100%); }
+.md-column > :first-child { margin-top: 0; }
 .md-tree { margin: .5em 0; } .md-tree ul { list-style: none; margin: .143rem 0; padding-left: 1.286rem; } .md-tree > ul { padding-left: 0; }
 .md-tree li { position: relative; padding-left: 1.286rem; } .md-tree li > p { margin: .071rem 0; }
 .md-tree-tog { position: absolute; left: 0; top: .214rem; border: 0; background: none; color: var(--fg-2); cursor: pointer; padding: 0; display: inline-flex; transition: transform .12s; }

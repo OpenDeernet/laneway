@@ -548,7 +548,7 @@ func (w *wikiMacros) recentlyUpdated(p map[string]string) ([]adfNode, bool) {
 	if len(resp.Results) == 0 {
 		return append(out, para("Nothing updated yet.", adfMark{Type: "em"})), true
 	}
-	list := adfNode{Type: "bulletList"}
+	var items []recentChange
 	for _, r := range resp.Results {
 		text := r.Title
 		switch r.Content.Type {
@@ -559,16 +559,54 @@ func (w *wikiMacros) recentlyUpdated(p map[string]string) ([]adfNode, bool) {
 				text = r.Title + " on " + r.Content.Container.Title
 			}
 		}
-		line := []adfNode{{Type: "text", Text: text, Marks: []adfMark{{Type: "link", Attrs: map[string]any{"href": w.c.baseURL + "/wiki" + r.URL}}}}}
-		if who := r.Content.Version.By.DisplayName; who != "" && p["theme"] != "sidebar" {
-			line = append(line, adfNode{Type: "text", Text: " · " + who})
-		}
+		it := recentChange{text: text, href: w.c.baseURL + "/wiki" + r.URL, who: r.Content.Version.By.DisplayName}
 		if t, err := time.Parse(time.RFC3339, r.LastModified); err == nil {
-			line = append(line, adfNode{Type: "text", Text: " · "}, adfNode{Type: "date", Attrs: map[string]any{"timestamp": strconv.FormatInt(t.UnixMilli(), 10)}})
+			it.when = t
 		}
-		list.Content = append(list.Content, adfNode{Type: "listItem", Content: []adfNode{{Type: "paragraph", Content: line}}})
+		items = append(items, it)
 	}
-	return append(out, list), true
+	return append(out, recentList(items, p["theme"])), true
+}
+
+// recentChange is one line of a recently updated list.
+type recentChange struct {
+	text, href, who string
+	when            time.Time
+}
+
+// recentList lists changes newest first. concise: each its link, who and
+// when; sidebar: no who; social: a person's changes in a row under their
+// name and the newest one's date.
+func recentList(items []recentChange, theme string) adfNode {
+	date := func(t time.Time) []adfNode {
+		if t.IsZero() {
+			return nil
+		}
+		return []adfNode{{Type: "text", Text: " · "}, {Type: "date", Attrs: map[string]any{"timestamp": strconv.FormatInt(t.UnixMilli(), 10)}}}
+	}
+	line := func(it recentChange, who bool) adfNode {
+		l := []adfNode{{Type: "text", Text: it.text, Marks: []adfMark{{Type: "link", Attrs: map[string]any{"href": it.href}}}}}
+		if who && it.who != "" {
+			l = append(l, adfNode{Type: "text", Text: " · " + it.who})
+		}
+		return adfNode{Type: "listItem", Content: []adfNode{{Type: "paragraph", Content: append(l, date(it.when)...)}}}
+	}
+	list := adfNode{Type: "bulletList"}
+	for i := 0; i < len(items); i++ {
+		if theme != "social" {
+			list.Content = append(list.Content, line(items[i], theme != "sidebar"))
+			continue
+		}
+		group := adfNode{Type: "bulletList"}
+		j := i
+		for ; j < len(items) && items[j].who == items[i].who; j++ {
+			group.Content = append(group.Content, line(items[j], false))
+		}
+		head := []adfNode{{Type: "text", Text: cmp.Or(items[i].who, "Someone"), Marks: []adfMark{{Type: "strong"}}}}
+		list.Content = append(list.Content, adfNode{Type: "listItem", Content: []adfNode{{Type: "paragraph", Content: append(head, date(items[i].when)...)}, group}})
+		i = j - 1
+	}
+	return list
 }
 
 // recentCQL is the macro's search: spaces (@self by default), labels and

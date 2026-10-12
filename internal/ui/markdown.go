@@ -324,9 +324,10 @@ func renderMarkdown(msg string, ei *emojiImages, mr changeInlineFn, self string)
 	for i := 0; i < len(lines); i++ {
 		raw := lines[i]
 
-		// laneway-server's page tree: the TUI shows its list whole, open to
-		// every level, without the markers (the web folds it).
-		if t := strings.TrimSpace(raw); mdTreeOpenRe.MatchString(t) || t == "<!-- /tree -->" {
+		// A page tree's and Confluence columns' markers: the TUI reads the
+		// tree whole and the columns one after the other (the web folds
+		// the one and lays out the other).
+		if mdFlatMarkRe.MatchString(strings.TrimSpace(raw)) {
 			continue
 		}
 

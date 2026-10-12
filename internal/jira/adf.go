@@ -210,6 +210,21 @@ func writeBlock(b *strings.Builder, n adfNode, indent string) {
 				b.WriteString(indent + "_" + cap + "_\n\n") // the image's caption, under it
 			}
 		}
+	case "layoutSection":
+		// Confluence's columns: each between column markers, its width (a
+		// percentage) in its own. The web lays them out side by side; the
+		// TUI reads them one after the other.
+		b.WriteString(indent + "<!-- layout -->\n\n")
+		writeBlocks(b, n.Content, indent)
+		b.WriteString(indent + layoutClose + "\n\n")
+	case "layoutColumn":
+		open := "<!-- column -->"
+		if w, ok := n.Attrs["width"].(float64); ok && w > 0 && w <= 100 {
+			open = "<!-- column: " + strconv.FormatFloat(w, 'f', -1, 64) + " -->"
+		}
+		b.WriteString(indent + open + "\n\n")
+		writeBlocks(b, n.Content, indent)
+		b.WriteString(indent + columnClose + "\n\n")
 	default:
 		// Unknown block: recurse so nested text isn't lost.
 		if len(n.Content) > 0 {
@@ -823,7 +838,11 @@ func emojiText(n adfNode) string {
 	return text
 }
 
-const treeClose = "<!-- /tree -->"
+const (
+	treeClose   = "<!-- /tree -->"
+	layoutClose = "<!-- /layout -->"
+	columnClose = "<!-- /column -->"
+)
 
 // treeOpen is a tree's marker: <!-- tree: open=2, toggle, search -->, the
 // levels shown at first, then expand/collapse all and a filter box when on.

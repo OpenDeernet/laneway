@@ -115,3 +115,10 @@ func TestRenderPageTree(t *testing.T) {
 		t.Errorf("got\n%s", got)
 	}
 }
+
+func TestRenderLayoutFlat(t *testing.T) {
+	got := ansi.Strip(renderMarkdown("<!-- layout -->\n\n<!-- column: 66.66 -->\n\nLeft\n\n<!-- /column -->\n\n<!-- column -->\n\nRight\n\n<!-- /column -->\n\n<!-- /layout -->", nil, nil, ""))
+	if strings.Contains(got, "<!--") || !strings.Contains(got, "Left") || !strings.Contains(got, "Right") {
+		t.Errorf("got\n%s", got)
+	}
+}

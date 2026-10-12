@@ -192,7 +192,9 @@ const LIST = /^(\s*)([-*+]|\d+[.)])\s+(.*)$/;
 const PANEL = /^<!-- panel:([a-z]+) -->$/;
 const EXPAND = /^<!-- expand(?::\s*(.*?))? -->$/;
 const TREE = /^<!-- tree(?::\s*(.*?))? -->$/; // laneway-server's page tree: open=N, toggle, search
-const CLOSE = /^<!-- \/(panel|expand|block|tree) -->$/;
+const LAYOUT = /^<!-- layout -->$/; // Confluence's columns, each between COLUMN markers
+const COLUMN = /^<!-- column(?::\s*([\d.]+))? -->$/;
+const CLOSE = /^<!-- \/(panel|expand|block|tree|layout|column) -->$/;
 const BLOCK = /^<!-- block:\d+.*-->$/;
 const SHELL = /^<!-- table:\d+.*-->$/; // a kept table's layout, above it
 const CARD = /^<!-- card: (.*?) -->$/;
@@ -226,7 +228,7 @@ function cells(line) {
 }
 
 function startsBlock(l) {
-  return FENCE.test(l) || HEADING.test(l) || LIST.test(l) || /^>/.test(l) || /^---+\s*$/.test(l) || PANEL.test(l) || EXPAND.test(l) || TREE.test(l) || CLOSE.test(l) || CARD.test(l) || /^<> /.test(l) || ROW.test(l);
+  return FENCE.test(l) || HEADING.test(l) || LIST.test(l) || /^>/.test(l) || /^---+\s*$/.test(l) || PANEL.test(l) || EXPAND.test(l) || TREE.test(l) || LAYOUT.test(l) || COLUMN.test(l) || CLOSE.test(l) || CARD.test(l) || /^<> /.test(l) || ROW.test(l);
 }
 
 // Index of the line closing the container that opened at lines[from-1].
@@ -234,7 +236,7 @@ function closer(lines, from) {
   let depth = 1;
   for (let i = from; i < lines.length; i++) {
     const l = lines[i].trim();
-    if (PANEL.test(l) || EXPAND.test(l) || TREE.test(l) || BLOCK.test(l)) depth++;
+    if (PANEL.test(l) || EXPAND.test(l) || TREE.test(l) || LAYOUT.test(l) || COLUMN.test(l) || BLOCK.test(l)) depth++;
     else if (CLOSE.test(l) && --depth === 0) return i;
   }
   return lines.length;
@@ -263,6 +265,18 @@ function blocks(lines, o) {
     else if (PANEL.test(l.trim())) {
       const end = closer(lines, i + 1);
       out.push(h('div.md-panel.p-' + PANEL.exec(l.trim())[1], blocks(lines.slice(i + 1, end), o))); i = end + 1;
+    } else if (LAYOUT.test(l.trim())) {
+      const end = closer(lines, i + 1);
+      const cols = blocks(lines.slice(i + 1, end), o).filter(n => n.classList && n.classList.contains('md-column'));
+      // A column without a width shares what the others leave.
+      const set = cols.filter(c => c.style.getPropertyValue('--w')), rest = 100 - set.reduce((t, c) => t + +c.style.getPropertyValue('--w'), 0);
+      for (const c of cols) if (!c.style.getPropertyValue('--w')) c.style.setProperty('--w', String(Math.max(rest, 0) / (cols.length - set.length) || 100 / cols.length));
+      out.push(h('div.md-layout', cols)); i = end + 1;
+    } else if ((m = COLUMN.exec(l.trim()))) {
+      const end = closer(lines, i + 1);
+      const col = h('div.md-column', blocks(lines.slice(i + 1, end), o));
+      if (m[1]) col.style.setProperty('--w', m[1]);
+      out.push(col); i = end + 1;
     } else if ((m = TREE.exec(l.trim()))) {
       const end = closer(lines, i + 1);
       out.push(tree(blocks(lines.slice(i + 1, end), o), m[1] || '')); i = end + 1;
