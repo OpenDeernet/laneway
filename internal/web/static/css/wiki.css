@@ -21,6 +21,11 @@
 /* The page: as wide as it reads, on the issue panel's background, full height. */
 .wk-page { max-width: 56rem; min-height: 100%; padding: calc(var(--pad) * 2) calc(var(--pad) * 3); background: var(--bg-2); border-right: 1px solid var(--border); }
 @media (max-width: 50rem) { .wk-main { padding: 0; } .wk-page { border-right: 0; padding: calc(var(--pad) * 1.5); } }
+/* A page's right sidebar beside the sheet (views/wiki.js besideSheet), in view as the page scrolls. */
+.wk-main.aside { display: flex; align-items: flex-start; }
+.wk-main.aside .wk-page { flex: 0 1 56rem; min-width: 0; }
+.wk-aside { flex: 0 0 18rem; position: sticky; top: 0; overflow: auto; padding: calc(var(--pad) * 3) 0 var(--pad) calc(var(--pad) * 2); }
+.wk-aside > .md-column > :first-child { margin-top: 0; }
 .wk-crumbs { margin-bottom: .286rem; font-size: .857rem; }
 .wk-crumbs a { color: inherit; }
 /* The title, its actions beside it as one group: below it when the pane is narrow. */

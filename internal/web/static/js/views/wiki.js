@@ -19,7 +19,8 @@ export default async function mount(el, { app, params, query, scope }) {
   const { api, ui } = app;
   const side = h('aside.wk-side');
   const page = h('div.wk-page'); // the page's width, on the panel's background
-  const main = h('main.wk-main', page);
+  const aside = h('aside.wk-aside.md', { hidden: true }); // a page's right sidebar, beside the sheet (besideSheet)
+  const main = h('main.wk-main', page, aside);
   const gripEl = h('div.wk-grip', { title: T('Drag to resize'), role: 'separator' });
   const rail = h('div.wkh-rail', { hidden: true }); // a history's changes, beside the scrollbar
   const wk = h('div.wk', side, gripEl, main, rail);
@@ -30,8 +31,8 @@ export default async function mount(el, { app, params, query, scope }) {
   showSide(savedSide >= 10 && savedSide <= 50 ? savedSide : 20);
   grip(gripEl, { def: 20, min: 10, max: 50, show: showSide, keep: p => { showSide(p); app.prefs.set('wikiSide', p === 20 ? '' : String(p)); },
     pct: ev => { const b = wk.getBoundingClientRect(); return (ev.clientX - b.left) * 100 / b.width; } });
-  let dead = false, editor = null, hist = null;
-  const cleanup = () => { dead = true; if (editor) editor.dispose(); if (hist) hist.dispose(); };
+  let dead = false, editor = null, hist = null, unaside = null;
+  const cleanup = () => { dead = true; if (editor) editor.dispose(); if (hist) hist.dispose(); if (unaside) unaside(); };
 
   let spaces;
   try { spaces = await api.get('/wiki/spaces'); } catch (e) { page.append(h('div.empty', h('h2', T('No wiki')), h('p', e.message))); return cleanup; }
@@ -103,7 +104,30 @@ export default async function mount(el, { app, params, query, scope }) {
     return out.length ? h('div.wk-crumbs.dim', out.flatMap((a, i) => (i ? [' / ', a] : [a]))) : h('div.wk-crumbs');
   };
 
+  // besideSheet stands a page's right sidebar beside the sheet: the page opens with two columns, the
+  // right one a third wide at most (Confluence's right sidebar layout). While the pane is too narrow
+  // for both, it stays in its layout. It answers the function that takes it away.
+  function besideSheet(body) {
+    const lay = body.firstElementChild;
+    if (!lay || !lay.classList.contains('md-layout') || lay.children.length !== 2) return null;
+    const [left, right] = lay.children, w = c => +c.style.getPropertyValue('--w') || 50;
+    if (w(right) > 35 || w(left) <= w(right)) return null;
+    const place = () => {
+      const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 14;
+      const wide = main.clientWidth >= 76 * rem; // the sheet's 56rem, the sidebar's 18rem and room between
+      if (wide && right.parentElement !== aside) aside.append(right);
+      else if (!wide && right.parentElement === aside) lay.append(right);
+      aside.hidden = !wide; main.classList.toggle('aside', wide);
+      aside.style.maxHeight = main.clientHeight + 'px';
+    };
+    const ro = new ResizeObserver(place);
+    ro.observe(main); place();
+    return () => { ro.disconnect(); clear(aside); aside.hidden = true; main.classList.remove('aside'); };
+  }
+  const dropAside = () => { if (unaside) { unaside(); unaside = null; } };
+
   async function showPage(id) {
+    dropAside();
     if (editor) { editor.dispose(); editor = null; }
     if (!id) { clear(page).append(h('div.empty', h('h2', space.Name), h('p', T('This space has no home page.')))); return; }
     clear(page).append(h('div.dim', T('Loading…')));
@@ -112,6 +136,7 @@ export default async function mount(el, { app, params, query, scope }) {
     if (dead) return;
     const body = h('div.md.wk-body');
     body.append(p.Markdown && p.Markdown.trim() ? md(p.Markdown, { pageImage }) : h('p.faint', T('This page is empty. Press e to write it.')));
+    unaside = besideSheet(body);
     const comments = h('section.wk-comments', h('h3', T('Comments')));
     clear(page).append(
       crumbs(id),
@@ -152,6 +177,7 @@ export default async function mount(el, { app, params, query, scope }) {
   // ---- the history: the page as it read at each version, the changes marked
   function showHistory(id, version) {
     if (editor || hist || !id) return;
+    dropAside();
     hist = openHistory(app, { main, page, rail, id, version, pageImage, head: () => crumbs(id),
       setVersion: n => app.setQuery({ v: n }),
       close: () => leaveHistory(id),
@@ -168,6 +194,7 @@ export default async function mount(el, { app, params, query, scope }) {
 
   async function edit(id) {
     if (editor) return;
+    dropAside();
     if (hist) { ui.toast(T('The history only looks  ·  esc back to now')); return; }
     let d;
     try { d = await api.get('/wiki/pages/' + id + '/edit', { fresh: true }); } catch (e) { return ui.errToast(e); }
@@ -188,6 +215,7 @@ export default async function mount(el, { app, params, query, scope }) {
 
   async function newPage(parent) {
     if (editor) return;
+    dropAside();
     if (hist) { hist.dispose(); hist = null; app.setQuery({ v: null }); }
     const title = h('input.input.wk-title', { placeholder: T('Title'), 'aria-label': T('Title') });
     editor = mdEdit(app, { wiki: true, doc: null, rows: 18, label: T('Create'), allowEmpty: true, draft: 'wiki:new:' + space.ID + ':' + (parent || 'top'),
