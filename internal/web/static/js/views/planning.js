@@ -165,7 +165,7 @@ export default async function mount(el, { app, params, scope, context, toolbar }
       const d = await app.api.get('/plan/' + board.ID + (jql ? '?jql=' + encodeURIComponent(jql) : ''), { fresh });
       if (my !== token) return;
       if (d.Calendar && !data) app.ui.toast('ui.calendar: ' + d.Calendar, { kind: 'err' });
-      if (drag) { drag.loaded = [d, jql, sent]; return; } // the list stays put under the pointer; dragend shows it
+      if (drag || pressed) { parked = [d, jql, sent]; return; } // the list stays put under the pointer; unpark shows it
       build(d, jql, sent); relayout(true);
     } catch (e) {
       if (my !== token) return;
@@ -429,12 +429,12 @@ export default async function mount(el, { app, params, scope, context, toolbar }
     setCur(key, false, shift);
   }
 
-  // ---- writes: optimistic and queued, reloaded from the server if one fails
+  // ---- writes: optimistic and queued; one Jira refuses takes back its own move (failed)
   let queue = Promise.resolve();
-  function enqueue(fn, keys) {
+  function enqueue(fn, keys, failed) {
     writing++; lastWrite = Date.now();
     queue = queue.then(fn).then(() => { for (const k of keys) app.bus.emit('issue:changed', { key: k }); })
-      .catch(e => { held.clear(); app.ui.errToast(e); load(true); })
+      .catch(e => { app.ui.errToast(e); failed(e); relayout(); })
       .finally(() => { writing--; lastWrite = heldAt = Date.now(); });
     return queue;
   }
@@ -470,6 +470,7 @@ export default async function mount(el, { app, params, scope, context, toolbar }
 
   // put moves keys' cards, in their order, to section `to` before/after anchor (its end without one).
   function put(keys, to, anchor, after) {
+    if (!to) return; // a sprint gone since
     const cards = [];
     for (const s of sections) for (const c of s.cards) if (keys.includes(c.Key)) cards.push({ ...c, Sprint: to.sprint ? to.sprint.Name : '' });
     for (const s of sections) s.cards = s.cards.filter(c => !keys.includes(c.Key));
@@ -504,20 +505,26 @@ export default async function mount(el, { app, params, scope, context, toolbar }
       const down = sections.indexOf(from.get(keys[0])) < sections.indexOf(to);
       if (rest.length) { anchor = down ? rest[0].Key : rest[rest.length - 1].Key; after = !down; }
     }
+    // Where each came from: per section, the keys and the issue beside them that stays.
+    const whence = ks => [...new Set(ks.map(k => from.get(k)))].map(s => {
+      const mine = ks.filter(k => from.get(k) === s), i = s.cards.findIndex(c => c.Key === mine[0]);
+      const prev = s.cards.slice(0, i).findLast(c => !keyList.includes(c.Key)), next = s.cards.slice(i).find(c => !keyList.includes(c.Key));
+      return { id: s.id, keys: mine, anchor: (prev || next || {}).Key || null, after: !!prev };
+    });
+    const back = whence(keys), unhide = () => {
+      const backlog = secOf(0);
+      for (const k of done) if (backlog && !sections.some(s => s.cards.some(c => c.Key === k))) backlog.cards.push(gone.get(k));
+    };
+    let pushed = null;
     if (crossing.length && undoable) {
       // u puts them back beside the issue each left (TUI recordSprintUndo)
-      const back = [...new Set(crossing.map(k => from.get(k)))].map(s => {
-        const ks = crossing.filter(k => from.get(k) === s), i = s.cards.findIndex(c => c.Key === ks[0]);
-        const prev = s.cards.slice(0, i).findLast(c => !keyList.includes(c.Key)), next = s.cards.slice(i).find(c => !keyList.includes(c.Key));
-        return { id: s.id, keys: ks, anchor: (prev || next || {}).Key || null, after: !!prev };
-      });
-      import('./fields.js').then(m => m.pushUndo(app, T('the move of %s to %s', crossing.length === 1 ? crossing[0] : Tn(crossing.length, '%d issue', '%d issues', crossing.length), to.name), () => {
-        const backlog = secOf(0);
-        for (const k of done) if (backlog && !backlog.cards.some(c => c.Key === k)) backlog.cards.push(gone.get(k));
-        for (const b of back) moveCards(b.keys, secOf(b.id), b.anchor, b.after, { undoable: false });
+      const out = whence(crossing);
+      pushed = import('./fields.js').then(m => ({ m, step: m.pushUndo(app, T('the move of %s to %s', crossing.length === 1 ? crossing[0] : Tn(crossing.length, '%d issue', '%d issues', crossing.length), to.name), () => {
+        unhide();
+        for (const b of out) moveCards(b.keys, secOf(b.id), b.anchor, b.after, { undoable: false });
         relayout();
         return queue;
-      }));
+      }) }));
     }
     touch([...new Set(order.map(c => from.get(c.Key).id)), to.id], true);
     put(keys, to, anchor, after);
@@ -526,10 +533,22 @@ export default async function mount(el, { app, params, scope, context, toolbar }
       to.cards = to.cards.filter(c => !done.includes(c.Key));
     }
     relayout();
+    let moved = !crossing.length;
     return enqueue(async () => {
-      if (crossing.length) await app.api.post('/plan/move', { Keys: crossing, Sprint: to.id });
+      if (crossing.length) { await app.api.post('/plan/move', { Keys: crossing, Sprint: to.id }); moved = true; }
       if (anchor) await app.api.post('/plan/rank', { Keys: keys, Other: anchor, After: after });
-    }, keys);
+    }, keys, () => {
+      if (!moved) {
+        // Jira changed nothing: back where they were, and nothing for u to take back
+        unhide();
+        for (const b of back) put(b.keys, secOf(b.id), b.anchor, b.after);
+        if (pushed) pushed.then(({ m, step }) => m.dropUndo(step));
+        return;
+      }
+      // in, but not ranked: the section's order is Jira's, on the next load
+      held.set(to.id, false);
+      load(true);
+    });
   }
 
   // J/K: swap with the neighbour
@@ -657,6 +676,17 @@ export default async function mount(el, { app, params, scope, context, toolbar }
   }
 
   // ---- drag and drop
+  // From a press on the list to the drop, a load waits (parked): rows that move under the pointer
+  // would drag, or drop on, another issue.
+  let pressed = false, parked = null;
+  function unpark() {
+    if (drag || pressed || !parked) return;
+    const d = parked; parked = null;
+    build(...d); relayout();
+  }
+  const release = () => { if (!pressed || drag) return; pressed = false; unpark(); };
+  const ends = ['pointerup', 'pointercancel', 'blur']; // blur: a press whose release went to another window
+  for (const ev of ends) window.addEventListener(ev, release);
   function dropAt(p, e) {
     const { scroller, rows, tops, total } = p;
     if (!rows.length) return null;
@@ -692,18 +722,18 @@ export default async function mount(el, { app, params, scope, context, toolbar }
       if (!drag) return;
       const t = dropAt(p, e); if (!t) return;
       e.preventDefault();
-      const ks = drag.keys, loaded = drag.loaded;
-      dropEl.hidden = true; drag = null;
-      if (loaded) { build(...loaded); relayout(); }
+      const ks = drag.keys;
+      dropEl.hidden = true; drag = null; pressed = false;
+      unpark();
       if (sorted(p) && ks.every(k => secOf(t.s.id).cards.some(c => c.Key === k))) return;
       moveCards(ks, t.s, t.anchor, t.after);
     });
     scroller.addEventListener('dragend', () => {
-      if (drag && drag.loaded) { build(...drag.loaded); relayout(true); }
       for (const q of panes) q.dropEl.hidden = true;
       for (const q of panes) for (const n of q.live.values()) n.firstChild && n.firstChild.classList.remove('dragging');
-      drag = null; paint();
+      drag = null; pressed = false; paint(); unpark();
     });
+    scroller.addEventListener('pointerdown', () => { pressed = true; });
   }
 
   // ---- keys
@@ -778,7 +808,7 @@ export default async function mount(el, { app, params, scope, context, toolbar }
   });
   const onWide = () => { paintSide(); relayout(); };
   wide.addEventListener('change', onWide);
-  const off = () => { offBus(); offPatch(); offSite(); clearTimeout(soon); clearTimeout(later); clearTimeout(retry); clearTimeout(siteTimer); offM(); offTimer.forEach(f => f()); wide.removeEventListener('change', onWide); };
+  const off = () => { for (const ev of ends) window.removeEventListener(ev, release); offBus(); offPatch(); offSite(); clearTimeout(soon); clearTimeout(later); clearTimeout(retry); clearTimeout(siteTimer); offM(); offTimer.forEach(f => f()); wide.removeEventListener('change', onWide); };
   const offM = onMetrics(() => { for (const p of panes) for (const n of p.live.values()) n._sig = ''; relayout(); });
 
   await load();

@@ -6,11 +6,12 @@ import { test, expect, pick } from '../fixtures.mjs';
 // More: FUZZ_SEEDS=1,2,3,4,5 FUZZ_STEPS=80 npx playwright test planning-fuzz
 const SEEDS = (process.env.FUZZ_SEEDS || '1,2,3').split(',').map(Number);
 const STEPS = Number(process.env.FUZZ_STEPS || 30);
+const REFUSE = Number(process.env.FUZZ_REFUSE ?? 0.08); // how often Jira refuses a move or a rank
 // Jira: how far a list it answers may trail, at most, and planning.js's HOLD, how long a moved section
 // stays as planning has it. laneway-server's lists don't trail.
 const FLAVOURS = { jira: { flavour: '', lag: 2500, hold: 10000 }, 'laneway-server': { flavour: 'laneway', lag: 0, hold: 0 } };
 
-test.use({ viewport: { width: 1400, height: 2400 } }); // every row painted
+test.use({ viewport: { width: 1400, height: 2400 }, actionTimeout: 15000 }); // every row painted; a stuck step says so
 
 function mulberry32(a) {
   return () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
@@ -51,8 +52,21 @@ async function slowJira(page, LAG) {
   page.on('response', async res => {
     if (res.url().includes('/api/') && res.status() >= 400) errs.push(`${res.request().method()} ${res.url().replace(/.*\/api/, '')} ${res.request().postData() || ''} → ${res.status()} ${await res.text().catch(() => '')}`);
   });
-  await page.route(/\/api\/(plan\/(move|rank)|bulk)$/, async route => { await sleep(Math.random() * 600); await route.continue(); });
+  let refused = 0;
+  await page.route(/\/api\/(plan\/(move|rank)|bulk)$/, async route => {
+    await sleep(Math.random() * 600);
+    if (!route.request().url().endsWith('/bulk') && Math.random() < REFUSE) {
+      refused++;
+      return route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ error: 'jira: refused by the fuzz' }) });
+    }
+    await route.continue();
+  });
+  let loading = 0;
   await page.route(/\/api\/plan\/\d+/, async route => {
+    loading++;
+    try { await answer(route); } finally { loading--; }
+  });
+  const answer = async route => {
     if (!url) { url = route.request().url(); poll = setInterval(snap, 200); }
     await sleep(Math.random() * 300);
     const res = await route.fetch(), d = await res.json(), now = Date.now();
@@ -64,16 +78,21 @@ async function slowJira(page, LAG) {
       Backlog: old().Backlog,
     };
     await route.fulfill({ response: res, json: out });
-  });
+  };
   return {
     errs,
+    refused: () => refused,
+    // still: no load on the way, so the rows stay where they are while the pointer aims
+    still: async () => { await expect.poll(() => loading, { timeout: 20000 }).toBe(0); await sleep(150); },
     truth: async () => {
       const d = await (await page.request.get(url)).json();
       return [...d.Sprints.map(s => ({ name: s.Name, keys: s.Cards.map(c => c.Key) })), { name: 'Backlog', keys: d.Backlog.Cards.map(c => c.Key) }];
     },
     // settled: no write on the way, and Jira's lists have caught up
+    // settled: no write on the way for a while (a queued one may not have gone out yet), and Jira's
+    // lists have caught up
     settle: async (ms = LAG + 300) => {
-      await expect.poll(() => writes, { timeout: 20000 }).toBe(0);
+      for (let quiet = 0; quiet < 3; quiet = writes ? 0 : quiet + 1) await sleep(100);
       await sleep(ms);
     },
     stop: () => clearInterval(poll),
@@ -84,7 +103,7 @@ for (const [site, { flavour, lag: LAG, hold: HOLD }] of Object.entries(FLAVOURS)
   test.use({ flavour });
   for (const seed of SEEDS) {
     test(`planning fuzz, seed ${seed}`, async ({ page, app }) => {
-      test.setTimeout(60000 + STEPS * 4000);
+      test.setTimeout(60000 + STEPS * (4000 + REFUSE * 45000)); // a refusal waits out the hold
       const r = mulberry32(seed), any = xs => xs[Math.floor(r() * xs.length)];
       const log = [];
       const jira = await slowJira(page, LAG);
@@ -114,8 +133,24 @@ for (const [site, { flavour, lag: LAG, hold: HOLD }] of Object.entries(FLAVOURS)
       };
       const pickSection = name => pick(page, name, new RegExp(esc(name)));
 
+      // A refused write: where things went is the server's to say, once it settles.
+      let refused = 0;
+      const resync = async () => {
+        log.push('  (refused)');
+        await jira.settle(HOLD + LAG); await page.keyboard.press('R'); await sleep(800);
+        refused = jira.refused();
+        adopt(await view(page));
+      };
       for (let step = 0; step < STEPS; step++) {
-        await check();
+        try { await act(); } catch (e) {
+          const dlg = await page.getByRole('dialog').getAttribute('aria-label').catch(() => null);
+          if (!String(e.message).includes('\nseed ')) fail(`${e.message.split('\n')[0]}${dlg ? ` (dialog open: ${dlg})` : ''}`);
+          throw e;
+        }
+      }
+      async function act() {
+        if (jira.refused() > refused) await resync();
+        try { await check(); } catch (e) { if (jira.refused() === refused) throw e; await resync(); await check(); }
         if (process.env.FUZZ_TRACE) log.push('    ' + v.map(s => s.name.slice(0, 9) + ': ' + s.keys.join(' ')).join(' | '));
         const names = v.map(s => s.name), done = new Set(await doneKeys(page));
         // A done issue moved to the backlog is on no list after, as in Jira: planning asks first and
@@ -150,7 +185,8 @@ for (const [site, { flavour, lag: LAG, hold: HOLD }] of Object.entries(FLAVOURS)
         } else if (roll < 0.7) {
           const t = any(keys), after = r() < 0.5;
           log.push(`${k}: drag ${after ? 'below' : 'above'} ${t}`);
-          await expect(row(page, t)).toBeVisible();
+          await jira.still();
+        await expect(row(page, t)).toBeVisible();
           const box = await row(page, t).boundingBox();
           await row(page, k).dragTo(row(page, t), { targetPosition: { x: 40, y: after ? box.height - 4 : 4 } });
           if (t !== k) await moved([k], where.get(t));
@@ -190,10 +226,12 @@ for (const [site, { flavour, lag: LAG, hold: HOLD }] of Object.entries(FLAVOURS)
       }
 
       await jira.settle(HOLD + LAG);
+      if (jira.refused() > refused) await resync();
       await page.keyboard.press('R');
       await sleep(800);
       const final = await check(), truth = await jira.truth();
       jira.stop();
+      for (let i = app.errors.length - 1; i >= 0; i--) if (/^400 POST .*\/api\/plan\/(move|rank)$/.test(app.errors[i])) app.errors.splice(i, 1); // refused on purpose
       if (JSON.stringify(final) !== JSON.stringify(truth)) fail(`the view is not the server's:\n view   ${JSON.stringify(final)}\n server ${JSON.stringify(truth)}`);
     });
   }

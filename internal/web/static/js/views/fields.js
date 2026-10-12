@@ -29,6 +29,12 @@ export function pushUndo(app, what, run) {
   return step;
 }
 
+// dropUndo takes a step off the stack unrun: what it would take back never happened.
+export function dropUndo(step) {
+  const i = stack.indexOf(step);
+  if (i >= 0) stack.splice(i, 1);
+}
+
 export function undo(app, step) {
   step = step || stack[stack.length - 1];
   if (!step) { app.ui.toast(T('Nothing to undo')); return Promise.resolve(false); }
