@@ -115,7 +115,16 @@ func writeBlock(b *strings.Builder, n adfNode, indent string) {
 		}
 		b.WriteString(strings.Repeat("#", level) + " " + inline(n.Content) + "\n\n")
 	case "bulletList":
+		// laneway-server's page tree (attrs.lanewayTree): the list between
+		// tree markers, for the web to draw collapsible.
+		tree, isTree := n.Attrs["lanewayTree"].(map[string]any)
+		if isTree {
+			b.WriteString(indent + treeOpen(tree) + "\n\n")
+		}
 		writeList(b, n.Content, indent, "- ")
+		if isTree {
+			b.WriteString(indent + treeClose + "\n\n")
+		}
 	case "orderedList":
 		writeOrderedList(b, n.Content, indent, listOrder(n))
 	case "codeBlock":
@@ -812,4 +821,20 @@ func emojiText(n adfNode) string {
 		return short
 	}
 	return text
+}
+
+const treeClose = "<!-- /tree -->"
+
+// treeOpen is a tree's marker: <!-- tree: open=2, toggle, search -->, the
+// levels shown at first, then expand/collapse all and a filter box when on.
+func treeOpen(t map[string]any) string {
+	open, _ := t["open"].(float64)
+	s := "<!-- tree: open=" + strconv.Itoa(max(int(open), 1))
+	if on, _ := t["toggleAll"].(bool); on {
+		s += ", toggle"
+	}
+	if on, _ := t["search"].(bool); on {
+		s += ", search"
+	}
+	return s + " -->"
 }

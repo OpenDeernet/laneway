@@ -324,6 +324,12 @@ func renderMarkdown(msg string, ei *emojiImages, mr changeInlineFn, self string)
 	for i := 0; i < len(lines); i++ {
 		raw := lines[i]
 
+		// laneway-server's page tree: the TUI shows its list whole, open to
+		// every level, without the markers (the web folds it).
+		if t := strings.TrimSpace(raw); mdTreeOpenRe.MatchString(t) || t == "<!-- /tree -->" {
+			continue
+		}
+
 		// Fenced code block: ``` or ~~~ (CommonMark allows either fence
 		// character; the closer must use the same character and be at least as
 		// long, so a ``` inside a ~~~ block stays content). The body is

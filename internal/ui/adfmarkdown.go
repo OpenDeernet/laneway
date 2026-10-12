@@ -20,6 +20,7 @@ import (
 var (
 	mdPanelOpenRe  = regexp.MustCompile(`^<!-- panel:([a-z]+) -->$`)
 	mdExpandOpenRe = regexp.MustCompile(`^<!-- expand(?:\{(\d+)(-?)\})?(?:: (.*))? -->$`)
+	mdTreeOpenRe   = regexp.MustCompile(`^<!-- tree(?:: .*)? -->$`)
 	mdTaskRe       = regexp.MustCompile(`^( *)[-*] \[([ xX])\](?:\{(\d+)\})?(?: |$)`)
 	mdDecisionRe   = regexp.MustCompile(`^( *)<>(?: |$)`)
 )

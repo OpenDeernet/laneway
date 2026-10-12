@@ -92,6 +92,11 @@ a.issue-ref { font-family: var(--font-mono); font-size: .95em; }
 .md-panel.p-success { border-color: var(--ok); background: color-mix(in srgb, var(--ok) 10%, transparent); }
 .md-panel.p-warning { border-color: var(--warn); background: color-mix(in srgb, var(--warn) 12%, transparent); }
 .md-panel.p-error { border-color: var(--err); background: color-mix(in srgb, var(--err) 10%, transparent); }
+.md-tree { margin: .5em 0; } .md-tree ul { list-style: none; margin: .143rem 0; padding-left: 1.286rem; } .md-tree > ul { padding-left: 0; }
+.md-tree li { position: relative; padding-left: 1.286rem; } .md-tree li > p { margin: .071rem 0; }
+.md-tree-tog { position: absolute; left: 0; top: .214rem; border: 0; background: none; color: var(--fg-2); cursor: pointer; padding: 0; display: inline-flex; transition: transform .12s; }
+.md-tree li.shut > .md-tree-tog { transform: rotate(-90deg); } .md-tree li.shut > ul { display: none; }
+.md-tree-bar { display: flex; align-items: center; gap: .429rem; margin-bottom: .429rem; } .md-tree-q { max-width: 16rem; }
 .md-expand { margin: .5em 0; border: 1px solid var(--border); border-radius: var(--radius); padding: .143rem .714rem; } .md-expand summary { cursor: pointer; font-weight: 600; }
 .md-decision { border-left: 3px solid var(--ok); padding: .143rem .714rem; margin: .3em 0; background: var(--bg-3); }
 .desc .md { padding: 0 .143rem; }

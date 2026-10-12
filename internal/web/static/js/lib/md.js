@@ -7,6 +7,7 @@
 import { h } from './dom.js';
 import { jiraKey, issuePill } from './issuepill.js';
 import { T } from './i18n.js';
+import { icon } from './icons.js';
 import { paint as paintCode } from './codehl.js';
 
 const SAFE_HREF = /^(https?:|mailto:|#)/i;
@@ -190,7 +191,8 @@ const HEADING = /^(#{1,6})\s+(.*)$/;
 const LIST = /^(\s*)([-*+]|\d+[.)])\s+(.*)$/;
 const PANEL = /^<!-- panel:([a-z]+) -->$/;
 const EXPAND = /^<!-- expand(?::\s*(.*?))? -->$/;
-const CLOSE = /^<!-- \/(panel|expand|block) -->$/;
+const TREE = /^<!-- tree(?::\s*(.*?))? -->$/; // laneway-server's page tree: open=N, toggle, search
+const CLOSE = /^<!-- \/(panel|expand|block|tree) -->$/;
 const BLOCK = /^<!-- block:\d+.*-->$/;
 const SHELL = /^<!-- table:\d+.*-->$/; // a kept table's layout, above it
 const CARD = /^<!-- card: (.*?) -->$/;
@@ -224,7 +226,7 @@ function cells(line) {
 }
 
 function startsBlock(l) {
-  return FENCE.test(l) || HEADING.test(l) || LIST.test(l) || /^>/.test(l) || /^---+\s*$/.test(l) || PANEL.test(l) || EXPAND.test(l) || CLOSE.test(l) || CARD.test(l) || /^<> /.test(l) || ROW.test(l);
+  return FENCE.test(l) || HEADING.test(l) || LIST.test(l) || /^>/.test(l) || /^---+\s*$/.test(l) || PANEL.test(l) || EXPAND.test(l) || TREE.test(l) || CLOSE.test(l) || CARD.test(l) || /^<> /.test(l) || ROW.test(l);
 }
 
 // Index of the line closing the container that opened at lines[from-1].
@@ -232,7 +234,7 @@ function closer(lines, from) {
   let depth = 1;
   for (let i = from; i < lines.length; i++) {
     const l = lines[i].trim();
-    if (PANEL.test(l) || EXPAND.test(l) || BLOCK.test(l)) depth++;
+    if (PANEL.test(l) || EXPAND.test(l) || TREE.test(l) || BLOCK.test(l)) depth++;
     else if (CLOSE.test(l) && --depth === 0) return i;
   }
   return lines.length;
@@ -261,6 +263,9 @@ function blocks(lines, o) {
     else if (PANEL.test(l.trim())) {
       const end = closer(lines, i + 1);
       out.push(h('div.md-panel.p-' + PANEL.exec(l.trim())[1], blocks(lines.slice(i + 1, end), o))); i = end + 1;
+    } else if ((m = TREE.exec(l.trim()))) {
+      const end = closer(lines, i + 1);
+      out.push(tree(blocks(lines.slice(i + 1, end), o), m[1] || '')); i = end + 1;
     } else if ((m = EXPAND.exec(l.trim()))) {
       const end = closer(lines, i + 1);
       out.push(h('details.md-expand', h('summary', m[1] || T('Details')), blocks(lines.slice(i + 1, end), o))); i = end + 1;
@@ -294,6 +299,55 @@ function blocks(lines, o) {
 }
 
 // Reads the list starting at lines[i]; appends <ul>/<ol> to out; returns the next index.
+// tree folds a page tree's list: a page with pages under it gets a toggle, open to `open` levels at
+// first; `toggle` adds expand and collapse all, `search` a box showing the matching pages and their way down.
+function tree(nodes, spec) {
+  const words = spec.split(',').map(w => w.trim());
+  const open = Math.max(1, parseInt((words.find(w => w.startsWith('open=')) || '').slice(5), 10) || 1);
+  const box = h('div.md-tree', nodes);
+  const items = [...box.querySelectorAll('li')];
+  const branch = li => li.querySelector(':scope > ul');
+  const fold = (li, shut) => {
+    if (!branch(li)) return;
+    li.classList.toggle('shut', shut);
+    li.querySelector(':scope > .md-tree-tog').setAttribute('aria-expanded', String(!shut));
+  };
+  const depth = li => { let d = 0; for (let x = li; x !== box; x = x.parentElement) if (x.tagName === 'LI') d++; return d; };
+  for (const li of items) {
+    if (!branch(li)) continue;
+    li.classList.add('branch');
+    li.prepend(h('button.md-tree-tog', { type: 'button', title: T('Show or hide the pages under it'), onclick: () => fold(li, !li.classList.contains('shut')) }, icon('chevron-down')));
+    fold(li, depth(li) >= open);
+  }
+  const bar = [];
+  if (words.includes('search')) {
+    let before = null; // the folds as they were before a search, back when it is cleared
+    const q = h('input.input.md-tree-q', { type: 'search', placeholder: T('Filter pages'), 'aria-label': T('Filter pages'), oninput: () => {
+      const s = q.value.trim().toLowerCase();
+      if (!s) {
+        if (before) items.forEach((li, i) => { li.hidden = false; fold(li, before[i]); });
+        before = null;
+        return;
+      }
+      before = before || items.map(li => li.classList.contains('shut'));
+      // Deepest first: a page shows when it matches or a page under it shows.
+      for (const li of items.slice().reverse()) {
+        const own = (li.querySelector(':scope > p') || li).textContent.toLowerCase().includes(s);
+        const under = [...li.querySelectorAll(':scope > ul > li')].some(k => !k.hidden);
+        li.hidden = !own && !under;
+        fold(li, !under);
+      }
+    } });
+    bar.push(q);
+  }
+  if (words.includes('toggle')) {
+    bar.push(h('button.btn.ghost.sm', { type: 'button', onclick: () => items.forEach(li => fold(li, false)) }, T('Expand all')),
+      h('button.btn.ghost.sm', { type: 'button', onclick: () => items.forEach(li => fold(li, true)) }, T('Collapse all')));
+  }
+  if (bar.length) box.prepend(h('div.md-tree-bar', bar));
+  return box;
+}
+
 function list(lines, i, o, out) {
   const base = indentOf(lines[i]);
   const ordered = /\d/.test(LIST.exec(lines[i])[2]);

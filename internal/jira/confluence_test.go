@@ -128,3 +128,23 @@ func TestConfluencePageTableImage(t *testing.T) {
 		t.Errorf("markdown %q, %v", p.Markdown, err)
 	}
 }
+
+// TestPageTreeMarkdown: laneway-server's page tree reads as its list
+// between tree markers.
+func TestPageTreeMarkdown(t *testing.T) {
+	item := func(text string, kids ...any) any {
+		c := []any{map[string]any{"type": "paragraph", "content": []any{map[string]any{"type": "text", "text": text,
+			"marks": []any{map[string]any{"type": "link", "attrs": map[string]any{"href": "https://x.test/wiki/" + text}}}}}}}
+		if len(kids) > 0 {
+			c = append(c, map[string]any{"type": "bulletList", "content": kids})
+		}
+		return map[string]any{"type": "listItem", "content": c}
+	}
+	doc, _ := json.Marshal(map[string]any{"type": "doc", "version": 1, "content": []any{map[string]any{"type": "bulletList",
+		"attrs":   map[string]any{"lanewayTree": map[string]any{"open": 2, "toggleAll": true, "search": false}},
+		"content": []any{item("Deploys", item("Rollback")), item("Oncall")}}}})
+	want := "<!-- tree: open=2, toggle -->\n\n- [Deploys](https://x.test/wiki/Deploys)\n  - [Rollback](https://x.test/wiki/Rollback)\n- [Oncall](https://x.test/wiki/Oncall)\n\n<!-- /tree -->"
+	if got := strings.TrimSpace(DocMarkdown(doc)); got != want {
+		t.Errorf("got\n%s\nwant\n%s", got, want)
+	}
+}

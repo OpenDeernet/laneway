@@ -108,3 +108,10 @@ func TestRenderJiraInline(t *testing.T) {
 		t.Errorf("markers show:\n%s", got)
 	}
 }
+
+func TestRenderPageTree(t *testing.T) {
+	got := ansi.Strip(renderMarkdown("Pages:\n\n<!-- tree: open=1, search -->\n\n- [Deploys](https://x.test/1)\n  - [Rollback](https://x.test/2)\n\n<!-- /tree -->\n\nAfter", nil, nil, ""))
+	if strings.Contains(got, "tree") || !strings.Contains(got, "Deploys") || !strings.Contains(got, "Rollback") || !strings.Contains(got, "After") {
+		t.Errorf("got\n%s", got)
+	}
+}

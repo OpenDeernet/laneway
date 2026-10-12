@@ -563,5 +563,9 @@
   "My sign-in and passkeys": "Mijn aanmelding en passkeys",
   "My sign-in and passkeys on laneway-server": "Mijn aanmelding en passkeys op laneway-server",
   "Server admin": "Serverbeheer",
-  "laneway-server admin": "laneway-server-beheer"
+  "laneway-server admin": "laneway-server-beheer",
+  "Expand all": "Alles uitklappen",
+  "Collapse all": "Alles inklappen",
+  "Filter pages": "Pagina's filteren",
+  "Show or hide the pages under it": "Toon of verberg de pagina's eronder"
 }
