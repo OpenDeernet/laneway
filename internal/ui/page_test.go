@@ -69,7 +69,7 @@ func TestConfluencePage(t *testing.T) {
 		t.Errorf("the page's image is not drawn: state %v", e.state)
 	}
 	view := ansi.Strip(m.View().Content)
-	for _, want := range []string{"Guest checkout: design", "[toc macro]", "Flow", "checkout-flow.png"} {
+	for _, want := range []string{"Guest checkout: design", "- Goal", "Flow", "checkout-flow.png"} {
 		if !strings.Contains(view, want) {
 			t.Errorf("no %q in:\n%s", want, view)
 		}

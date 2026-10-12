@@ -261,7 +261,7 @@ func TestDemoConfluence(t *testing.T) {
 	}
 	id := c.PageID(links[0].URL)
 	p, err := c.ConfluencePage(ctx, id)
-	if err != nil || id != pageID || p.Title != pageTitle || !strings.Contains(p.Markdown, "## Flow") || !strings.Contains(p.Markdown, "_[toc macro]_") || !strings.Contains(p.Markdown, "](confluence:"+pageImageID+")") {
+	if err != nil || id != pageID || p.Title != pageTitle || !strings.Contains(p.Markdown, "## Flow") || !strings.HasPrefix(p.Markdown, "- Goal\n- Flow") || !strings.Contains(p.Markdown, "](confluence:"+pageImageID+")") {
 		t.Errorf("page %q %+v, %v", id, p, err)
 	}
 	if b, err := c.PageImage(ctx, pageImageID); err != nil || !strings.HasPrefix(string(b), "\x89PNG") {

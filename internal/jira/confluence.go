@@ -55,9 +55,11 @@ func (c *Client) ConfluencePage(ctx context.Context, id string) (Page, error) {
 		return Page{}, errNotConfigured
 	}
 	var resp struct {
-		ID      string `json:"id"`
-		Title   string `json:"title"`
-		Version struct {
+		ID       string      `json:"id"`
+		SpaceID  json.Number `json:"spaceId"`
+		ParentID json.Number `json:"parentId"`
+		Title    string      `json:"title"`
+		Version  struct {
 			Number    int    `json:"number"`
 			AuthorID  string `json:"authorId"`
 			CreatedAt string `json:"createdAt"`
@@ -73,14 +75,19 @@ func (c *Client) ConfluencePage(ctx context.Context, id string) (Page, error) {
 		} `json:"_links"`
 	}
 	path := "/wiki/api/v2/pages/" + url.PathEscape(id) + "?body-format=atlas_doc_format"
-	// laneway-server expands macros for the reader; Confluence's stay names.
-	if lw, _ := c.Laneway(ctx); lw {
+	// laneway-server expands macros for the reader; on Confluence the
+	// client expands those it knows (wikimacros.go).
+	lw, _ := c.Laneway(ctx)
+	if lw {
 		path += "&laneway-macros=expand"
 	}
 	if err := c.do(ctx, http.MethodGet, path, "page "+id, nil, &resp); err != nil {
 		return Page{}, err
 	}
 	raw := json.RawMessage(resp.Body.ADF.Value)
+	if !lw {
+		raw = c.expandPageMacros(ctx, raw, wikiPageRef{ID: resp.ID, SpaceID: resp.SpaceID.String(), ParentID: resp.ParentID.String()})
+	}
 	var atts []pageAttachment
 	if len(pageMedia(raw)) > 0 {
 		atts, _ = c.pageAttachments(ctx, id) // without them, the images stand as their names

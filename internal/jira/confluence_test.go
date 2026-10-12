@@ -34,7 +34,7 @@ func TestConfluencePage(t *testing.T) {
 	}
 	doc, _ := json.Marshal(map[string]any{"type": "doc", "version": 1, "content": []any{
 		map[string]any{"type": "heading", "attrs": map[string]any{"level": 1}, "content": []any{map[string]any{"type": "text", "text": "Plan"}}},
-		map[string]any{"type": "extension", "attrs": map[string]any{"extensionKey": "toc"}},
+		map[string]any{"type": "extension", "attrs": map[string]any{"extensionKey": "roadmap"}},
 		media("f1", "diagram.png"), media("f9", "elsewhere.png"),
 	}})
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -70,7 +70,7 @@ func TestConfluencePage(t *testing.T) {
 		p.AuthorAvatar != srv.URL+"/wiki/aa-avatar/u3" || p.Edited != "2026-09-22T08:45:11Z" {
 		t.Errorf("page %+v", p)
 	}
-	for _, want := range []string{"# Plan", "_[toc macro]_", "![diagram.png](confluence:77)", "_[image: elsewhere.png]_"} {
+	for _, want := range []string{"# Plan", "_[roadmap macro]_", "![diagram.png](confluence:77)", "_[image: elsewhere.png]_"} {
 		if !strings.Contains(p.Markdown, want) {
 			t.Errorf("no %q in:\n%s", want, p.Markdown)
 		}
@@ -145,6 +145,62 @@ func TestPageTreeMarkdown(t *testing.T) {
 		"content": []any{item("Deploys", item("Rollback")), item("Oncall")}}}})
 	want := "<!-- tree: open=2, toggle -->\n\n- [Deploys](https://x.test/wiki/Deploys)\n  - [Rollback](https://x.test/wiki/Rollback)\n- [Oncall](https://x.test/wiki/Oncall)\n\n<!-- /tree -->"
 	if got := strings.TrimSpace(DocMarkdown(doc)); got != want {
+		t.Errorf("got\n%s\nwant\n%s", got, want)
+	}
+}
+
+// TestConfluencePageMacros: on Confluence the client expands toc, children
+// and pagetree itself, from the space's page list; an inline page tree
+// splits its line.
+func TestConfluencePageMacros(t *testing.T) {
+	ext := func(typ, key string, params map[string]string) map[string]any {
+		mp := map[string]any{}
+		for k, v := range params {
+			mp[k] = map[string]any{"value": v}
+		}
+		return map[string]any{"type": typ, "attrs": map[string]any{"extensionKey": key, "parameters": map[string]any{"macroParams": mp}}}
+	}
+	text := func(s string) map[string]any { return map[string]any{"type": "text", "text": s} }
+	doc, _ := json.Marshal(map[string]any{"type": "doc", "version": 1, "content": []any{
+		ext("extension", "toc", nil),
+		map[string]any{"type": "heading", "attrs": map[string]any{"level": 1}, "content": []any{text("Steps")}},
+		ext("extension", "children", map[string]string{"sort": "natural"}),
+		map[string]any{"type": "paragraph", "content": []any{text("All: "), ext("inlineExtension", "pagetree", map[string]string{"sort": "natural"})}},
+		ext("extension", "children", map[string]string{"page": "Nope"}),
+	}})
+	pages := `{"results":[` +
+		`{"id":"1","title":"Home","position":0,"_links":{"webui":"/spaces/ISO/overview"}},` +
+		`{"id":"42","title":"Guide","parentId":"1","position":1,"_links":{"webui":"/spaces/ISO/pages/42/Guide"}},` +
+		`{"id":"43","title":"Step 10","parentId":"42","position":1,"_links":{"webui":"/spaces/ISO/pages/43"}},` +
+		`{"id":"44","title":"Step 2","parentId":"42","position":2,"_links":{"webui":"/spaces/ISO/pages/44"}},` +
+		`{"id":"45","title":"Detail","parentId":"44","position":1,"_links":{"webui":"/spaces/ISO/pages/45"}}]}`
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/rest/api/3/serverInfo":
+			fmt.Fprint(w, `{"deploymentType":"Cloud"}`)
+		case "/wiki/api/v2/pages/42":
+			b, _ := json.Marshal(string(doc))
+			fmt.Fprintf(w, `{"id":"42","title":"Guide","spaceId":"7","parentId":"1","body":{"atlas_doc_format":{"value":%s}}}`, b)
+		case "/wiki/api/v2/spaces/7/pages":
+			fmt.Fprint(w, pages)
+		case "/wiki/api/v2/spaces/7":
+			fmt.Fprint(w, `{"id":"7","key":"ISO","homepageId":"1"}`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+	c := New(Config{BaseURL: srv.URL, Email: "me@x.test", APIToken: "tok"})
+	p, err := c.ConfluencePage(context.Background(), "42")
+	if err != nil {
+		t.Fatal(err)
+	}
+	u := srv.URL + "/wiki/spaces/ISO/pages/"
+	want := "- Steps\n\n# Steps\n\n" +
+		"- [Step 2](" + u + "44)\n- [Step 10](" + u + "43)\n\n" +
+		"All: \n\n<!-- tree: open=1 -->\n\n- [Guide](" + u + "42/Guide)\n  - [Step 2](" + u + "44)\n    - [Detail](" + u + "45)\n  - [Step 10](" + u + "43)\n\n<!-- /tree -->\n\n" +
+		"*No page Nope.*"
+	if got := strings.TrimSpace(p.Markdown); got != want {
 		t.Errorf("got\n%s\nwant\n%s", got, want)
 	}
 }
