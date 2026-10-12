@@ -886,7 +886,14 @@ export function mountIssue(el, key, { app, full, card }) {
     .catch(e => { if (!dead && !st.issue) loadFailed(e); });
   api.swr('/issues/' + key + '/card', c => { if (!dead) { st.card = c; renderFields(); renderHead(); dev.hint(); } }).catch(() => {});
 
-  const offChanged = bus.on('issue:changed', e => { if (e && e.key === key) reload(true); });
+  let mine = 0, siteTimer = 0;
+  const offChanged = bus.on('issue:changed', e => { if (e && e.key === key) { mine = Date.now(); reload(true); } });
+  // laneway-server's change stream: someone else's change to this issue (a field, a comment, a worklog,
+  // a file, a link) loads it again, once for a burst; the echo of a change made here is skipped.
+  const offSite = bus.on('site:change', ch => {
+    if (siteTimer || !ch || ch.key !== key || Date.now() - mine < 2000) return;
+    siteTimer = setTimeout(() => { siteTimer = 0; if (!dead) reload(true); }, 500);
+  });
   const offFocus = bus.on('focus', () => reload(true));
   const offTimer = [bus.on('timer', () => { if (!dead) renderHead(); }), bus.on('timer:tick', () => { if (!dead && app.timer.mark(key)) renderHead(); })];
 
@@ -965,7 +972,7 @@ export function mountIssue(el, key, { app, full, card }) {
   if (startTerm) openTerm(true);
 
   return () => {
-    dead = true; scope.dispose(); offChanged(); offFocus(); offTimer.forEach(f => f());
+    dead = true; scope.dispose(); offChanged(); offSite(); clearTimeout(siteTimer); offFocus(); offTimer.forEach(f => f());
     term.dispose(); el.classList.remove('term-on');
     for (const e of editors) e.dispose();
     if (offNotes) offNotes();

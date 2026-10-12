@@ -106,3 +106,25 @@ test('< widens the panel, and it stays', async ({ page }) => {
   await expect(panel(page).locator('.iss-key')).toHaveText('DEMO-4');
   expect(Math.abs(await width() - w1)).toBeLessThan(2);
 });
+
+// laneway-server's change stream (the demo has none: this stands in for it): someone else's comment
+// shows in the open issue without a reload.
+test.describe('on laneway-server', () => {
+  test.use({ flavour: 'laneway' });
+  test("someone else's comment shows", async ({ page }) => {
+    let tell;
+    const told = new Promise(r => { tell = r; });
+    await page.route('**/api/site/events', async route => {
+      const ch = await told;
+      await route.fulfill({ contentType: 'text/event-stream', body: `retry: 60000\n\nevent: change\ndata: ${JSON.stringify(ch)}\n\n` });
+    });
+    await page.reload();
+    await page.locator('.card', { hasText: 'DEMO-4' }).click();
+    await expect(panel(page).locator('.iss-key')).toHaveText('DEMO-4');
+    const res = await page.request.post(new URL('/api/issues/DEMO-4/comments', page.url()).href, { data: { Markdown: 'Seen from elsewhere' } });
+    expect(res.ok()).toBe(true);
+    await expect(panel(page)).not.toContainText('Seen from elsewhere');
+    tell({ seq: 1, kind: 'comment', action: 'put', key: 'DEMO-4' });
+    await expect(panel(page)).toContainText('Seen from elsewhere');
+  });
+});
