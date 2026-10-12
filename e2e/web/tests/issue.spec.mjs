@@ -36,7 +36,7 @@ test('a comment Jira answered too late is not posted twice', async ({ page, app 
   await page.keyboard.type('Landed after all');
   await page.keyboard.press('Control+Enter');
   await expect(page.getByRole('alert')).toContainText('may have posted');
-  await page.locator('.composer .ed-ta').click();
+  await page.locator('.composer [role="textbox"]').click();
   await page.keyboard.press('Control+Enter');
   await expect(page.getByRole('status')).toContainText('already');
   expect(sent.map(b => !!b.Check)).toEqual([false, true]);

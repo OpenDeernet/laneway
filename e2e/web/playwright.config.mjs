@@ -11,6 +11,8 @@ export default defineConfig({
   reporter: [...(process.env.CI ? [['github'], ['list']] : [['list']]), ['./vitals-reporter.mjs']],
   use: {
     viewport: { width: 1400, height: 900 },
+    // The app's service worker would take requests past page.route, which many tests answer themselves.
+    serviceWorkers: 'block',
     trace: 'retain-on-failure',
     launchOptions: process.env.CHROMIUM ? { executablePath: process.env.CHROMIUM } : {},
   },

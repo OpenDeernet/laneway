@@ -60,7 +60,7 @@ test('due date', async ({ page }) => {
 
 test('description, in the markdown editor', async ({ page }) => {
   await page.keyboard.press('E');
-  await expect(page.locator('.iss [data-placeholder^="Description"]')).toBeFocused();
+  await expect(page.locator('.iss [role="textbox"][aria-label^="Description"]')).toBeFocused();
   await page.keyboard.press('ControlOrMeta+End');
   await page.keyboard.press('Enter');
   await page.keyboard.type('- **Guests** keep their cart');
@@ -73,18 +73,18 @@ test('description, in the markdown editor', async ({ page }) => {
 
 test('a description being typed is back after a reload', async ({ page }) => {
   await page.keyboard.press('E');
-  await expect(page.locator('.iss [data-placeholder^="Description"]')).toBeFocused();
+  await expect(page.locator('.iss [role="textbox"][aria-label^="Description"]')).toBeFocused();
   await page.keyboard.press('ControlOrMeta+End');
   await page.keyboard.type(' Typed just now.');
   await page.reload(); // at once: the page sends it as it goes
   await expect(page.locator('.iss .fld[data-field="status"]')).toBeVisible();
   await page.keyboard.press('E');
-  await expect(page.locator('.iss [data-placeholder^="Description"]')).toContainText('Typed just now.');
+  await expect(page.locator('.iss [role="textbox"][aria-label^="Description"]')).toContainText('Typed just now.');
 });
 
 test('a description changed in Jira meanwhile is not saved over unasked', async ({ page, app }) => {
   await page.keyboard.press('E');
-  await expect(page.locator('.iss [data-placeholder^="Description"]')).toBeFocused();
+  await expect(page.locator('.iss [role="textbox"][aria-label^="Description"]')).toBeFocused();
   // A colleague's edit, unchecked, while the editor is open.
   await page.request.put(new URL('/api/issues/DEMO-4/description', app.url).href, { data: { Markdown: 'Acceptance: guests check out.' } });
   await page.keyboard.press('ControlOrMeta+End');
@@ -93,9 +93,9 @@ test('a description changed in Jira meanwhile is not saved over unasked', async 
   const dialog = page.getByRole('dialog', { name: 'Description changed in Jira' });
   await expect(dialog).toContainText('- Acceptance: guests check out.');
   await dialog.getByRole('button', { name: 'Keep editing' }).click();
-  await expect(page.locator('.iss [data-placeholder^="Description"]')).toBeVisible();
+  await expect(page.locator('.iss [role="textbox"][aria-label^="Description"]')).toBeVisible();
   // Kept editing, the next save goes over theirs.
-  await page.locator('.iss [data-placeholder^="Description"]').click();
+  await page.locator('.iss [role="textbox"][aria-label^="Description"]').click();
   await page.keyboard.press('ControlOrMeta+Enter');
   await expect(page.locator('.iss .desc:not(.doc)')).toContainText('Mine.');
   await expect(page.locator('.iss .desc:not(.doc)')).not.toContainText('Acceptance');
@@ -155,7 +155,7 @@ for (const where of ['panel', 'page']) test(`the editor goes full screen, in the
   if (where === 'page') await page.goto(new URL('#/issue/DEMO-4', app.url).href);
   await expect(page.locator('.iss .iss-key')).toHaveText('DEMO-4');
   await page.keyboard.press('E');
-  const ed = page.locator('.iss .ed', { has: page.locator('[data-placeholder^="Description"]') });
+  const ed = page.locator('.iss .ed', { has: page.locator('[role="textbox"][aria-label^="Description"]') });
   await ed.getByRole('button', { name: /^Full screen/ }).click();
   await expect(ed).toHaveClass(/\bfull\b/);
   const vp = page.viewportSize();

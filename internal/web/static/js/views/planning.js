@@ -485,6 +485,7 @@ export default async function mount(el, { app, params, scope, context, toolbar }
   // A done issue moved to the backlog asks first: Jira's backlog leaves done issues out, so it shows
   // nowhere after. Said yes, it goes from the list at once; u brings it back.
   const gone = new Map();
+  const fieldsJs = import('./fields.js'); // in before the first move: its undo is there before the next key
   function moveCards(keyList, to, anchor, after, { undoable = true, sure = false } = {}) {
     to = to && secOf(to.id); // a load while a picker was open rebuilt the sections
     if (!keyList.length || !to || (anchor && keyList.includes(anchor))) return;
@@ -519,7 +520,7 @@ export default async function mount(el, { app, params, scope, context, toolbar }
     if (crossing.length && undoable) {
       // u puts them back beside the issue each left (TUI recordSprintUndo)
       const out = whence(crossing);
-      pushed = import('./fields.js').then(m => ({ m, step: m.pushUndo(app, T('the move of %s to %s', crossing.length === 1 ? crossing[0] : Tn(crossing.length, '%d issue', '%d issues', crossing.length), to.name), () => {
+      pushed = fieldsJs.then(m => ({ m, step: m.pushUndo(app, T('the move of %s to %s', crossing.length === 1 ? crossing[0] : Tn(crossing.length, '%d issue', '%d issues', crossing.length), to.name), () => {
         unhide();
         for (const b of out) moveCards(b.keys, secOf(b.id), b.anchor, b.after, { undoable: false });
         relayout();

@@ -318,8 +318,18 @@ export function mdEdit(app, o) {
     h('div.ed-foot', h('span.dim.hint', o.hint || (o.noCancel ? T('ctrl+⏎ %s · / formats', (o.label || T('Save')).toLowerCase()) : T('ctrl+⏎ %s · esc cancels · / formats', (o.label || T('Save')).toLowerCase()))), h('span.spacer'),
       !o.noCancel && o.cancel && h('button.btn.ghost', { onclick: () => node._cancel() }, T('Cancel')), o.save && go));
 
-  // ---- the Visual mode: mounted once its module is in
+  // ---- the Visual mode: mounted once its module is in. Until then a plain box stands in and takes
+  // what is typed (c, then typing at once), which goes into the document when it mounts.
   let r = null, pendingFocus = null, mounting = null;
+  const early = h('div.input.ed-ta', { contentEditable: 'plaintext-only', role: 'textbox', 'aria-multiline': 'true', 'aria-label': o.placeholder || T('Text'),
+    style: { minHeight: 'calc(' + (o.rows || 4) + ' * 1.5em + .714rem + 2px)' } });
+  const carry = () => {
+    const t = early.innerText.replace(/\n$/, '');
+    if (!r || !t) return;
+    early.textContent = '';
+    if (pendingFocus === null) r.focus(true);
+    r.view.dispatch(r.view.state.tr.insertText(t));
+  };
   const mountVisual = async (doc) => {
     const m = await loadRte();
     if (disposed) return;
@@ -338,7 +348,7 @@ export function mdEdit(app, o) {
       preview.hidden = true;
       clear(head).append(r ? r.toolbar : h('div.ed-tools'), right);
       if (r) { if (!r.toolbar.querySelector(':scope > .spacer')) r.toolbar.append(h('span.spacer')); r.toolbar.append(right); }
-      clear(body).append(r ? r.el : h('div.input.ed-ta', { style: { minHeight: 'calc(' + (o.rows || 4) + ' * 1.5em + .714rem + 2px)' } }));
+      clear(body).append(r ? r.el : early);
     } else {
       mdTools.append(right);
       clear(head).append(mdTools);
@@ -375,7 +385,7 @@ export function mdEdit(app, o) {
   };
   const isEmpty = () => (mode === 'visual' ? (r ? r.isEmpty() : !(adf ? hasContent(o.doc) : (o.value || '').trim())) : !ta.value.trim());
   const focus = end => {
-    if (mode === 'visual') { if (r) r.focus(end); else pendingFocus = end || false; return; }
+    if (mode === 'visual') { if (r) r.focus(end); else { pendingFocus = end || false; early.focus({ preventScroll: true }); } return; }
     ta.focus({ preventScroll: true }); if (end !== false) ta.setSelectionRange(ta.value.length);
   };
   async function value() {
@@ -392,6 +402,7 @@ export function mdEdit(app, o) {
   let base = o.base || '';
   async function run() {
     if (busy || !o.save) return;
+    if (mode === 'visual' && !r && mounting) await mounting.catch(() => {}); // what was typed meanwhile goes in first
     if (mode === 'visual' && r && r.busy()) return ui.toast(T('A file is still uploading'));
     if (!o.allowEmpty && isEmpty()) return;
     busy = true; go.disabled = true; node.classList.add('ed-busy');
@@ -594,12 +605,15 @@ export function mdEdit(app, o) {
     const first = md0 ? api.post('/adf/doc', { Markdown: o.value, Kept: kept, People: mentionsIn(o.value, [], people()) }).then(c => c.Doc) : Promise.resolve(o.doc || EMPTY);
     mounting = first.then(mountVisual).then(() => {
       showMode();
-      if (pendingFocus !== null) { r.focus(pendingFocus); pendingFocus = null; }
+      if (pendingFocus !== null) r.focus(pendingFocus);
+      carry(); pendingFocus = null;
     }).catch(e => {
       // No visual editor: the markdown one, as it was.
       console.warn('visual editor', e);
       if (adf && !editable) return ui.errToast(e);
       if (adf) ta.value = o.value || '';
+      const t = early.innerText.trim();
+      if (t) ta.value += (ta.value ? '\n' : '') + t;
       mode = 'markdown'; showMode();
     }).finally(() => { mounting = null; });
   }

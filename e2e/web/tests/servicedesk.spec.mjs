@@ -28,7 +28,7 @@ test.describe('on a service desk', () => {
     await page.keyboard.press('Control+Enter');
     await expect(p.locator('article.cm', { hasText: 'Looking into it' }).locator('.cm-lock')).toContainText('internal note');
 
-    await page.locator('.composer .ed-ta').click();
+    await page.locator('.composer [role="textbox"]').click();
     await page.keyboard.press('Control+o');
     await expect(p.locator('.vis-chip')).toContainText('reply to the customer');
     await page.keyboard.type('Fixed for you');
