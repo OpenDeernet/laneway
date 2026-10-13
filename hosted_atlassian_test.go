@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/cornedor/laneway/internal/jira"
 )
@@ -33,6 +34,11 @@ type fakeAtlassian struct {
 	access map[string]string // token -> account
 	n      int
 	paths  []string // the API paths asked
+	// reported are the account ids of each personal data report; closed
+	// and updated what the next answers say of them.
+	reported        [][]string
+	closed, updated []string
+	cycle           string
 }
 
 func newFakeAtlassian(t *testing.T) *fakeAtlassian {
@@ -95,6 +101,31 @@ func newFakeAtlassian(t *testing.T) *fakeAtlassian {
 				out = append(out, map[string]any{"id": ids[site], "url": site})
 			}
 			json.NewEncoder(w).Encode(out)
+		case r.URL.Path == "/app/report-accounts/" && bearer() != "":
+			var b struct {
+				Accounts []jira.AccountReport `json:"accounts"`
+			}
+			json.NewDecoder(r.Body).Decode(&b)
+			var ids []string
+			for _, a := range b.Accounts {
+				ids = append(ids, a.AccountID)
+			}
+			f.reported = append(f.reported, ids)
+			if f.cycle != "" {
+				w.Header().Set("Cycle-Period", f.cycle)
+			}
+			var out []map[string]string
+			for _, id := range f.closed {
+				out = append(out, map[string]string{"accountId": id, "status": "closed"})
+			}
+			for _, id := range f.updated {
+				out = append(out, map[string]string{"accountId": id, "status": "updated"})
+			}
+			if len(out) == 0 {
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+			json.NewEncoder(w).Encode(map[string]any{"accounts": out})
 		case r.URL.Path == "/me" && bearer() != "":
 			json.NewEncoder(w).Encode(map[string]string{"account_id": bearer()})
 		case strings.HasPrefix(r.URL.Path, "/ex/jira/11111111-2222-3333-4444-555555555555/") && bearer() != "":
@@ -281,5 +312,59 @@ func TestHostedAtlassianConfluenceLeftOut(t *testing.T) {
 	f.mu.Unlock()
 	if n != 0 {
 		t.Errorf("%d codes left", n)
+	}
+}
+
+// Personal data reporting: the accounts kept are reported once a cycle; a
+// closed one is erased, the others stay.
+func TestHostedAtlassianReport(t *testing.T) {
+	f, h, gw := newAtlassianGateway(t, "")
+	ada := browserFor()
+	if res, err := ada.Get(gw + "/"); err == nil {
+		res.Body.Close()
+	}
+	f.mu.Lock()
+	ada1, bob := f.who, "bob-0001"
+	f.who = bob
+	f.mu.Unlock()
+	if res, err := browserFor().Get(gw + "/"); err == nil {
+		res.Body.Close()
+	}
+	now := time.Now()
+	h.reportIfDue(t.Context(), now)
+	f.mu.Lock()
+	if len(f.reported) != 1 || len(f.reported[0]) != 2 {
+		t.Fatalf("reported %v", f.reported)
+	}
+	f.closed = []string{ada1, "not-kept"}
+	f.cycle = "3600"
+	f.mu.Unlock()
+	// Not due yet: a week.
+	h.reportIfDue(t.Context(), now.Add(time.Hour))
+	f.mu.Lock()
+	if len(f.reported) != 1 {
+		t.Errorf("reported before due: %v", f.reported)
+	}
+	f.mu.Unlock()
+	h.reportIfDue(t.Context(), now.Add(8*24*time.Hour))
+	if _, err := os.Stat(h.accountDir(ada1)); !os.IsNotExist(err) {
+		t.Errorf("a closed account kept: %v", err)
+	}
+	if _, err := os.Stat(h.accountDir(bob)); err != nil {
+		t.Errorf("bob's directory: %v", err)
+	}
+	h.mu.Lock()
+	for _, s := range h.sessions {
+		if s.Account == ada1 {
+			t.Error("a closed account's session kept")
+		}
+	}
+	h.mu.Unlock()
+	// The answer's Cycle-Period sets the next one.
+	var st reportState
+	raw, _ := os.ReadFile(filepath.Join(h.data, reportFile))
+	json.Unmarshal(raw, &st)
+	if d := st.Next.Sub(now.Add(8 * 24 * time.Hour)); d != time.Hour {
+		t.Errorf("next report in %s, want 1h", d)
 	}
 }

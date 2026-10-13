@@ -88,6 +88,9 @@ func hostedCmd(args []string, errOut io.Writer) int {
 	defer stop()
 	h.ctx = ctx
 	go h.sweep(ctx)
+	if h.atlassian != nil {
+		go h.reportLoop(ctx)
+	}
 	// Behind a TLS proxy it listens on loopback; without one it needs TLS itself.
 	err = web.Serve(ctx, *addr, true, *cert, *key, h, func(net.Addr) {
 		fmt.Fprintln(os.Stderr, i18n.Tf("laneway web for %s on %s", h.server, h.public))

@@ -1,14 +1,17 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/cornedor/laneway/internal/config"
 	"github.com/cornedor/laneway/internal/i18n"
@@ -137,4 +140,116 @@ func (h *hosted) atlassianSignOut(account string) {
 	if st, err := h.atlassianStore(account); err == nil {
 		st.Save(nil)
 	}
+}
+
+// Atlassian's personal data reporting: every cycle (a week unless it says
+// otherwise) the accounts kept here are reported; a closed one's
+// directory and sessions are erased, an updated one's app stops, so what
+// it held of them is fetched again.
+
+const (
+	reportFile    = "report.json"
+	reportCycle   = 7 * 24 * time.Hour
+	reportCheck   = time.Hour
+	reportRetryIn = 6 * time.Hour
+)
+
+type reportState struct {
+	Next time.Time `json:"next"`
+}
+
+// reportLoop reports when due, checking every reportCheck.
+func (h *hosted) reportLoop(ctx context.Context) {
+	t := time.NewTicker(reportCheck)
+	defer t.Stop()
+	for {
+		h.reportIfDue(ctx, time.Now())
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+		}
+	}
+}
+
+func (h *hosted) reportIfDue(ctx context.Context, now time.Time) {
+	p := filepath.Join(h.data, reportFile)
+	var st reportState
+	if raw, err := os.ReadFile(p); err == nil {
+		json.Unmarshal(raw, &st)
+	}
+	if now.Before(st.Next) {
+		return
+	}
+	cycle, err := h.report(ctx)
+	switch {
+	case err != nil:
+		log.Printf("laneway: personal data report: %v", err)
+		st.Next = now.Add(reportRetryIn)
+	case cycle > 0:
+		st.Next = now.Add(cycle)
+	default:
+		st.Next = now.Add(reportCycle)
+	}
+	raw, _ := json.Marshal(st)
+	if os.WriteFile(p+".tmp", raw, 0o600) == nil {
+		os.Rename(p+".tmp", p)
+	}
+}
+
+// report reports every account kept here, with the sign-in of the first
+// that works, and acts on the answer.
+func (h *hosted) report(ctx context.Context) (time.Duration, error) {
+	entries, err := os.ReadDir(filepath.Join(h.data, "people"))
+	if err != nil {
+		return 0, err
+	}
+	var accounts []jira.AccountReport
+	kept := map[string]bool{}
+	for _, e := range entries {
+		if !e.IsDir() || !accountID.MatchString(e.Name()) {
+			continue
+		}
+		at := time.Now()
+		if fi, err := os.Stat(filepath.Join(h.accountDir(e.Name()), "sign-in.json")); err == nil {
+			at = fi.ModTime()
+		}
+		accounts = append(accounts, jira.AccountReport{AccountID: e.Name(), UpdatedAt: at.UTC()})
+		kept[e.Name()] = true
+	}
+	if len(accounts) == 0 {
+		return 0, nil
+	}
+	var answer jira.ReportAnswer
+	err = jira.ErrSignedOut
+	for _, a := range accounts {
+		var cfg jira.Config
+		if h.atlassian.signIn(h, a.AccountID, &cfg) != nil {
+			continue
+		}
+		cfg.OAuthClient = h.client
+		answer, err = jira.New(cfg).ReportAccounts(ctx, accounts)
+		if err == nil || errors.Is(err, jira.ErrReportLater) {
+			break
+		}
+	}
+	if err != nil {
+		return 0, err
+	}
+	// Only what was reported: the answer names nothing else to erase.
+	for _, id := range answer.Closed {
+		if !kept[id] {
+			continue
+		}
+		h.endAccount(id)
+		if err := os.RemoveAll(h.accountDir(id)); err != nil {
+			log.Printf("laneway: erasing closed account %s: %v", id, err)
+		}
+	}
+	for _, id := range answer.Updated {
+		if kept[id] {
+			h.stopApp(id)
+		}
+	}
+	return answer.Cycle, nil
 }

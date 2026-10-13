@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -37,7 +38,7 @@ const AtlassianScopes = "read:jira-work write:jira-work read:jira-user manage:ji
 	"read:sprint:jira-software write:sprint:jira-software read:issue:jira-software write:issue:jira-software " +
 	"read:servicedesk-request write:servicedesk-request " +
 	"search:confluence read:confluence-user readonly:content.attachment:confluence read:page:confluence read:space:confluence read:attachment:confluence " +
-	"read:me offline_access"
+	"read:me report:personal-data offline_access"
 
 // AtlassianCredentials are a person's Atlassian sign-in: the refresh token
 // (rotates at each use), the access token last issued, and the site.
@@ -310,4 +311,85 @@ func (o *atlassianSession) authorize(req *http.Request) (string, error) {
 	}
 	req.Header.Set("Authorization", "Bearer "+tok)
 	return tok, nil
+}
+
+// AccountReport is one account an app keeps personal data of, and when it
+// last fetched it, for Atlassian's personal data reporting.
+type AccountReport struct {
+	AccountID string    `json:"accountId"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+// ReportAnswer is what Atlassian said of reported accounts: closed ones
+// to erase, updated ones to fetch again, and how long until the next
+// report is due (0: the default week).
+type ReportAnswer struct {
+	Closed, Updated []string
+	Cycle           time.Duration
+}
+
+// ErrReportLater is Atlassian asking to report again later (429, 503).
+var ErrReportLater = errors.New("atlassian: personal data report refused for now; try later")
+
+// maxReport is how many accounts one report takes.
+const maxReport = 90
+
+// ReportAccounts reports accounts (Atlassian's personal data reporting
+// API) with the client's sign-in, in batches of maxReport.
+func (c *Client) ReportAccounts(ctx context.Context, accounts []AccountReport) (ReportAnswer, error) {
+	var out ReportAnswer
+	if c.atl == nil {
+		return out, errNotConfigured
+	}
+	tok, err := c.atl.token(ctx)
+	if err != nil {
+		return out, err
+	}
+	for len(accounts) > 0 {
+		batch := accounts[:min(maxReport, len(accounts))]
+		accounts = accounts[len(batch):]
+		raw, _ := json.Marshal(map[string]any{"accounts": batch})
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, AtlassianAPI+"/app/report-accounts/", bytes.NewReader(raw))
+		if err != nil {
+			return out, err
+		}
+		req.Header.Set("Authorization", "Bearer "+tok)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Accept", "application/json")
+		resp, err := c.atl.http.Do(req)
+		if err != nil {
+			return out, fmt.Errorf("call atlassian: %w", err)
+		}
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+		resp.Body.Close()
+		if s, err := strconv.Atoi(strings.TrimSpace(resp.Header.Get("Cycle-Period"))); err == nil && s > 0 {
+			out.Cycle = time.Duration(s) * time.Second
+		}
+		switch resp.StatusCode {
+		case http.StatusNoContent:
+		case http.StatusOK:
+			var a struct {
+				Accounts []struct {
+					AccountID string `json:"accountId"`
+					Status    string `json:"status"`
+				} `json:"accounts"`
+			}
+			if err := json.Unmarshal(body, &a); err != nil {
+				return out, fmt.Errorf("atlassian: unreadable personal data report answer: %w", err)
+			}
+			for _, x := range a.Accounts {
+				switch x.Status {
+				case "closed":
+					out.Closed = append(out.Closed, x.AccountID)
+				case "updated":
+					out.Updated = append(out.Updated, x.AccountID)
+				}
+			}
+		case http.StatusTooManyRequests, http.StatusServiceUnavailable:
+			return out, ErrReportLater
+		default:
+			return out, fmt.Errorf("atlassian: personal data report answered %s: %s", resp.Status, strings.TrimSpace(string(body)))
+		}
+	}
+	return out, nil
 }

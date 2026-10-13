@@ -210,6 +210,11 @@ through Atlassian's OAuth 2.0 (3LO).
    one site at a time, so at their first sign-in people are asked twice:
    pick the Jira site, then the Confluence one. Skipped, Jira still works.
 
+It stores account ids, so it does Atlassian's personal data reporting:
+weekly it reports the people in `-data`, deletes the directory of an
+account Atlassian says was closed, and fetches an updated one's profile
+again. Add the Personal data reporting API to the app (`report:personal-data`).
+
 Sign out ends the session and forgets the tokens here; Atlassian revokes
 an app only from the person's [Connected apps](https://id.atlassian.com/manage-profile/apps).
 Jira's private APIs aren't open to apps, so development info (branches,
