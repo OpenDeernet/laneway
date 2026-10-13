@@ -97,14 +97,24 @@ export async function resolve(app, params, { scrum = true } = {}) {
 
 export const remember = (app, project, board) => setCtx(app, project, board);
 
-// pickProject → the project key, or null.
+// starProject stars or unstars a project: your projects (jira.projects) are first in the picker, the first opens at
+// start. Saved at once; false when it couldn't be.
+export async function starProject(app, key) {
+  const mine = app.session.projects || [];
+  const next = mine.includes(key) ? mine.filter(k => k !== key) : [...mine, key];
+  try { app.session.projects = (await app.api.put('/site/projects', { Projects: next })).projects; } catch (e) { app.ui.errToast(e); return false; }
+  return true;
+}
+
+// pickProject → the project key, or null. Starred ones first; ctrl+s or a row's star stars it.
 export async function pickProject(app) {
   const mine = app.session.projects || [];
   let items = [];
   try { items = [...(await app.api.get('/projects'))].sort((a, b) => (mine.includes(b.Key) - mine.includes(a.Key))); } catch (e) { items = []; }
   if (!items.length) mine.forEach(k => items.push({ Key: k, Name: k }));
   if (!items.length) { app.ui.toast(T('No projects'), { kind: 'err' }); return null; }
-  const p = await app.ui.pick({ title: T('Project'), items, label: x => x.Key + ' ' + x.Name, detail: x => (mine.includes(x.Key) ? '\u2605' : '') });
+  const starred = x => (app.session.projects || []).includes(x.Key);
+  const p = await app.ui.pick({ title: T('Project'), items, label: x => x.Key + ' ' + x.Name, star: { on: starred, toggle: x => starProject(app, x.Key) } });
   return p ? p.Key : null;
 }
 

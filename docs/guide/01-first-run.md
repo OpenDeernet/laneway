@@ -119,7 +119,7 @@ by side as lanes, one card per issue.
 
     | Key | Does |
     | --- | --- |
-    | `alt+p` | pick a project (type to filter) |
+    | `alt+p` | pick a project (type to filter; `ctrl+s` stars it) |
     | `B` | pick one of the project's boards |
 
     Or click the project and board names in the bar above the lanes.

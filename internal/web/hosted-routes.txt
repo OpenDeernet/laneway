@@ -219,6 +219,6 @@ on  PUT /api/me/notifications
 on  PUT /api/me/timezone
 on  PUT /api/prefs/{name}
 on  PUT /api/settings/{name}
-off PUT /api/site/projects
+on  PUT /api/site/projects
 on  PUT /api/timer
 on  PUT /api/worklog/{key}/{id}

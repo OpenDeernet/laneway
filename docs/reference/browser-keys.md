@@ -18,7 +18,7 @@ terminal's is in the last column.
 | `g g` | go to an issue by key or pasted link | `#` |
 | `Q` | JQL, with completion; a hit opens beside the rest, shown as a view (`ctrl+enter`: the view alone) | |
 | `n` | new issue | |
-| `alt+p` | switch project: its last board, or the view's project where it has one | `p` |
+| `alt+p` | switch project: its last board, or the view's project where it has one; starred ones first, `ctrl+s` or ☆ stars one | `p` |
 | `g` then a letter | go to a view, see below | |
 | `M` | every view (More) | |
 | `tab` | focus between the view and the panel | |

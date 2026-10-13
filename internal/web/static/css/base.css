@@ -69,6 +69,7 @@ a.issue-pill:hover { text-decoration: none; border-color: var(--accent); }
 .pick-list { max-height: 50vh; overflow: auto; padding: .286rem; }
 .pick-row { display: flex; align-items: center; gap: var(--pad); padding: .429rem .714rem; border-radius: var(--radius); cursor: pointer; min-height: var(--row); }
 .pick-row.sel { background: var(--accent-bg); } .pick-detail { margin-left: auto; color: var(--fg-3); font-size: .857rem; } .pick-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pick-star { margin-left: auto; background: none; border: 0; padding: 0 .286rem; color: var(--fg-3); cursor: pointer; display: inline-flex; } .pick-star:hover { color: var(--fg); } .pick-star.on { color: var(--accent); } .pick-detail + .pick-star { margin-left: 0; }
 .pick-empty { padding: 1rem; color: var(--fg-3); text-align: center; } .pick-foot { padding: .286rem .857rem; font-size: .857rem; color: var(--fg-3); border-top: 1px solid var(--border); }
 .help { columns: 2 20rem; } .help section { break-inside: avoid; margin-bottom: 1rem; } .help dl { display: grid; grid-template-columns: auto 1fr; gap: .214rem .857rem; margin: 0; } .help dt { white-space: nowrap; } .help dd { margin: 0; color: var(--fg-2); } .help dt kbd + kbd { margin-left: .214rem; }
 #toasts { position: fixed; bottom: 2.429rem; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; gap: .429rem; z-index: 200; align-items: center; pointer-events: none; }

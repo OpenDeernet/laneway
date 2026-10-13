@@ -71,6 +71,8 @@ export function modal(content, { title, wide = false, onClose, className = '' } 
 // `first: q => item | null` puts that item at the top for what is typed (an issue key typed in full).
 // With `create: q => item` and no match, Enter on typed text creates an item.
 // With `search: async q => items` the list is also fed by the server (debounced).
+// With `star: {on: item → bool, toggle: async item}` each row has a star button, and ctrl+s stars the row under the
+// cursor; neither picks.
 // `items` may be a Promise: the picker opens at once, says Loading… and fills in (typing filters,
 // an Enter pressed meanwhile picks once the list is there).
 export function pick(o) {
@@ -100,7 +102,9 @@ export function pick(o) {
         const row = h('div.pick-row' + (i === sel ? '.sel' : ''), { role: 'option', dataset: { i }, onmousemove: () => { if (sel !== i) { sel = i; mark(); } }, onclick: e => (o.multi && o.enterPicks && !e.target.closest('.check') ? finish([r.it]) : choose(i)) },
           o.multi && h('span.check', icon(chosen.has(r.it) ? 'square-check' : 'square')),
           o.render ? o.render(r.it, r.m) : h('span.pick-label', label(r.it)),
-          o.detail && !o.render && h('span.pick-detail', o.detail(r.it)));
+          o.detail && !o.render && h('span.pick-detail', o.detail(r.it)),
+          o.star && h('button.pick-star' + (o.star.on(r.it) ? '.on' : ''), { type: 'button', tabindex: -1, title: o.star.on(r.it) ? T('Unstar') : T('Star'), 'aria-label': o.star.on(r.it) ? T('Unstar') : T('Star'),
+            onclick: e => { e.stopPropagation(); star(r.it); } }, icon('star', o.star.on(r.it))));
         frag.append(row);
       });
       if (!rows.length) list.append(h('div.pick-empty', loading ? T('Loading…') : status || (o.create && q ? T('Enter creates “%s”', q) : (o.empty || T('No matches')))));
@@ -109,6 +113,7 @@ export function pick(o) {
     };
     const mark = () => { list.querySelectorAll('.pick-row').forEach((r, i) => r.classList.toggle('sel', i === sel)); scrollSel(); };
     const scrollSel = () => { const r = list.children[sel]; if (r && r.scrollIntoView) r.scrollIntoView({ block: 'nearest' }); };
+    async function star(it) { if (it !== undefined) { await o.star.toggle(it); render(); } }
     function choose(i) {
       const it = shown[i];
       if (it === undefined) { if (o.create && q) return finish(o.multi ? [...chosen, o.create(q)] : o.create(q)); return; }
@@ -134,6 +139,7 @@ export function pick(o) {
     m.scope.bind(['ArrowUp', 'ctrl+p', 'shift+Tab'], () => move(-1), '', { input: true, hidden: true });
     const enter = () => { if (loading) { enterLater = true; return; } if (o.multi && o.enterPicks && !ticked) { if (shown[sel] !== undefined) finish([shown[sel]]); } else if (o.multi) finish(o.create && q && !shown.length ? [...chosen, o.create(q)] : [...chosen]); else choose(sel); };
     m.scope.bind('Enter', enter, '', { input: true, hidden: true });
+    if (o.star) m.scope.bind('ctrl+s', () => star(shown[sel]), '', { input: true, hidden: true });
     if (o.multi) m.scope.bind('ctrl+Space', () => choose(sel), '', { input: true, hidden: true });
     if (o.multi) input.addEventListener('keydown', e => { if (e.key === ' ' && !q) { e.preventDefault(); choose(sel); } });
     render();

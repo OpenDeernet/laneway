@@ -479,6 +479,8 @@ func (h *hosted) options(account string) (web.Options, error) {
 	if h.atlassian != nil {
 		jc = config.JiraConfig{BaseURL: h.atlassian.site}
 	}
+	// Their starred projects, the one thing of jira: theirs to set.
+	jc.Projects = cfg.Jira.Projects
 	opt := web.Options{Version: version, Jira: jc, UI: hostedUI(cfg.UI), ConfigPath: cfgPath, AllowedHosts: []string{h.host}, Hosted: true}
 	if opt.Store, err = store.Open(filepath.Join(dir, "state.json")); err != nil {
 		return opt, err

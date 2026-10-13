@@ -380,3 +380,43 @@ func TestHostedAtlassianReport(t *testing.T) {
 		t.Errorf("next report in %s, want 1h", d)
 	}
 }
+
+// Starred projects are each person's: kept in their config, read again
+// when their app starts anew.
+func TestHostedStarredProjects(t *testing.T) {
+	_, h, gw := newAtlassianGateway(t, "")
+	ada := browserFor()
+	if res, err := ada.Get(gw + "/"); err == nil {
+		res.Body.Close()
+	}
+	req, _ := http.NewRequest(http.MethodPut, gw+"/api/site/projects", strings.NewReader(`{"Projects":["gb","BLUE"]}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Origin", gw)
+	res, err := ada.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, _ := io.ReadAll(res.Body)
+	res.Body.Close()
+	if res.StatusCode != 200 || !strings.Contains(string(raw), `"GB","BLUE"`) {
+		t.Fatalf("star: %d %s", res.StatusCode, raw)
+	}
+	h.mu.Lock()
+	var running []string
+	for k := range h.apps {
+		running = append(running, k)
+	}
+	h.mu.Unlock()
+	for _, k := range running {
+		h.stopApp(k)
+	}
+	res, err = ada.Get(gw + "/api/session")
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, _ = io.ReadAll(res.Body)
+	res.Body.Close()
+	if !strings.Contains(string(raw), `"projects":["GB","BLUE"]`) {
+		t.Errorf("after a restart: %s", raw)
+	}
+}
