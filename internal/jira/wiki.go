@@ -109,7 +109,7 @@ func (c *Client) Spaces(ctx context.Context) ([]Space, error) {
 	for _, s := range rs {
 		u := ""
 		if s.Links.WebUI != "" {
-			u = c.baseURL + "/wiki" + s.Links.WebUI
+			u = c.wikiURL + "/wiki" + s.Links.WebUI
 		}
 		out = append(out, Space{ID: s.ID.String(), Key: s.Key, Name: safeterm.Line(s.Name), HomepageID: s.HomepageID.String(), URL: u})
 	}
@@ -339,9 +339,9 @@ func (c *Client) wikiPicture(p string) string {
 	case strings.HasPrefix(p, "https://"):
 		return p
 	case strings.HasPrefix(p, "/wiki/"):
-		return c.baseURL + p
+		return c.wikiURL + p
 	case strings.HasPrefix(p, "/"):
-		return c.baseURL + "/wiki" + p
+		return c.wikiURL + "/wiki" + p
 	}
 	return ""
 }

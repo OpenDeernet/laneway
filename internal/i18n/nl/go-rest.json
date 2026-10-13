@@ -350,5 +350,16 @@
   "bad wiki id": "ongeldig wiki-id",
   "the page changed meanwhile: reload it": "de pagina is intussen gewijzigd: laad hem opnieuw",
   "bad version": "ongeldige versie",
-  "Restored version %d": "Versie %d teruggezet"
+  "Restored version %d": "Versie %d teruggezet",
+  "-atlassian %q is not a site like https://acme.atlassian.net": "-atlassian %q is geen site zoals https://acme.atlassian.net",
+  "-confluence %q is not a site like https://acme.atlassian.net": "-confluence %q is geen site zoals https://acme.atlassian.net",
+  "-hosted -atlassian needs -url, -data and -client-id, and LANEWAY_WEB_CLIENT_SECRET in the environment": "-hosted -atlassian heeft -url, -data en -client-id nodig, en LANEWAY_WEB_CLIENT_SECRET in de omgeving",
+  "-scopes needs offline_access: without it a sign-in ends within the hour": "-scopes heeft offline_access nodig: zonder eindigt een aanmelding binnen het uur",
+  "-server and -atlassian: one or the other": "-server en -atlassian: het een of het ander",
+  "Atlassian didn't say who signed in": "Atlassian zei niet wie zich aanmeldde",
+  "LANEWAY_WEB_SEAL_KEY must be set, at least %d characters: it encrypts each person's sign-in": "LANEWAY_WEB_SEAL_KEY moet gezet zijn, minstens %d tekens: het versleutelt ieders aanmelding",
+  "instead of -server: the Jira Cloud site people sign in to through Atlassian (https://x.atlassian.net)": "in plaats van -server: de Jira Cloud-site waar mensen zich via Atlassian aanmelden (https://x.atlassian.net)",
+  "with -atlassian: the scopes asked for, as the app has them in Atlassian's developer console": "met -atlassian: de gevraagde scopes, zoals de app ze heeft in Atlassians developer console",
+  "with -atlassian: the site Confluence is on, when it is another one (https://y.atlassian.net)": "met -atlassian: de site waar Confluence op staat, als dat een andere is (https://y.atlassian.net)",
+  "your Atlassian sign-in doesn't include %s; sign in again and pick it": "je Atlassian-aanmelding omvat %s niet; meld je opnieuw aan en kies die site"
 }

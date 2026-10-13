@@ -99,7 +99,7 @@ func (c *Client) AttachmentContent(ctx context.Context, id string) ([]byte, erro
 func (c *Client) download(ctx context.Context, path, what string) ([]byte, error) {
 	reqCtx, moved, stop := c.stallGuard(ctx)
 	defer stop()
-	req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, c.baseURL+path, nil)
+	req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, c.apiURL(path), nil)
 	if err != nil {
 		return nil, fmt.Errorf("build request: %w", err)
 	}
@@ -178,7 +178,7 @@ func (c *Client) UploadAttachmentFrom(ctx context.Context, key, name string, f i
 		}
 		pw.CloseWithError(err)
 	}()
-	req, err := http.NewRequestWithContext(reqCtx, http.MethodPost, c.baseURL+"/rest/api/3/issue/"+url.PathEscape(key)+"/attachments", pr)
+	req, err := http.NewRequestWithContext(reqCtx, http.MethodPost, c.apiURL("/rest/api/3/issue/"+url.PathEscape(key)+"/attachments"), pr)
 	if err != nil {
 		return Attachment{}, fmt.Errorf("build request: %w", err)
 	}
@@ -226,7 +226,7 @@ func (c *Client) MediaID(ctx context.Context, id string) (string, error) {
 	}
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/rest/api/3/attachment/content/"+url.PathEscape(id), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.apiURL("/rest/api/3/attachment/content/"+url.PathEscape(id)), nil)
 	if err != nil {
 		return "", fmt.Errorf("build request: %w", err)
 	}
@@ -402,7 +402,7 @@ func (c *Client) DownloadAttachment(ctx context.Context, id, name, dir string) (
 	}
 	reqCtx, moved, stop := c.stallGuard(ctx)
 	defer stop()
-	req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, c.AttachmentURL(id), nil)
+	req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, c.apiURL("/rest/api/3/attachment/content/"+url.PathEscape(id)), nil)
 	if err != nil {
 		return "", fmt.Errorf("build request: %w", err)
 	}

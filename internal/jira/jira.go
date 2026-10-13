@@ -71,21 +71,31 @@ type Config struct {
 	SignIn CredentialStore
 	// OAuthClient is who SignIn's sign-in renews as; zero: the laneway app.
 	OAuthClient OAuthClient
+	// Atlassian keeps an Atlassian OAuth sign-in (atlassian.go) for the
+	// site CloudID: set, requests go to api.atlassian.com as OAuthClient,
+	// and BaseURL is the site for links.
+	Atlassian CredentialStore
+	CloudID   string
+	// WikiURL is the site Confluence is on when it isn't BaseURL;
+	// WikiCloudID its cloud id for an Atlassian sign-in.
+	WikiURL, WikiCloudID string
 }
 
 // Client fetches and caches issues for one instance. The zero value is not
 // usable; use New. Safe for concurrent use.
 type Client struct {
-	baseURL    string        // trimmed of any trailing slash
-	auth       string        // pre-encoded "Basic …" header value, empty when unconfigured
-	oauth      *oauthSession // a laneway-server sign-in instead (oauth.go)
-	spOverride string        // configured story-points custom-field id, "" to auto-detect
-	cardLimit  int           // most cards one board fetch returns
-	flagValue  string        // the Flagged option SetFlagged sets
-	inboxCap   int           // issues the inbox and standup read
-	timeout    time.Duration // one request's limit
-	custom     []string      // Config.CustomFields
-	flat       bool          // Config.FlatReplies
+	baseURL    string            // trimmed of any trailing slash
+	wikiURL    string            // Confluence's site: baseURL unless Config.WikiURL
+	auth       string            // pre-encoded "Basic …" header value, empty when unconfigured
+	oauth      *oauthSession     // a laneway-server sign-in instead (oauth.go)
+	atl        *atlassianSession // an Atlassian OAuth sign-in instead (atlassian.go)
+	spOverride string            // configured story-points custom-field id, "" to auto-detect
+	cardLimit  int               // most cards one board fetch returns
+	flagValue  string            // the Flagged option SetFlagged sets
+	inboxCap   int               // issues the inbox and standup read
+	timeout    time.Duration     // one request's limit
+	custom     []string          // Config.CustomFields
+	flat       bool              // Config.FlatReplies
 	http       *http.Client
 	// transfer is http without the whole-request limit, for attachment
 	// bodies that may take longer than timeout; stallGuard bounds them.
@@ -147,6 +157,7 @@ type Client struct {
 func New(cfg Config) *Client {
 	c := &Client{
 		baseURL:    strings.TrimRight(strings.TrimSpace(cfg.BaseURL), "/"),
+		wikiURL:    strings.TrimRight(strings.TrimSpace(cmp.Or(cfg.WikiURL, cfg.BaseURL)), "/"),
 		spOverride: strings.TrimSpace(cfg.StoryPointsField),
 		cardLimit:  cfg.CardLimit,
 		flagValue:  cmp.Or(strings.TrimSpace(cfg.FlagValue), "Impediment"),
@@ -164,6 +175,8 @@ func New(cfg Config) *Client {
 		c.cardLimit = DefaultCardLimit
 	}
 	switch {
+	case cfg.Atlassian != nil && cfg.CloudID != "":
+		c.atl = newAtlassianSession(cfg.OAuthClient, cfg.Atlassian, cfg.CloudID, cmp.Or(cfg.WikiCloudID, cfg.CloudID), c.timeout)
 	case cfg.SignIn != nil:
 		c.oauth = &oauthSession{base: c.baseURL, client: cfg.OAuthClient, store: cfg.SignIn, http: &http.Client{Timeout: c.timeout}}
 	case cfg.Email != "" && cfg.APIToken != "":
@@ -177,7 +190,7 @@ func New(cfg Config) *Client {
 // whether a fetch can succeed. The UI uses it to decide whether to offer the
 // panel at all.
 func (c *Client) Enabled() bool {
-	return c != nil && c.baseURL != "" && (c.auth != "" || c.oauth != nil)
+	return c != nil && c.baseURL != "" && (c.auth != "" || c.oauth != nil || c.atl != nil)
 }
 
 // BaseURL returns the configured instance root (no trailing slash). Used by
@@ -615,7 +628,7 @@ func (c *Client) attempt(ctx context.Context, method, path, what string, body an
 	if buf != nil {
 		rdr = bytes.NewReader(buf)
 	}
-	req, err := http.NewRequestWithContext(reqCtx, method, c.baseURL+path, rdr)
+	req, err := http.NewRequestWithContext(reqCtx, method, c.apiURL(path), rdr)
 	if err != nil {
 		return nil, -1, fmt.Errorf("build request: %w", err)
 	}
@@ -639,7 +652,7 @@ func (c *Client) attempt(ctx context.Context, method, path, what string, body an
 		return nil, -1, fmt.Errorf("call jira: %w", err)
 	}
 	defer resp.Body.Close()
-	if access != "" {
+	if c.oauth != nil {
 		learnClock(resp) // proofs carry the laneway-server's time
 	}
 
@@ -650,7 +663,7 @@ func (c *Client) attempt(ctx context.Context, method, path, what string, body an
 	if resp.StatusCode == http.StatusUnauthorized && access != "" && try == 0 {
 		// The access token was turned away (revoked, or the server
 		// restarted its clock): refresh and send it once more.
-		c.oauth.expire(access)
+		c.expire(access)
 		return nil, 0, statusError(resp.StatusCode, what, respBody, "")
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {

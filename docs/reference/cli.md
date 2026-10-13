@@ -27,7 +27,10 @@ the command; a command's flags go before its arguments.
 `laneway web -hosted` serves many people next to a laneway-server (see [In
 the browser](../guide/09-in-the-browser.md#for-many-people-next-to-a-laneway-server)):
 `-server`, `-url` (its own public address), `-client-id`, `-data`, `-addr`,
-`-cert`, `-key`; the app's secret in `LANEWAY_WEB_CLIENT_SECRET`.
+`-cert`, `-key`; the app's secret in `LANEWAY_WEB_CLIENT_SECRET`. On Jira
+Cloud ([guide](../guide/09-in-the-browser.md#for-many-people-on-jira-cloud))
+`-atlassian <site>` instead of `-server`, with `-confluence <site>` and
+`-scopes`, and `LANEWAY_WEB_SEAL_KEY`.
 
 `laneway web` flags: `-addr` (`127.0.0.1:8484`), `-remote` (allow an
 address that is not loopback; needs `-cert` and `-key`), `-cert`, `-key`

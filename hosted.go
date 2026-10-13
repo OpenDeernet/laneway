@@ -57,6 +57,9 @@ func hostedCmd(args []string, errOut io.Writer) int {
 	fs.SetOutput(errOut)
 	addr := fs.String("addr", "127.0.0.1:8484", i18n.T("address to listen on"))
 	server := fs.String("server", "", i18n.T("the laneway-server people sign in to (its URL)"))
+	site := fs.String("atlassian", "", i18n.T("instead of -server: the Jira Cloud site people sign in to through Atlassian (https://x.atlassian.net)"))
+	wiki := fs.String("confluence", "", i18n.T("with -atlassian: the site Confluence is on, when it is another one (https://y.atlassian.net)"))
+	scopes := fs.String("scopes", jira.AtlassianScopes, i18n.T("with -atlassian: the scopes asked for, as the app has them in Atlassian's developer console"))
 	public := fs.String("url", "", i18n.T("this server's own address as browsers reach it (https://…); its /auth/callback is the app's redirect URI"))
 	clientID := fs.String("client-id", "", i18n.T("the app's client id, registered in laneway-server (OAuth apps)"))
 	data := fs.String("data", "", i18n.T("directory for each person's config, state and sign-in"))
@@ -65,7 +68,18 @@ func hostedCmd(args []string, errOut io.Writer) int {
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
-	h, err := newHosted(*server, *public, *data, jira.OAuthClient{ID: *clientID, Secret: os.Getenv("LANEWAY_WEB_CLIENT_SECRET")})
+	client := jira.OAuthClient{ID: *clientID, Secret: os.Getenv("LANEWAY_WEB_CLIENT_SECRET")}
+	var h *hosted
+	var err error
+	if *site != "" {
+		if *server != "" {
+			fmt.Fprintln(errOut, "laneway:", i18n.T("-server and -atlassian: one or the other"))
+			return 2
+		}
+		h, err = newHostedAtlassian(*site, *wiki, *public, *data, *scopes, os.Getenv("LANEWAY_WEB_SEAL_KEY"), client)
+	} else {
+		h, err = newHosted(*server, *public, *data, client)
+	}
 	if err != nil {
 		fmt.Fprintln(errOut, "laneway:", err)
 		return 2
@@ -94,6 +108,9 @@ type hosted struct {
 	secure         bool
 	client         jira.OAuthClient
 	data           string
+	// atlassian is set when people sign in to a Jira Cloud site through
+	// Atlassian (hosted_atlassian.go) rather than to server.
+	atlassian *hostedAtlassian
 
 	mu       sync.Mutex
 	sessions map[string]*hostedSession // by the hash of the cookie
@@ -109,6 +126,9 @@ type hostedSession struct {
 
 type hostedLogin struct {
 	login *jira.Login
+	atl   *jira.AtlassianLogin
+	// again: the second consent, to take in the Confluence site.
+	again bool
 	nonce string // the browser's laneway_login cookie
 	next  string
 	at    time.Time
@@ -239,16 +259,29 @@ func (h *hosted) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // startLogin sends the browser to laneway-server's sign-in, to come back
 // to /auth/callback and then to next (a path here).
 func (h *hosted) startLogin(w http.ResponseWriter, r *http.Request, next string) {
+	h.beginLogin(w, r, next, false)
+}
+
+func (h *hosted) beginLogin(w http.ResponseWriter, r *http.Request, next string, again bool) {
 	if r.Method != http.MethodGet {
 		http.Error(w, i18n.T("signed out; reload the page to sign in"), http.StatusUnauthorized)
 		return
 	}
-	l, err := jira.BeginLoginAs(h.client, h.server, h.public+"/auth/callback")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+	var p hostedLogin
+	var authURL, state string
+	if h.atlassian != nil {
+		p.atl = jira.BeginAtlassianLogin(h.client, h.atlassian.site, h.atlassian.wiki, h.public+"/auth/callback", h.atlassian.scopes)
+		p.again = again
+		authURL, state = p.atl.AuthURL, p.atl.State
+	} else {
+		l, err := jira.BeginLoginAs(h.client, h.server, h.public+"/auth/callback")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		u, _ := url.Parse(l.AuthURL)
+		p.login, authURL, state = l, l.AuthURL, u.Query().Get("state")
 	}
-	state, _ := url.Parse(l.AuthURL)
 	if !strings.HasPrefix(next, "/") || strings.HasPrefix(next, "//") || strings.HasPrefix(next, "/auth/") || strings.ContainsAny(next, "\\\r\n\t") {
 		next = "/"
 	}
@@ -269,11 +302,12 @@ func (h *hosted) startLogin(w http.ResponseWriter, r *http.Request, next string)
 		http.Error(w, i18n.T("too many sign-ins under way; try again in a few minutes"), http.StatusServiceUnavailable)
 		return
 	}
-	h.logins[state.Query().Get("state")] = &hostedLogin{login: l, nonce: nonce, next: next, at: time.Now()}
+	p.nonce, p.next, p.at = nonce, next, time.Now()
+	h.logins[state] = &p
 	h.mu.Unlock()
 	http.SetCookie(w, &http.Cookie{Name: hostedLoginCookie, Value: nonce, Path: "/auth/", MaxAge: int(hostedLoginTTL.Seconds()), HttpOnly: true,
 		Secure: h.secure, SameSite: http.SameSiteLaxMode})
-	http.Redirect(w, r, l.AuthURL, http.StatusFound)
+	http.Redirect(w, r, authURL, http.StatusFound)
 }
 
 // callback finishes a sign-in: the code swapped for tokens bound to a key
@@ -290,6 +324,10 @@ func (h *hosted) callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.SetCookie(w, &http.Cookie{Name: hostedLoginCookie, Value: "", Path: "/auth/", MaxAge: -1, HttpOnly: true, Secure: h.secure, SameSite: http.SameSiteLaxMode})
+	if h.atlassian != nil {
+		h.atlassianCallback(w, r, p)
+		return
+	}
 	creds, err := p.login.Finish(r.Context(), r.URL.Query())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
@@ -317,7 +355,7 @@ func (h *hosted) callback(w http.ResponseWriter, r *http.Request) {
 	// A sign-in again: the running app stopped first, so it can't keep its
 	// tokens over the new ones, and the old grant revoked.
 	h.stopApp(me.AccountID)
-	h.signIn(me.AccountID).SignOut(r.Context())
+	h.signOut(r.Context(), me.AccountID)
 	// The latest, rotated sign-in from the check above, in its place.
 	if raw, err := os.ReadFile(tmp); err == nil {
 		if err := os.WriteFile(filepath.Join(dir, "sign-in.json"), raw, 0o600); err != nil {
@@ -325,18 +363,24 @@ func (h *hosted) callback(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	h.startSession(w, me.AccountID)
+	http.Redirect(w, r, p.next, http.StatusSeeOther)
+}
+
+// startSession gives the browser a session for account.
+func (h *hosted) startSession(w http.ResponseWriter, account string) {
+	dir := h.accountDir(account)
 	if _, err := os.Stat(filepath.Join(dir, "config.yaml")); errors.Is(err, os.ErrNotExist) {
 		os.WriteFile(filepath.Join(dir, "config.yaml"), []byte("# laneway web keeps your settings here\nui: {}\n"), 0o600)
 	}
 	secret := randomString()
 	now := time.Now()
 	h.mu.Lock()
-	h.sessions[hashSecret(secret)] = &hostedSession{Account: me.AccountID, Created: now, LastSeen: now}
+	h.sessions[hashSecret(secret)] = &hostedSession{Account: account, Created: now, LastSeen: now}
 	h.saveSessions()
 	h.mu.Unlock()
 	http.SetCookie(w, &http.Cookie{Name: hostedCookie, Value: secret, Path: "/", HttpOnly: true, Secure: h.secure, SameSite: http.SameSiteLaxMode,
 		Expires: now.Add(hostedMax)})
-	http.Redirect(w, r, p.next, http.StatusSeeOther)
 }
 
 // logout ends the session and the person's sign-in on laneway-server.
@@ -356,10 +400,19 @@ func (h *hosted) logout(w http.ResponseWriter, r *http.Request) {
 		// Their app may be gone (idle, a restart): the sign-in is read from
 		// their directory.
 		h.endAccount(account)
-		h.signIn(account).SignOut(r.Context())
+		h.signOut(r.Context(), account)
 	}
 	http.SetCookie(w, &http.Cookie{Name: hostedCookie, Value: "", Path: "/", MaxAge: -1, HttpOnly: true, Secure: h.secure, SameSite: http.SameSiteLaxMode})
 	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+// signOut ends the person's sign-in, app or not.
+func (h *hosted) signOut(ctx context.Context, account string) {
+	if h.atlassian != nil {
+		h.atlassianSignOut(account)
+		return
+	}
+	h.signIn(account).SignOut(ctx)
 }
 
 // signIn is a client on the person's sign-in alone, app or not.
@@ -420,12 +473,20 @@ func (h *hosted) options(account string) (web.Options, error) {
 		return web.Options{}, err
 	}
 	jc := config.JiraConfig{BaseURL: h.server, SignIn: config.SignInLaneway, CredentialsFile: filepath.Join(dir, "sign-in.json")}
+	if h.atlassian != nil {
+		jc = config.JiraConfig{BaseURL: h.atlassian.site}
+	}
 	opt := web.Options{Version: version, Jira: jc, UI: hostedUI(cfg.UI), ConfigPath: cfgPath, AllowedHosts: []string{h.host}, Hosted: true}
 	if opt.Store, err = store.Open(filepath.Join(dir, "state.json")); err != nil {
 		return opt, err
 	}
 	jcfg := ui.JiraConfig(jc, opt.UI)
 	jcfg.OAuthClient = h.client
+	if h.atlassian != nil {
+		if err := h.atlassian.signIn(h, account, &jcfg); err != nil {
+			return opt, err
+		}
+	}
 	opt.Client = jira.New(jcfg)
 	opt.Client.SetQueue(offline.To(opt.Store))
 	opt.Client.SetLayouts(opt.Store)

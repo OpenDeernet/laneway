@@ -31,7 +31,7 @@ var pagePathRe = regexp.MustCompile(`/wiki/spaces/[^/]+/pages/(\d+)`)
 // for anything else, a page on another site too.
 func (c *Client) PageID(u string) string {
 	pu, err := url.Parse(u)
-	base, err2 := url.Parse(c.baseURL)
+	base, err2 := url.Parse(c.wikiURL)
 	if err != nil || err2 != nil || !strings.EqualFold(pu.Host, base.Host) || !strings.HasPrefix(pu.Path, "/wiki/") {
 		return ""
 	}
@@ -95,7 +95,7 @@ func (c *Client) ConfluencePage(ctx context.Context, id string) (Page, error) {
 	md := pageMarkdown(raw, atts)
 	base := strings.TrimSuffix(resp.Links.Base, "/")
 	if base == "" {
-		base = c.baseURL + "/wiki"
+		base = c.wikiURL + "/wiki"
 	}
 	pg := Page{ID: resp.ID, Title: safeterm.Line(resp.Title), URL: base + resp.Links.WebUI, Markdown: safeterm.Text(md),
 		Version: resp.Version.Number, Edited: resp.Version.CreatedAt}

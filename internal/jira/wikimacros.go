@@ -371,9 +371,9 @@ func (w *wikiMacros) list(spaceID string, ps []treePage, depth int, p map[string
 }
 
 func (w *wikiMacros) pageLine(pg treePage) adfNode {
-	href := w.c.baseURL + "/wiki" + pg.Links.WebUI
+	href := w.c.wikiURL + "/wiki" + pg.Links.WebUI
 	if pg.Links.WebUI == "" {
-		href = w.c.baseURL + "/wiki/pages/viewpage.action?pageId=" + pg.ID.String()
+		href = w.c.wikiURL + "/wiki/pages/viewpage.action?pageId=" + pg.ID.String()
 	}
 	return para(cmp.Or(pg.Title, "Page "+pg.ID.String()), adfMark{Type: "link", Attrs: map[string]any{"href": href}})
 }
@@ -559,7 +559,7 @@ func (w *wikiMacros) recentlyUpdated(p map[string]string) ([]adfNode, bool) {
 				text = r.Title + " on " + r.Content.Container.Title
 			}
 		}
-		it := recentChange{text: text, href: w.c.baseURL + "/wiki" + r.URL, who: r.Content.Version.By.DisplayName}
+		it := recentChange{text: text, href: w.c.wikiURL + "/wiki" + r.URL, who: r.Content.Version.By.DisplayName}
 		if t, err := time.Parse(time.RFC3339, r.LastModified); err == nil {
 			it.when = t
 		}

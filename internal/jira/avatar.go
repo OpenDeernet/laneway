@@ -23,6 +23,14 @@ func (c *Client) Avatar(ctx context.Context, avatarURL string) ([]byte, error) {
 	if !ok {
 		return nil, fmt.Errorf("avatar: bad url")
 	}
+	if own && c.atl != nil {
+		// The sites' own avatars come through Atlassian's API for them.
+		if p, ok := strings.CutPrefix(target, c.wikiURL+"/wiki/"); ok {
+			target = c.apiURL("/wiki/" + p)
+		} else {
+			target = c.apiURL(strings.TrimPrefix(target, c.baseURL))
+		}
+	}
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
@@ -76,7 +84,12 @@ func (c *Client) avatarTarget(raw string) (target string, own, ok bool) {
 		return "", false, false
 	}
 	prefixes := avatarPrefixes
-	if b := strings.TrimRight(c.baseURL, "/"); b != "" {
+	// Confluence on a site of its own counts as the instance for its
+	// pictures.
+	own = c.wikiURL != "" && c.wikiURL != c.baseURL && strings.HasPrefix(raw, c.wikiURL+"/wiki/")
+	if own {
+		prefixes = append([]string{c.wikiURL + "/"}, prefixes...)
+	} else if b := strings.TrimRight(c.baseURL, "/"); b != "" {
 		prefixes = append([]string{b + "/"}, prefixes...)
 	}
 	for i, prefix := range prefixes {

@@ -353,6 +353,9 @@ func (o *oauthSession) expire(access string) {
 // proof for a laneway sign-in. It returns the access token sent ("" for
 // Basic).
 func (c *Client) authorize(req *http.Request) (string, error) {
+	if c.atl != nil {
+		return c.atl.authorize(req)
+	}
 	if c.oauth == nil {
 		req.Header.Set("Authorization", c.auth)
 		return "", nil
@@ -368,6 +371,24 @@ func (c *Client) authorize(req *http.Request) (string, error) {
 	req.Header.Set("Authorization", "DPoP "+tok)
 	req.Header.Set("DPoP", p)
 	return tok, nil
+}
+
+// apiURL is where the request for path (/rest/…, /wiki/…) goes: the
+// site, or Atlassian's API for it.
+func (c *Client) apiURL(path string) string {
+	if c.atl != nil {
+		return c.atl.apiURL(path)
+	}
+	return c.baseURL + path
+}
+
+// expire drops the access token the server turned away.
+func (c *Client) expire(access string) {
+	if c.atl != nil {
+		c.atl.expire(access)
+	} else if c.oauth != nil {
+		c.oauth.expire(access)
+	}
 }
 
 // SignedInAs is the account a laneway sign-in is for ("" for API-token

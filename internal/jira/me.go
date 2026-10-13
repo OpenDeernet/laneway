@@ -203,7 +203,7 @@ func (c *Client) sendRaw(ctx context.Context, method, path, what, contentType st
 	if body != nil {
 		rdr = bytes.NewReader(body)
 	}
-	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+path, rdr)
+	req, err := http.NewRequestWithContext(ctx, method, c.apiURL(path), rdr)
 	if err != nil {
 		return nil, fmt.Errorf("build request: %w", err)
 	}

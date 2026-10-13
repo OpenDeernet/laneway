@@ -149,9 +149,9 @@ refresh.
 ## For many people, next to a laneway-server
 
 `laneway web -hosted` serves the browser app to everyone who signs in to
-a [laneway-server](https://github.com/cornedor/laneway-server): one server
-for a team, nothing to install for them. Jira can't be served this way; it
-needs laneway-server's sign-in.
+a [laneway-server](https://github.com/cornedor/laneway-server), or to a
+Jira Cloud site through Atlassian ([below](#for-many-people-on-jira-cloud)):
+one server for a team, nothing to install for them.
 
 1. In laneway-server, under OAuth apps, register an app with the redirect
    URI `https://<this server>/auth/callback` and the scopes
@@ -182,6 +182,38 @@ checkouts, worklog proposals from commands and calendars, GitLab, rules,
 start at login, adding sites; settings that run commands or name files
 (`ui.calendar`, `ui.download_dir`) can't be set. `internal/web/hosted-routes.txt`
 lists which routes serve; any other answers 403.
+
+## For many people, on Jira Cloud
+
+`laneway web -hosted -atlassian` signs people in to one Jira Cloud site
+through Atlassian's OAuth 2.0 (3LO).
+
+1. In Atlassian's [developer console](https://developer.atlassian.com/console/myapps/),
+   create an OAuth 2.0 integration. Under Authorization set the callback
+   URL `https://<this server>/auth/callback`. Under Permissions add Jira
+   API, Jira Software, Jira Service Management, Confluence API and User
+   identity API, with the scopes in `laneway web -hosted -h` (`-scopes`).
+   Under Distribution share it, so people outside your account may sign in.
+2. Start it, behind a TLS proxy or with `-cert` and `-key`:
+
+   ```sh
+   LANEWAY_WEB_CLIENT_SECRET=… LANEWAY_WEB_SEAL_KEY=… laneway web -hosted \
+     -atlassian https://acme.atlassian.net -url https://board.example.com \
+     -client-id <the app's client id> -data /var/lib/laneway-web
+   ```
+
+   `LANEWAY_WEB_SEAL_KEY` (32 characters or more, e.g. `openssl rand -hex 32`)
+   encrypts each person's tokens in `-data`: Atlassian's tokens work for
+   whoever holds them. Changing it signs everyone out.
+3. Confluence on another site of the same organisation: add
+   `-confluence https://acme-wiki.atlassian.net`. Atlassian's consent takes
+   one site at a time, so at their first sign-in people are asked twice:
+   pick the Jira site, then the Confluence one. Skipped, Jira still works.
+
+Sign out ends the session and forgets the tokens here; Atlassian revokes
+an app only from the person's [Connected apps](https://id.atlassian.com/manage-profile/apps).
+Jira's private APIs aren't open to apps, so development info (branches,
+commits, pull requests on an issue) and card colours may stay empty.
 
 ## Tips
 
