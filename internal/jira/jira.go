@@ -668,7 +668,12 @@ func (c *Client) attempt(ctx context.Context, method, path, what string, body an
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		retryAfter := resp.Header.Get("Retry-After")
-		return nil, retryIn(method, resp.StatusCode, retryAfter, try), statusError(resp.StatusCode, what, respBody, retryAfter)
+		err := statusError(resp.StatusCode, what, respBody, retryAfter)
+		if u, ok := err.(unauthorized); ok && c.atl != nil {
+			u.oauth = true
+			err = u
+		}
+		return nil, retryIn(method, resp.StatusCode, retryAfter, try), err
 	}
 	// Jira's text reaches the terminal by many paths; no string in it may
 	// carry an escape.
@@ -724,9 +729,17 @@ func (e notFound) Is(t error) bool { return t == ErrNotFound }
 // ErrUnauthorized is a 401 (a wrong email or token), for errors.Is.
 var ErrUnauthorized = errors.New("jira: not authorized")
 
-type unauthorized struct{ what string }
+// oauth: the client signs in through Atlassian, whose 401 for a scope
+// the sign-in lacks has nothing to do with a token in the config.
+type unauthorized struct {
+	what  string
+	oauth bool
+}
 
 func (e unauthorized) Error() string {
+	if e.oauth {
+		return fmt.Sprintf("jira: not authorized for %s · the sign-in lacks a scope for it; sign out and in again once the app has it", e.what)
+	}
 	return fmt.Sprintf("jira: not authorized for %s · check email and api_token in the config", e.what)
 }
 func (e unauthorized) Is(t error) bool { return t == ErrUnauthorized }
@@ -749,7 +762,7 @@ func statusError(code int, what string, body []byte, retryAfter string) error {
 	msg := safeterm.Line(jiraMessages(body))
 	switch code {
 	case http.StatusUnauthorized:
-		return unauthorized{what}
+		return unauthorized{what: what}
 	case http.StatusForbidden:
 		if msg != "" {
 			return forbidden{fmt.Sprintf("jira: no permission for %s: %s", what, msg)}
