@@ -28,6 +28,9 @@ func (c *Client) CardColors(ctx context.Context, board int) (CardColors, error) 
 	if !c.Enabled() {
 		return CardColors{}, errNotConfigured
 	}
+	if c.atl != nil {
+		return CardColors{}, nil // greenhopper is private: Atlassian keeps apps out
+	}
 	var model struct {
 		CardColorConfig struct {
 			Strategy string `json:"cardColorStrategy"`

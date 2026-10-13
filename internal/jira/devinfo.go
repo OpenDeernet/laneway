@@ -94,6 +94,9 @@ func (c *Client) DevInfo(ctx context.Context, key string) ([]DevItem, error) {
 	if !c.Enabled() {
 		return nil, errNotConfigured
 	}
+	if c.atl != nil {
+		return nil, nil // dev-status is private: Atlassian keeps apps out
+	}
 	var iss struct {
 		ID string `json:"id"`
 	}

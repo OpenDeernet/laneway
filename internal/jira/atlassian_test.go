@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -146,5 +147,23 @@ func TestAtlassianLoginSite(t *testing.T) {
 	}
 	if _, err := l.Finish(t.Context(), url.Values{"state": {"other"}, "code": {"x"}}); err == nil {
 		t.Error("a foreign state was taken")
+	}
+}
+
+// Jira's private APIs aren't open to apps: an Atlassian sign-in doesn't
+// ask them, and shows nothing rather than an error.
+func TestAtlassianPrivateAPIs(t *testing.T) {
+	f := newAtlassianFake(t)
+	c := atlassianClient(&memStore{raw: []byte(`{"refresh":"r0","cloudId":"cid"}`)})
+	if d, err := c.DevInfo(t.Context(), "A-1"); err != nil || d != nil {
+		t.Errorf("dev info %v %v", d, err)
+	}
+	if cc, err := c.CardColors(t.Context(), 1); err != nil || !reflect.DeepEqual(cc, CardColors{}) {
+		t.Errorf("card colours %v %v", cc, err)
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if len(f.headers) != 0 {
+		t.Errorf("asked Jira %d times", len(f.headers))
 	}
 }
