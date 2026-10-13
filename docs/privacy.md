@@ -27,14 +27,19 @@ your permissions. Atlassian's consent screen shows the exact scopes.
 
 - your sign-in (access and refresh tokens). On Jira Cloud they are
   encrypted with a key held outside that directory.
-- your settings and a state file: remembered choices, cached boards,
-  edits waiting to be sent.
+- your settings and a state file: remembered choices (views, filters,
+  pins), drafts, edits waiting to be sent. Boards and issues are cached in
+  your browser, not on the server.
 - your session: a random value in an HttpOnly cookie in your browser; the
   server keeps only its hash, your account id and when it was made and last
   used. It ends after 12 hours idle, 7 days at most.
 
 Your tokens never reach the browser. Nothing is shared with anyone else,
 sold, or used for anything but showing you your work.
+
+On Jira Cloud the server reports the account ids it keeps to Atlassian
+once a week; for an account Atlassian says was closed, it deletes
+everything it keeps of it.
 
 **Signing out** ends the session and deletes the stored tokens. To
 withdraw the app's access on Atlassian too, remove it under
