@@ -33,8 +33,8 @@ var (
 // (Jira Software, Confluence v2). Confluence is read only. The app in the
 // developer console must have each of them.
 const AtlassianScopes = "read:jira-work write:jira-work read:jira-user manage:jira-project " +
-	"read:board-scope:jira-software write:board-scope:jira-software read:sprint:jira-software write:sprint:jira-software " +
-	"read:epic:jira-software write:epic:jira-software read:issue:jira-software write:issue:jira-software " +
+	"read:board-scope:jira-software write:board-scope:jira-software read:board-scope.admin:jira-software " +
+	"read:sprint:jira-software write:sprint:jira-software read:issue:jira-software write:issue:jira-software " +
 	"read:servicedesk-request write:servicedesk-request " +
 	"search:confluence read:confluence-user readonly:content.attachment:confluence read:page:confluence read:space:confluence read:attachment:confluence " +
 	"read:me offline_access"
