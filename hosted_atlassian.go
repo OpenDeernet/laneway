@@ -154,6 +154,9 @@ const (
 	reportRetryIn = 6 * time.Hour
 )
 
+// errNobodyYet is a report with no one to report.
+var errNobodyYet = errors.New("no one signed in yet")
+
 type reportState struct {
 	Next time.Time `json:"next"`
 }
@@ -183,6 +186,8 @@ func (h *hosted) reportIfDue(ctx context.Context, now time.Time) {
 	}
 	cycle, err := h.report(ctx)
 	switch {
+	case errors.Is(err, errNobodyYet):
+		return // again at the next check
 	case err != nil:
 		log.Printf("laneway: personal data report: %v", err)
 		st.Next = now.Add(reportRetryIn)
@@ -218,7 +223,7 @@ func (h *hosted) report(ctx context.Context) (time.Duration, error) {
 		kept[e.Name()] = true
 	}
 	if len(accounts) == 0 {
-		return 0, nil
+		return 0, errNobodyYet
 	}
 	var answer jira.ReportAnswer
 	err = jira.ErrSignedOut

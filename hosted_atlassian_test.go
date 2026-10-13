@@ -169,6 +169,12 @@ func newAtlassianGateway(t *testing.T, wiki string) (*fakeAtlassian, *hosted, st
 
 func TestHostedAtlassian(t *testing.T) {
 	f, h, gw := newAtlassianGateway(t, "")
+	// No one yet: nothing reported, and the first sign-in is reported at
+	// the next check, not a week on.
+	h.reportIfDue(t.Context(), time.Now())
+	if _, err := os.Stat(filepath.Join(h.data, reportFile)); !os.IsNotExist(err) {
+		t.Errorf("a report with no one put off the next: %v", err)
+	}
 	ada := browserFor()
 	res, err := ada.Get(gw + "/board/ABC/1")
 	if err != nil {
@@ -319,6 +325,12 @@ func TestHostedAtlassianConfluenceLeftOut(t *testing.T) {
 // closed one is erased, the others stay.
 func TestHostedAtlassianReport(t *testing.T) {
 	f, h, gw := newAtlassianGateway(t, "")
+	// No one yet: nothing reported, and the first sign-in is reported at
+	// the next check, not a week on.
+	h.reportIfDue(t.Context(), time.Now())
+	if _, err := os.Stat(filepath.Join(h.data, reportFile)); !os.IsNotExist(err) {
+		t.Errorf("a report with no one put off the next: %v", err)
+	}
 	ada := browserFor()
 	if res, err := ada.Get(gw + "/"); err == nil {
 		res.Body.Close()
