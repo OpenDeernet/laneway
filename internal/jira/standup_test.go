@@ -116,3 +116,46 @@ func TestTeamStandup(t *testing.T) {
 		t.Errorf("entries = %+v", got)
 	}
 }
+
+// TestStandupCachesIssues: stepping the standup's start back reads only the
+// issues it has not read, and still filters by the new start.
+func TestStandupCachesIssues(t *testing.T) {
+	now := time.Now().UTC()
+	at := func(d time.Duration) string { return now.Add(-d).Format(jiraTime) }
+	var reads int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/rest/api/3/myself":
+			io.WriteString(w, `{"accountId":"me"}`)
+		case r.URL.Path == "/rest/api/3/search/jql":
+			var body struct {
+				JQL string `json:"jql"`
+			}
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			if strings.HasPrefix(body.JQL, `issue in updatedBy("me", "-`) {
+				io.WriteString(w, `{"issues":[{"key":"A-1","fields":{"summary":"One","updated":"`+at(time.Hour)+`"}}]}`)
+			} else {
+				io.WriteString(w, `{"issues":[]}`)
+			}
+		case r.URL.Path == "/rest/api/3/issue/A-1/changelog":
+			reads++
+			io.WriteString(w, `{"total":0,"values":[]}`)
+		case r.URL.Path == "/rest/api/3/issue/A-1/comment":
+			io.WriteString(w, `{"comments":[{"author":{"accountId":"me"},"created":"`+at(3*time.Hour)+`",
+			  "body":{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"on it"}]}]}}]}`)
+		default:
+			t.Errorf("unexpected %s", r.URL)
+		}
+	}))
+	defer srv.Close()
+	c := New(Config{BaseURL: srv.URL, Email: "me@x.test", APIToken: "tok"})
+	for since, want := range map[time.Duration]int{5 * time.Hour: 1, 2 * time.Hour: 0} {
+		got, err := c.Standup(context.Background(), now.Add(-since))
+		if err != nil || len(got) != want {
+			t.Errorf("since %s: %d entries, %v, want %d", since, len(got), err, want)
+		}
+	}
+	if reads != 1 {
+		t.Errorf("changelog read %d times, want 1", reads)
+	}
+}

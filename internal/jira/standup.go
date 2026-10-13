@@ -46,7 +46,7 @@ func (c *Client) activity(ctx context.Context, since time.Time, accountIDs []str
 	for _, id := range accountIDs {
 		by = append(by, fmt.Sprintf(`issue in updatedBy("%s", "-%dm")`, id, mins))
 	}
-	issues, err := c.search(ctx, strings.Join(by, " OR ")+" ORDER BY updated DESC", []string{"summary"})
+	issues, err := c.search(ctx, strings.Join(by, " OR ")+" ORDER BY updated DESC", []string{"summary", "updated"})
 	if err != nil {
 		return nil, err
 	}
@@ -62,9 +62,16 @@ func (c *Client) activity(ctx context.Context, since time.Time, accountIDs []str
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			var summary string
+			var summary, updated string
 			_ = json.Unmarshal(is.Fields["summary"], &summary)
-			entries, err := c.issueActivity(ctx, is.Key, summary, since, theirs, "")
+			_ = json.Unmarshal(is.Fields["updated"], &updated)
+			all, err := c.issueEntries(ctx, is.Key, summary, updated)
+			var entries []InboxEntry
+			for _, e := range all {
+				if e.When.After(since) && theirs(e.WhoID) {
+					entries = append(entries, e)
+				}
+			}
 			entries = dropWorklogChanges(entries)
 			mu.Lock()
 			out = append(out, entries...)
@@ -100,6 +107,21 @@ func (c *Client) activity(ctx context.Context, since time.Time, accountIDs []str
 	}
 	slices.SortFunc(out, func(a, b InboxEntry) int { return a.When.Compare(b.When) })
 	return out, nil
+}
+
+// issueEntries is every change and comment on key, whoever made it. They
+// are kept while the issue's updated stamp stays, so a standup stepped a day
+// back reads only the issues it has not seen.
+func (c *Client) issueEntries(ctx context.Context, key, summary, updated string) ([]InboxEntry, error) {
+	id := key + " " + updated
+	if v, ok := c.actCache.Load(id); ok && updated != "" {
+		return v.([]InboxEntry), nil
+	}
+	entries, err := c.issueActivity(ctx, key, summary, time.Time{}, func(string) bool { return true }, "")
+	if err == nil && updated != "" {
+		c.actCache.Store(id, entries)
+	}
+	return entries, err
 }
 
 // worklogFields are the changelog's side of logging work, which the

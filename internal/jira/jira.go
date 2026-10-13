@@ -93,6 +93,7 @@ type Client struct {
 	cardLimit  int               // most cards one board fetch returns
 	flagValue  string            // the Flagged option SetFlagged sets
 	inboxCap   int               // issues the inbox and standup read
+	actCache   sync.Map          // issue key + its updated stamp → every change and comment on it ([]InboxEntry), for activity
 	timeout    time.Duration     // one request's limit
 	custom     []string          // Config.CustomFields
 	flat       bool              // Config.FlatReplies
