@@ -13,7 +13,8 @@ pre { background: var(--bg-3); padding: var(--pad); border-radius: var(--radius)
 h1,h2,h3 { margin: 0 0 .4em; line-height: 1.25; } h2 { font-size: 1.25em; } h3 { font-size: 1.05em; }
 .dim { color: var(--fg-2); } .faint { color: var(--fg-3); }
 [hidden] { display: none !important; }
-::selection { background: var(--accent-bg); }
+/* translucent: --accent-bg is the panel/chip fill, so it vanished there */
+::selection { background: color-mix(in srgb, var(--accent) 38%, transparent); }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 * { scrollbar-width: thin; scrollbar-color: var(--bg-4) transparent; }
 /* icons (lib/icons.js): Lucide line icons at the text's size and colour */
