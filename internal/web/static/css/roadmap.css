@@ -1,7 +1,10 @@
+/* --rm-lw: the labels' width; roadmap.js labelW() reads it. A phone keeps most of the screen for the timeline. */
+:root { --rm-lw: 20rem; }
+@media (max-width: 700px) { :root { --rm-lw: 10rem; } .rm-label .rm-key { display: none; } }
 .rm { height: 100%; overflow: auto; position: relative; outline: none; }
-.rm-inner { position: relative; min-height: 100%; background-image: repeating-linear-gradient(to right, var(--border) 0 1px, transparent 1px var(--wk)); background-position: calc(20rem + var(--wko)) 0; background-repeat: repeat; }
+.rm-inner { position: relative; min-height: 100%; background-image: repeating-linear-gradient(to right, var(--border) 0 1px, transparent 1px var(--wk)); background-position: calc(var(--rm-lw) + var(--wko)) 0; background-repeat: repeat; }
 .rm-head { display: flex; position: sticky; top: 0; z-index: 4; background: var(--bg-2); border-bottom: 1px solid var(--border); height: 3.143rem; }
-.rm-corner { position: sticky; left: 0; z-index: 5; width: 20rem; flex: none; background: var(--bg-2); border-right: 1px solid var(--border); padding: 0 calc(var(--pad) * 1.5); display: flex; align-items: center; font-weight: 600; }
+.rm-corner { position: sticky; left: 0; z-index: 5; width: var(--rm-lw); flex: none; background: var(--bg-2); border-right: 1px solid var(--border); padding: 0 calc(var(--pad) * 1.5); display: flex; align-items: center; font-weight: 600; }
 .rm-axis { position: relative; flex: none; }
 .rm-months, .rm-ticks { position: absolute; left: 0; right: 0; height: 1.571rem; } .rm-months { top: 0; } .rm-ticks { top: 1.571rem; }
 .rm-months span, .rm-ticks span { position: absolute; top: 0; bottom: 0; padding: 0 .429rem; color: var(--fg-2); font-size: .857rem; line-height: 1.571rem; white-space: nowrap; overflow: hidden; border-left: 1px solid var(--border); }
@@ -11,7 +14,7 @@
 .rm-row.kid { height: var(--row); } .rm-row.kid .rm-label { padding-left: 2.429rem; color: var(--fg-2); }
 .rm-row.group .rm-label { font-weight: 600; } .rm-row.ingroup .rm-label { padding-left: 1.571rem; } .rm-row.kid.ingroup .rm-label { padding-left: 3.571rem; }
 .rm-row.cur .rm-label { background: var(--accent-bg); } .rm-row.cur { box-shadow: inset 0 0 0 1px var(--accent); }
-.rm-label { position: sticky; left: 0; z-index: 3; width: 20rem; flex: none; display: flex; align-items: center; gap: .429rem; padding: 0 calc(var(--pad) * 1.5) 0 .429rem; background: var(--bg-2); border-right: 1px solid var(--border); min-width: 0; cursor: default; }
+.rm-label { position: sticky; left: 0; z-index: 3; width: var(--rm-lw); flex: none; display: flex; align-items: center; gap: .429rem; padding: 0 calc(var(--pad) * 1.5) 0 .429rem; background: var(--bg-2); border-right: 1px solid var(--border); min-width: 0; cursor: default; }
 .rm-fold { width: 1.143rem; flex: none; text-align: center; background: none; border: 0; color: var(--fg-3); cursor: pointer; padding: 0; font: inherit; }
 .rm-key { font-family: var(--font-mono); font-size: .857rem; color: var(--fg-3); flex: none; }
 .rm-sum { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

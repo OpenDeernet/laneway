@@ -13,7 +13,7 @@ import { T, Tn } from '../lib/i18n.js';
 
 const DAY = 86400000;
 const ZOOMS = [2, 4, 8, 14, 24, 40, 64]; // px per day
-const labelW = () => 20 * remPx(); // .rm-label / .rm-corner are 20rem
+const labelW = () => (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--rm-lw')) || 20) * remPx(); // .rm-label / .rm-corner, in rem
 const ms = t => (isZero(t) ? null : +new Date(t));
 const midnight = t => { const d = new Date(t); return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); };
 const addDays = (t, n) => { const d = new Date(t); return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n).getTime(); };
@@ -135,7 +135,8 @@ export default async function mount(el, { app, params, scope, context, toolbar }
     inner.append(list);
     inner.append(h('div.rm-today', { style: { left: labelW() + xOf(midnight(now)) + ppd() / 2 + 'px' }, title: T('Today') }));
     clear(scroller).append(inner);
-    if (reset) { scroller.scrollLeft = Math.max(xOf(now) - scroller.clientWidth / 3, 0); keepScrollApply(0, keepTop); } else keepScrollApply(keepScroll, keepTop);
+    // A fresh draw puts today a third into the timeline (beside the sticky labels).
+    if (reset) keepScrollApply(Math.max(xOf(now) - (scroller.clientWidth - labelW()) / 3, 0), keepTop); else keepScrollApply(keepScroll, keepTop);
     markCur();
   }
   const keepScrollApply = (l, t) => { scroller.scrollLeft = l; scroller.scrollTop = t; };
