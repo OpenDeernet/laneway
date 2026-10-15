@@ -40,6 +40,11 @@ func TestLayoutCardLines(t *testing.T) {
 	if line := ansi.Strip(cardSides(styled[2], 12)); line != "#ui #we… Ada" {
 		t.Errorf("narrow = %q: the left side gives way", line)
 	}
+	// No extra fields: no dot after the last piece.
+	bare := layoutCardLines(jira.Card{Key: "ABC-2", Assignee: "Ada"}, &cardLayout{bottom: []string{"assignee", "x:*"}}, true, 5, cardLook{})
+	if line := ansi.Strip(bare[2]); line != "Ada" {
+		t.Errorf("no extras = %q", line)
+	}
 }
 
 func TestCardLook(t *testing.T) {

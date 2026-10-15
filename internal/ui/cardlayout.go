@@ -293,7 +293,9 @@ func layoutCardLines(c jira.Card, l *cardLayout, styled bool, stale int, lk card
 			}
 			return dimmed(c.Assignee)
 		case "x:*":
-			return dimmed(strings.Join(jiraExtraValues(c), " · "))
+			if vs := jiraExtraValues(c); len(vs) > 0 {
+				return dimmed(strings.Join(vs, " · "))
+			}
 		default:
 			if v := extra[strings.TrimPrefix(f, "x:")]; v != "" {
 				return dimmed(v)
