@@ -190,8 +190,10 @@ export function mountIssue(el, key, { app, full, card }) {
     if (term.has() || st.tab === 'terminal') ts.push(['terminal', T('Terminal'), '4']);
     clear(tabs).append(...ts.map(([id, label, k]) => {
       const s = id === 'terminal' && term.status();
-      return h('button.tab' + (st.tab === id ? '.on' : ''), { role: 'tab', 'aria-selected': st.tab === id, onclick: () => (id !== 'terminal' ? setTab(id) : st.tab !== 'terminal' && openTerm(false)) },
-        s ? h('span.it-st.st-' + s, { title: T('agent %s', LABEL[s] || s) }, icon(ICON[s] || ICON.unknown)) : null, label, h('kbd', k));
+      // The key in the tooltip: a number beside the label reads as a count.
+      return h('button.tab' + (st.tab === id ? '.on' : ''), { role: 'tab', 'aria-selected': st.tab === id, title: label + ' (' + k + ')',
+        onclick: () => (id !== 'terminal' ? setTab(id) : st.tab !== 'terminal' && openTerm(false)) },
+        s ? h('span.it-st.st-' + s, { title: T('agent %s', LABEL[s] || s) }, icon(ICON[s] || ICON.unknown)) : null, label);
     }));
   }
   function setTab(t) {

@@ -20,7 +20,6 @@
 .iss-tabs { display: flex; gap: .143rem; padding: 0 calc(var(--pad) * 2); border-bottom: 1px solid var(--border); flex: none; }
 .tab { font: inherit; color: var(--fg-2); background: none; border: 0; border-bottom: 2px solid transparent; padding: .429rem .714rem; cursor: pointer; display: flex; gap: .429rem; align-items: baseline; }
 .tab:hover { color: var(--fg); } .tab.on { color: var(--fg); border-bottom-color: var(--accent); }
-.tab kbd { font-size: .714rem; opacity: .6; }
 
 .iss-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: var(--pad) calc(var(--pad) * 2) 2.857rem; outline: none; }
 .pane[hidden] { display: none; }

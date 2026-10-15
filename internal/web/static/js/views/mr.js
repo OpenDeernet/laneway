@@ -79,7 +79,7 @@ export default function mount(el, { app, scope, query }) {
     const ts = [['overview', T('Overview'), '1'], ['changes', T('Changes') + (fs.length ? ' ' + fs.length : ''), '2']];
     const n = drafts().length;
     // The review's buttons at the tabs' end: beside the diff, on either tab.
-    clear(tabs).append(...ts.map(([id, text, k]) => h('button.tab' + (tab === id ? '.on' : ''), { role: 'tab', 'aria-selected': tab === id, onclick: () => setTab(id) }, text, h('kbd', k))),
+    clear(tabs).append(...ts.map(([id, text, k]) => h('button.tab' + (tab === id ? '.on' : ''), { role: 'tab', 'aria-selected': tab === id, title: text + ' (' + k + ')', onclick: () => setTab(id) }, text)),
       h('span.spacer'), h('div.mrp-acts',
         h('button.btn.ghost.sm', { title: T('An agent reviews it in a worktree of its branch; its notes come back as pending (C)'), onclick: agentReview }, icon('zap'), T('Agent review')),
         h('button.btn.sm', { title: T('Approve without a review (A)'), onclick: () => review(true) }, icon('check'), T('Approve')),
