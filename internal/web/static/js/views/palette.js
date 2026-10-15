@@ -66,7 +66,7 @@ export function openPalette(app, mode = '') {
   const badge = h('button.pal-mode', { type: 'button', title: T('Backspace on an empty input returns to search'), onclick: () => setMode('search') });
   const input = h('input.pal-input', { type: 'text', spellcheck: false, autocomplete: 'off', autocapitalize: 'off', 'aria-label': T('Palette') });
   const list = h('div.pal-list', { role: 'listbox' });
-  const foot = h('div.pal-foot');
+  const foot = h('div.pal-foot.kb-only');
   const spin = h('span.pal-spin', { hidden: true });
   const tabs = h('div.pal-tabs', [['search', '/'], ['cmd', ':'], ['jump', 'g'], ['jql', '#']].map(([mm, k]) =>
     h('button.pal-tab', { type: 'button', dataset: { m: mm }, onclick: () => setMode(mm) }, MODES[mm].label, h('kbd', k))));
