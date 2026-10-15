@@ -45,6 +45,8 @@ const SECTIONS = { Appearance: T('Appearance'), Fonts: T('Fonts'), Board: T('Boa
 const secName = sec => SECTIONS[sec] || T(sec);
 const VAL = { compact: T('compact'), normal: T('normal'), roomy: T('roomy'), show: T('show'), hide: T('hide'), lanes: T('lanes'), list: T('list') };
 const CONFIG = GROUPS.findIndex(g => !g.sections);
+// A hosted app has no terminal and no file of one's own to open: the groups say what they are there.
+const HOSTED = { 0: { desc: T('every browser you sign in with') }, [CONFIG]: { title: T('More options'), desc: T('yours, in every browser') } };
 const groupOf = sec => { const i = GROUPS.findIndex(g => g.sections && g.sections.includes(sec)); return i < 0 ? CONFIG : i; };
 const slug = sec => 'st-' + sec.replace(/\W+/g, '-');
 
@@ -110,7 +112,7 @@ export default function mount(el, { app, scope, toolbar, query }) {
       render: () => { const on = s.autostart.enabled; return h('span.st-val', h('button.st-switch' + (on ? '.on' : ''), { role: 'switch', 'aria-checked': on, 'aria-label': T('Start at login'), tabindex: -1, onclick: () => toggleLogin() }, h('i')), h('span.st-state', on ? T('on') : T('off'))); },
       change: () => toggleLogin() },
     ...siteOptions(app, () => refresh()),
-    info(T('Site'), s.site || '-', 'Jira site'), info(T('Address'), s.baseURL || '-', 'Jira site'),
+    s.site && info(T('Site'), s.site, 'Jira site'), info(T('Address'), s.baseURL || '-', 'Jira site'),
     info(T('Signed in as'), (s.me && s.me.DisplayName) || '-', 'Jira site'), { ...info(T('Version'), s.version || 'dev', 'Server'), advanced: true },
     { ...action(T('Clear cached data'), T('the browser copy of API answers; reloaded on demand'), 'Data', () => { api.forget(); app.ui.toast(T('Caches cleared'), { kind: 'ok' }); }), advanced: true },
     { ...action(T('Clear recent issues'), T('the palette’s recent list and search history'), 'Data', () => {
@@ -244,7 +246,7 @@ export default function mount(el, { app, scope, toolbar, query }) {
     for (const o of vis) {
       if (o.section !== sec) {
         sec = o.section;
-        const g = groupOf(sec), G = GROUPS[g];
+        const g = groupOf(sec), G = { ...GROUPS[g], ...(s.hosted && HOSTED[g]) };
         if (g !== grp) {
           grp = g;
           list.append(h('div.st-gh', h('h2', G.title), G.desc && h('span.st-desc', G.desc)));

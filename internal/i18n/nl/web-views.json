@@ -1399,5 +1399,8 @@
   "No versions due in the next %s days.": "Geen versies die de komende %s dagen af moeten zijn.",
   "No data yet.": "Nog geen gegevens.",
   "Site and account": "Site en account",
-  "Address": "Adres"
+  "Address": "Adres",
+  "More options": "Meer opties",
+  "every browser you sign in with": "elke browser waarmee je inlogt",
+  "yours, in every browser": "van jou, in elke browser"
 }
