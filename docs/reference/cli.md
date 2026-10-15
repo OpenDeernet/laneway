@@ -47,6 +47,7 @@ laneway list [-jql 'project = ABC ORDER BY rank'] [-format plain|csv|json]   # d
 laneway view [-format plain|json] ABC-12
 laneway create -project ABC -summary 'Login fails' [-type Bug] [-description '…'] [-format json]   # type: Task
 laneway move ABC-12 'In Progress'        # a status the issue can move to, any case
+laneway move ABC-12                      # the statuses it can move to
 ```
 
 ## Tokens

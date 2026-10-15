@@ -13,6 +13,7 @@ laneway list -jql 'project = ABC ORDER BY rank' -format csv
 laneway view ABC-12                            # one issue; -format json
 laneway create -project ABC -type Bug -summary 'Login fails'   # type: Task by default
 laneway move ABC-12 'In Progress'              # any status it can move to
+laneway move ABC-12                            # where it can move to
 ```
 
 `-format json` suits `jq`; `-site club` picks another site. Flags go before

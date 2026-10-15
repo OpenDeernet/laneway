@@ -59,6 +59,9 @@ func TestCLI(t *testing.T) {
 	if got := run("create", "-project", "ABC", "-summary", "New"); got != "ABC-2\n" {
 		t.Errorf("create: %q", got)
 	}
+	if got := run("move", "ABC-1"); got != "Done\n" {
+		t.Errorf("move without a status: %q", got)
+	}
 	if got := run("move", "ABC-1", "done"); got != "ABC-1 → Done\n" || !strings.Contains(moved, `"31"`) {
 		t.Errorf("move: %q, %q", got, moved)
 	}

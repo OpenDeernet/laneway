@@ -102,11 +102,15 @@ func cliCmd(name string, args []string, out, errOut io.Writer) int {
 			err = cliWrite(out, *format, map[string]string{"key": key, "url": c.BrowseURL(key)}, key)
 		}
 	case "move":
-		if fs.NArg() != 2 {
-			fmt.Fprintln(errOut, i18n.T("usage: laneway move KEY STATUS"))
+		switch fs.NArg() {
+		case 1: // where it can go
+			err = cliMoves(ctx, c, fs.Arg(0), out)
+		case 2:
+			err = cliMove(ctx, c, fs.Arg(0), fs.Arg(1), out)
+		default:
+			fmt.Fprintln(errOut, i18n.T("usage: laneway move KEY [STATUS]"))
 			return 2
 		}
-		err = cliMove(ctx, c, fs.Arg(0), fs.Arg(1), out)
 	}
 	if err != nil {
 		fmt.Fprintln(errOut, "laneway:", err)
@@ -200,6 +204,18 @@ func cliMove(ctx context.Context, c *jira.Client, key, status string, out io.Wri
 		names = append(names, t.Name)
 	}
 	return fmt.Errorf(i18n.T("%s can't move to %q; it can to %s"), key, status, strings.Join(names, ", "))
+}
+
+// cliMoves lists the statuses an issue can move to, one a line.
+func cliMoves(ctx context.Context, c *jira.Client, key string, out io.Writer) error {
+	ts, err := c.Transitions(ctx, key)
+	if err != nil {
+		return err
+	}
+	for _, t := range ts {
+		fmt.Fprintln(out, t.Name)
+	}
+	return nil
 }
 
 // cliWrite writes v as JSON, else plain.
