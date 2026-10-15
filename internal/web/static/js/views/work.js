@@ -346,7 +346,7 @@ export default function mount(el, { app, scope, toolbar, query }) {
     if (tab === 'issues') {
       const scroller = h('div.work-scroll');
       empty = h('div.empty', { hidden: true });
-      root.append(scroller, empty);
+      root.append(empty, scroller);
       list = vlist(scroller, { count: rows.length, rowHeight: rowHeight(), create: () => h('div'), bind: bindRow });
       paintList();
     } else {
