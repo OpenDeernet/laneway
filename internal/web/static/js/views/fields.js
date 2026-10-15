@@ -248,7 +248,27 @@ export function setField(app, key, field, body, what, patch) {
 }
 
 export function moveForm(app, key, t) {
-  const rows = t.Fields.map(f => ({ label: f.Name, required: f.Required && f.Kind !== 'other', widget: fieldInput(app, f, { issue: key, project: projectOf(key), value: f.Value, required: f.Required }) }));
+  const rows = t.Fields.map(f => ({ label: f.Name, base: f.Required && f.Kind !== 'other', required: f.Required && f.Kind !== 'other',
+    widget: fieldInput(app, f, { issue: key, project: projectOf(key), value: f.Value, required: f.Required, onChange: () => reask() }) }));
+  // laneway-server's form rules for the move as its fields change (LW-423); none on Jira.
+  let seq = 0, timer = 0;
+  function reask() {
+    clearTimeout(timer);
+    timer = setTimeout(async () => {
+      const my = ++seq;
+      const Fields = [];
+      rows.forEach((r, i) => { const f = t.Fields[i]; if (f.Kind !== 'other' && !r.widget.empty()) Fields.push({ ID: f.ID, Kind: f.Kind, Value: r.widget.get() }); });
+      let fx;
+      try { fx = (await app.api.ask('/form', { Issue: key, Form: 'transition', Fields })).Fields || {}; } catch (e) { return; }
+      if (my !== seq) return;
+      rows.forEach((r, i) => {
+        const e = fx[t.Fields[i].ID] || {}, [label, cell] = r.dom || [];
+        r.hidden = !!e.hidden; r.required = r.base || !!e.required;
+        if (label) { label.hidden = cell.hidden = r.hidden; label.classList.toggle('req', r.required); label.title = e.message || ''; }
+      });
+    }, 300);
+  }
+  setTimeout(reask);
   formDialog(app, {
     title: T('Move %s → %s', key, t.ToName), intro: t.Message, rows, ok: T('Move'), wide: t.Fields.some(f => f.Kind === 'doc' || f.Kind === 'comment'),
     submit: async () => {
@@ -317,7 +337,7 @@ export function formDialog(app, { title, intro, rows, ok = T('Save'), submit, wi
   const okBtn = h('button.btn.primary', { type: 'submit' }, ok);
   const form = h('form.form-dialog', { onsubmit: e => { e.preventDefault(); go(); } },
     intro && h('p.dim', intro),
-    h('div.form', rows.map(r => formRow(r.label, r.widget.el, r.required))), err,
+    h('div.form', rows.map(r => (r.dom = formRow(r.label, r.widget.el, r.required)))), err,
     h('div.row.end', h('span.faint.form-hint', T('ctrl+⏎ saves')), h('button.btn', { type: 'button', onclick: () => m.close() }, T('Cancel')), okBtn));
   const m = app.ui.modal(form, { title, wide, onClose: () => rows.forEach(r => r.widget.dispose && r.widget.dispose()) });
   m.scope.bind('ctrl+Enter', () => go(), T('submit'), { input: true, hidden: true });
@@ -326,7 +346,7 @@ export function formDialog(app, { title, intro, rows, ok = T('Save'), submit, wi
   const focus = target && (firstEmpty.widget.focusEl || (target.matches('input,textarea,select,button') ? target : target.querySelector('input,textarea,select,button')));
   if (focus) focus.focus();
   async function go() {
-    const missing = rows.filter(r => r.required && r.widget.empty()).map(r => r.label);
+    const missing = rows.filter(r => r.required && !r.hidden && r.widget.empty()).map(r => r.label);
     if (missing.length) { err.textContent = T('Fill in %s', missing.join(', ')); return; }
     okBtn.disabled = true; err.textContent = '';
     try { await submit(); m.close(); } catch (e) { err.textContent = e.message; okBtn.disabled = false; }
