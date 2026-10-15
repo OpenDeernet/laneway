@@ -21,7 +21,7 @@ export default function mount(el, { app, scope, toolbar }) {
   let shown = '', hold = ''; // the detail's signature; a thread kept unread by u
 
   const listEl = h('div.inbox-scroll'), detail = h('div.inbox-detail'), empty = h('div.empty', { hidden: true });
-  el.append(h('div.inbox', h('div.inbox-list', listEl, empty), detail));
+  el.append(h('div.inbox', h('div.inbox-list', empty, listEl), detail));
 
   const now = () => Date.now();
   const st = t => stateOf(t, data.marks[t.ID], data.floor, now());
