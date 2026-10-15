@@ -200,3 +200,29 @@ func TestLabelsClause(t *testing.T) {
 		t.Errorf("a plain string list: %+v", fm)
 	}
 }
+
+// The panel's own fields the screen requires come back apart (LW-357).
+func TestEditMetaOwnRequired(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/rest/api/3/serverInfo" {
+			io.WriteString(w, `{"deploymentType":"Cloud"}`)
+			return
+		}
+		io.WriteString(w, `{"fields":{},"editmeta":{"fields":{
+		  "summary":{"name":"Summary","required":true,"schema":{"type":"string","system":"summary"}},
+		  "assignee":{"name":"Assignee","required":true,"schema":{"type":"user","system":"assignee"}},
+		  "labels":{"name":"Labels","schema":{"type":"array","system":"labels"}},
+		  "customfield_1":{"name":"Story Points","required":true,"schema":{"type":"number"}},
+		  "customfield_3":{"name":"Team","required":true,"schema":{"type":"option"},"allowedValues":[{"id":"7","value":"Core"}]}
+		}}}`)
+	}))
+	defer srv.Close()
+	c := New(Config{BaseURL: srv.URL, Email: "me@x.test", APIToken: "tok", StoryPointsField: "customfield_1"})
+	fields, _, own, err := c.EditMetaOwn(context.Background(), "ABC-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fmt.Sprint(own) != "[assignee customfield_1 summary]" || len(fields) != 1 || !fields[0].Required {
+		t.Errorf("own %v, fields %+v", own, fields)
+	}
+}
