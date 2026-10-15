@@ -274,6 +274,9 @@ func inbox(ctx context.Context, s *Server, r *http.Request) (any, error) {
 	inboxLast[s.opt.Site] = out
 	inboxMu.Unlock()
 	setInboxUnread(s, out, floor)
+	if out == nil {
+		out = []InboxThread{} // nothing new: a list, not null (the page filters it)
+	}
 	return map[string]any{"threads": out, "marks": marks, "floor": floor, "lookback": int((look + 24*time.Hour - 1) / (24 * time.Hour)), "site": s.opt.Site}, nil
 }
 
