@@ -159,6 +159,7 @@ on  POST /api/cards/statusmoves
 on  POST /api/emoji/used
 on  POST /api/filters
 on  POST /api/fonts
+on  POST /api/form
 off POST /api/gitlab/agent-review
 off POST /api/gitlab/merge
 off POST /api/gitlab/note

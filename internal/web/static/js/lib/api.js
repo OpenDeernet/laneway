@@ -56,6 +56,8 @@ export function get(path, { fresh = false, signal } = {}) {
 // put and del take { keepalive } (call's).
 export const post = (path, body = {}) => write('POST', path, body);
 export const put = (path, body = {}, { keepalive } = {}) => write('PUT', path, body, keepalive);
+// ask is a POST that only reads (a form's rules): cached reads stay.
+export const ask = (path, body = {}) => call('POST', path, body);
 export const del = (path, body, { keepalive } = {}) => write('DELETE', path, body, keepalive);
 function write(method, path, body, keepalive) {
   // Any write may change what cached reads say.
@@ -80,5 +82,5 @@ export function swr(path, onData, { persist = true } = {}) {
 // warm(path) loads path into the in-memory cache unless it is there or on its way, for a quick swr later.
 export function warm(path) { if (!mem.has(path) && !inflight.has(path)) get(path).catch(() => {}); }
 export function forget() { mem.clear(); try { for (const k of Object.keys(localStorage)) if (k.startsWith('lw:c:')) localStorage.removeItem(k); } catch (e) { /* ignore */ } }
-export const api = { get, post, put, del, swr, warm, forget, setSite };
+export const api = { get, post, ask, put, del, swr, warm, forget, setSite };
 export default api;

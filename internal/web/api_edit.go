@@ -102,6 +102,7 @@ func init() {
 		return nil, s.Client().DeleteIssue(ctx, key, Q(r, "subtasks") != "")
 	})
 	post("/issues", createIssue)
+	post("/form", formRules)
 	get("/issues/{key}/clonedraft", cloneDraft)
 	post("/bulk", bulk)
 }
@@ -793,4 +794,29 @@ func uniqueByID(os []jira.Option) []jira.Option {
 		}
 	}
 	return out
+}
+
+// formRules is what laneway-server's form rules do to a form as it stands
+// (LW-423): which fields hide, become required, narrow their options or
+// take a default. Jira has none: an empty answer.
+func formRules(ctx context.Context, s *Server, r *http.Request) (any, error) {
+	b, err := Body[struct {
+		Project, Type, Issue, Form string
+		Fields                     []fieldVal
+	}](r)
+	if err != nil {
+		return nil, err
+	}
+	fields, _, err := encodeFields(b.Fields)
+	if err != nil {
+		return nil, badRequest(err.Error())
+	}
+	out, err := s.Client().FormRules(ctx, jira.FormInput{Project: b.Project, IssueType: b.Type, Issue: b.Issue, Form: b.Form, Fields: fields})
+	if err != nil {
+		return nil, err
+	}
+	if out == nil {
+		out = map[string]jira.FormEffect{}
+	}
+	return map[string]any{"Fields": out}, nil
 }

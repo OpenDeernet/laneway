@@ -338,10 +338,10 @@ const HINT = { number: '5', date: '2026-10-01, today, +3d, fri', time: 'fri 14:0
 
 // fieldInput(app, fieldMeta, {project, issue, value, required}) → {el, get() → Value, empty(), touched()}.
 // The Value has the shape the API encodes for fm.Kind (see jira.EncodeValue).
-export function fieldInput(app, fm, { project, issue, value, required } = {}) {
+export function fieldInput(app, fm, { project, issue, value, required, onChange } = {}) {
   const v = value || {};
   let dirty = false;
-  const touch = () => { dirty = true; };
+  const touch = () => { dirty = true; if (onChange) onChange(); };
   const w = { el: null, touch, touched: () => dirty, get: () => ({}), empty: () => true };
   // A button-like control redrawn from state.
   const control = (render, choose) => {

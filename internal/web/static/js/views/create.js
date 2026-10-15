@@ -38,6 +38,8 @@ export async function openCreate(app, opts = {}) {
   let project = opts.project || (restore && restore.project) || projectOf(app, {});
   let type = opts.type || (restore && restore.type) || '';
   let widgets = new Map(), fields = [], pseq = 0, fseq = 0, busy = false, submitted = false;
+  let effects = {}, rseq = 0, rtimer = 0; // laneway-server's form rules (reask)
+  const rows = new Map();
   const kept = new Map(); // values typed, kept across a type change
 
   const projectSel = h('select.input', { onchange: () => { project = projectSel.value; type = ''; loadProject(); changed(); } }, h('option', { value: project }, project || '…'));
@@ -153,16 +155,46 @@ export async function openCreate(app, opts = {}) {
       const req = [], common = [], rest = [];
       for (const f of fields) {
         const value = kept.get(f.ID) || (f.ID === 'parent' && opts.parent ? { Text: opts.parent } : undefined);
-        const w = fieldInput(app, f, { project, value, required: f.Required });
+        const w = fieldInput(app, f, { project, value, required: f.Required, onChange: () => reask() });
         if (kept.has(f.ID)) w.touch();
         widgets.set(f.ID, w);
-        (f.Required ? req : COMMON.has(f.ID) ? common : rest).push(formRow(f.Name, w.el, f.Required));
+        const row = formRow(f.Name, w.el, f.Required);
+        rows.set(f.ID, row);
+        (f.Required ? req : COMMON.has(f.ID) ? common : rest).push(row);
       }
       extra.replaceChildren(...[...req.flat(), ...common.flat()].filter(Boolean));
       more.lastChild.replaceChildren(...rest.flat().filter(Boolean));
       more.firstChild.textContent = T('More fields (%d)', rest.length);
       more.hidden = !rest.length;
+      effects = {};
+      reask();
     } catch (e) { err.textContent = e.message; }
+  }
+
+  // laneway-server's form rules as the form changes (LW-423): rows hide, become required or take a default.
+  // Jira has none (an empty answer); the server stays the judge at create.
+  function reask() {
+    clearTimeout(rtimer);
+    rtimer = setTimeout(async () => {
+      const my = ++rseq;
+      const Fields = [];
+      for (const f of fields) { const w = widgets.get(f.ID); if (w && !w.empty()) Fields.push({ ID: f.ID, Kind: f.Kind, Value: w.get() }); }
+      try {
+        const r = await app.api.ask('/form', { Project: project, Type: type, Form: 'create', Fields });
+        if (my !== rseq) return;
+        effects = r.Fields || {};
+        for (const f of fields) {
+          const [label, cell] = rows.get(f.ID) || [], e = effects[f.ID] || {}; // hidden, required, default, message
+          if (!label) continue;
+          label.hidden = cell.hidden = !!e.hidden;
+          label.classList.toggle('req', !!(f.Required || e.required));
+          if (e.required && !e.hidden && more.contains(label) && widgets.get(f.ID).empty()) more.open = true; // in view, not folded away
+          label.title = e.message || '';
+          const w = widgets.get(f.ID);
+          if (e.default && w && !w.touched() && w.empty() && w.el.matches && w.el.matches('input')) w.el.value = e.default;
+        }
+      } catch (e) { /* the rules can't be read now: the create still checks them */ }
+    }, 300);
   }
 
   async function attach(key) {
@@ -194,7 +226,7 @@ export async function openCreate(app, opts = {}) {
     for (const x of form.querySelectorAll('.field-err')) x.remove();
     const sums = summaries(summary.value);
     if (!sums.length) { err.textContent = T('Summary is required'); summary.focus(); return; }
-    const missing = fields.filter(f => f.Required && widgets.get(f.ID).empty()).map(f => f.Name);
+    const missing = fields.filter(f => (f.Required || (effects[f.ID] || {}).required) && !(effects[f.ID] || {}).hidden && widgets.get(f.ID).empty()).map(f => f.Name);
     if (missing.length) { err.textContent = T('Fill in %s', missing.join(', ')); return; }
     const Fields = [];
     for (const f of fields) {
