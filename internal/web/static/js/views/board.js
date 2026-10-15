@@ -1514,6 +1514,7 @@ export default function mount(el, { app, params, query, scope, context, toolbar,
     k.bind('ctrl+a', markAll, T('mark all in the lane / list'), { group: E });
     k.bind('X', bulk, T('bulk edit marked cards'), { group: E });
     k.bind('n', () => app.actions.create(createOpts()), T('new issue (into the sprint shown)'), { group: E });
+    app.createHere = () => app.actions.create(createOpts()); // the top bar's Create
     k.bind('*', need(togglePin), T('pin / unpin issue (first in the palette)'), { group: G });
     k.bind('o', need(c => window.open(app.session.baseURL + '/browse/' + c.Key, '_blank', 'noopener')), T('open in Jira'), { group: G });
     k.bind('y', () => { if (S.marks.size) return copyTable(); const c = curCard(); if (c) copy(c.Key, c.Key); else ui.toast(T('Select a card first')); }, T('copy key (marked cards: as a table)'), { group: G });
@@ -1712,6 +1713,7 @@ export default function mount(el, { app, params, query, scope, context, toolbar,
 
   return () => {
     S.dead = true;
+    app.createHere = null;
     for (const t of timers) clearTimeout(t);
     offs.forEach(f => f()); unreg.forEach(f => f());
     document.removeEventListener('keydown', touch, true);

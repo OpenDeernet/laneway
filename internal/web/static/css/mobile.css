@@ -30,7 +30,7 @@
 @media (pointer: coarse) {
   .btn, .tab { min-height: 2.857rem; }
   .pick-row { min-height: 3.143rem; }
-  kbd { display: none; }
+  kbd, .kb-only { display: none; } /* .kb-only: a key hint in words */
 }
 
 /* the OS asks for more contrast / no motion / forced colours */

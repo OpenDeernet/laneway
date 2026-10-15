@@ -261,6 +261,11 @@ function chrome() {
   chromeBars.install(app);
   const sb = $('#search-btn');
   sb.addEventListener('click', () => app.actions.palette('/'));
+  // Create, as n: a view that makes issues its own way (the board: into the sprint shown) sets app.createHere.
+  const cb = $('#create-btn');
+  cb.addEventListener('click', () => (app.createHere ? app.createHere() : app.actions.create({ project: app.route && app.route.params.project })));
+  cb.title = T('Create issue (n)');
+  cb.querySelector('.create-text').textContent = T('Create');
   // index.html's own text, in ui.language.
   sb.setAttribute('aria-label', T('Search issues'));
   sb.title = T('Search (/) · commands (:) · jump to a key (g g)');

@@ -66,7 +66,7 @@ export async function openCreate(app, opts = {}) {
   const form = h('form.form-dialog', { onsubmit: e => { e.preventDefault(); submit(); } },
     h('div.form', formRow(T('Project'), projectSel), formRow(T('Type'), typeSel), formRow(T('Summary'), [summary, count$], true), formRow(T('Description'), [ed.el, fileBar, opts.note ? h('div.faint.form-hint', opts.note) : ''], true)),
     extra, sprintRow, more, err,
-    h('div.row.end', h('label.check', another, ' ' + T('Create another')), h('span.spacer'), h('span.faint.form-hint', T('ctrl+⏎ creates')),
+    h('div.row.end', h('label.check', another, ' ' + T('Create another')), h('span.spacer'), h('span.faint.form-hint.kb-only', T('ctrl+⏎ creates')),
       h('button.btn', { type: 'button', onclick: () => m.close() }, T('Cancel')), okBtn));
   const m = app.ui.modal(form, { title: opts.cloneOf ? T('Clone of %s', opts.cloneOf) : T('Create issue'), wide: true, onClose: () => { ed.dispose(); unLeave(); keep(); } });
   m.scope.bind('ctrl+Enter', () => submit(), T('create'), { input: true, hidden: true });
