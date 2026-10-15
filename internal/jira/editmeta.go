@@ -29,8 +29,16 @@ var panelFieldIDs = []string{
 // the one last seen for its project and type comes back read-only
 // (layout.go).
 func (c *Client) EditMeta(ctx context.Context, key string) ([]FieldMeta, map[string]json.RawMessage, error) {
+	fields, raw, _, err := c.EditMetaOwn(ctx, key)
+	return fields, raw, err
+}
+
+// EditMetaOwn is EditMeta, and also the panel's own fields the edit
+// screen requires (assignee, labels, a story points field, …), which
+// EditMeta leaves out.
+func (c *Client) EditMetaOwn(ctx context.Context, key string) ([]FieldMeta, map[string]json.RawMessage, []string, error) {
 	if !c.Enabled() {
-		return nil, nil, errNotConfigured
+		return nil, nil, nil, errNotConfigured
 	}
 	var resp struct {
 		Fields   map[string]json.RawMessage `json:"fields"`
@@ -40,12 +48,16 @@ func (c *Client) EditMeta(ctx context.Context, key string) ([]FieldMeta, map[str
 	}
 	path := "/rest/api/3/issue/" + url.PathEscape(key) + "?fields=*all,-comment,-description&expand=editmeta"
 	if err := c.do(ctx, http.MethodGet, path, key, nil, &resp); err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	skip := append(slices.Clone(panelFieldIDs), c.resolveStoryPointFields(ctx)...)
 	var out []FieldMeta
+	var own []string
 	for id, f := range resp.EditMeta.Fields {
 		if slices.Contains(skip, id) {
+			if f.Required {
+				own = append(own, id)
+			}
 			continue
 		}
 		if fm := f.meta(id); fm.Kind != KindOther && fm.Kind != KindComment {
@@ -59,14 +71,15 @@ func (c *Client) EditMeta(ctx context.Context, key string) ([]FieldMeta, map[str
 	_ = json.Unmarshal(resp.Fields["project"], &project)
 	_ = json.Unmarshal(resp.Fields["issuetype"], &typ)
 	if len(resp.EditMeta.Fields) == 0 {
-		return c.layout(project.Key, typ.ID), resp.Fields, nil
+		return c.layout(project.Key, typ.ID), resp.Fields, nil, nil
 	}
 	c.keepLayout(project.Key, typ.ID, out)
 	if is, _ := c.Laneway(ctx); is {
 		out = append(out, c.readByRule(ctx, resp.EditMeta.Fields, resp.Fields, skip)...)
 		sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
 	}
-	return out, resp.Fields, nil
+	sort.Strings(own)
+	return out, resp.Fields, own, nil
 }
 
 // readByRule are the custom fields with a value that editmeta left out:

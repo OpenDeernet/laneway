@@ -267,7 +267,12 @@ export function mountIssue(el, key, { app, full, card }) {
   const fieldPins = () => (st.meta && st.meta.Pins) || app.session.pins || {};
   const isDoc = f => f.Kind === 'doc' && !!valueText(fieldMeta().Values[f.ID]);
   // required: editmeta's field id (or the panel's due) may not be emptied.
-  const required = id => { const m = fieldMeta(), f = m && (m.Fields || []).find(x => x.ID === (id === 'due' ? 'duedate' : id)); return !!(f && f.Required && !f.ReadOnly); };
+  const required = id => {
+    const m = fieldMeta(), want = id === 'due' ? 'duedate' : id === 'points' ? m && m.PointsField : id;
+    if (m && want && (m.OwnRequired || []).includes(want)) return true; // the panel's own rows (LW-357)
+    const f = m && want && (m.Fields || []).find(x => x.ID === want);
+    return !!(f && f.Required && !f.ReadOnly);
+  };
   function extraRows(cell) {
     const m = fieldMeta(); if (!m) return [];
     return (m.Fields || []).filter(f => !SHOWN.has(f.ID) && f.Kind !== 'sprint' && !isDoc(f))

@@ -442,7 +442,7 @@ func editMeta(ctx context.Context, s *Server, r *http.Request) (any, error) {
 	if !jira.ValidKey(key) {
 		return nil, badRequest(i18n.T("bad issue key"))
 	}
-	fields, raw, err := c.EditMeta(ctx, key)
+	fields, raw, own, err := c.EditMetaOwn(ctx, key)
 	if err != nil {
 		return nil, err
 	}
@@ -455,7 +455,8 @@ func editMeta(ctx context.Context, s *Server, r *http.Request) (any, error) {
 	var typ struct{ ID, Name string }
 	_ = json.Unmarshal(raw["issuetype"], &typ)
 	sp, _ := currentSprint(raw)
-	out := map[string]any{"Fields": fields, "Values": values, "Due": due, "TypeID": typ.ID, "Type": typ.Name, "Sprint": sp, "Pins": fieldPins(s)}
+	out := map[string]any{"Fields": fields, "Values": values, "Due": due, "TypeID": typ.ID, "Type": typ.Name, "Sprint": sp, "Pins": fieldPins(s),
+		"PointsField": c.StoryPointsField(ctx), "OwnRequired": own} // the panel's own rows the edit screen requires (LW-357)
 	if fl, err := c.Flagged(ctx, key); err == nil {
 		out["Flagged"] = fl
 	}

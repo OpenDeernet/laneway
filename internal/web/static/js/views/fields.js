@@ -84,6 +84,15 @@ export function bulkUndo(app, what, res) {
 const projectOf = key => key.split('-')[0];
 const issueOf = (app, key) => app.api.get('/issues/' + key);
 
+// mustFill reports whether editmeta requires a field the panel edits with its own row (LW-357): the
+// field configuration's, or a laneway field rule's; a read-only one isn't the panel's to refuse.
+async function mustFill(app, key, id) {
+  const m = await app.api.get(`/issues/${key}/editmeta`);
+  if (id === 'points') id = m.PointsField;
+  return !!id && (m.OwnRequired || []).includes(id);
+}
+const refuseEmpty = (app, name) => app.ui.toast(T('%s is required', name), { kind: 'err' });
+
 // ---- entry point
 const editors = { status, priority, assignee, reporter, points, labels, summary, duedate, issuetype, flag, sprint, delete: remove };
 
@@ -106,6 +115,7 @@ async function priority(app, key) {
 async function assignee(app, key) {
   const u = await pickUser(app, { issue: key, title: T('%s assignee', key), specials: true });
   if (!u) return;
+  if (u.none && await mustFill(app, key, 'assignee')) return refuseEmpty(app, T('Assignee'));
   await write(app, key, 'assignee', { ID: u.AccountID }, u.none ? T('%s unassigned', key) : T('%s → %s', key, u.DisplayName), u.none ? null : { AccountID: u.AccountID, DisplayName: u.DisplayName });
 }
 
@@ -120,6 +130,7 @@ async function points(app, key) {
   const v = await app.ui.prompt({ title: T('%s story points (empty clears)', key), value: iss.StoryPoints || '', placeholder: '5' });
   if (v === null || v.trim() === (iss.StoryPoints || '')) return;
   if (v.trim() && isNaN(Number(v))) return app.ui.toast(T('Story points must be a number'), { kind: 'err' });
+  if (!v.trim() && await mustFill(app, key, 'points')) return refuseEmpty(app, T('Points'));
   await write(app, key, 'points', { Text: v.trim() }, T('%s points → %s', key, v.trim() || T('none')), v.trim());
 }
 
@@ -145,6 +156,7 @@ async function labels(app, key) {
   if (!next) return;
   const Add = next.filter(l => !cur.includes(l)), Remove = cur.filter(l => !next.includes(l));
   if (!Add.length && !Remove.length) return;
+  if (!next.length && await mustFill(app, key, 'labels')) return refuseEmpty(app, T('Labels'));
   await write(app, key, 'labels', { Add, Remove }, T('%s labels %s', key, [...Add.map(l => '+' + l), ...Remove.map(l => '-' + l)].join(' ')), next);
 }
 
