@@ -31,7 +31,7 @@ type PendingWrite struct {
 func (w PendingWrite) Key() string { return issuePathKey(w.Path) }
 
 // ErrQueued is a write kept for later because Jira couldn't be reached.
-var ErrQueued = errors.New("offline: queued, sent when Jira is back")
+var ErrQueued = errors.New("offline: queued, sent when the site is back")
 
 // SetQueue gives the client somewhere to keep offline writes.
 func (c *Client) SetQueue(q func(PendingWrite)) { c.queue = q }
