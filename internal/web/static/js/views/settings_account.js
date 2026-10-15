@@ -11,6 +11,9 @@ const MAIL = ['off', 'instant', 'hourly', 'daily'];
 const LOCALES = ['en_US', 'nl_NL'];
 
 export function accountOptions(app, m, refresh) {
+  // Sessions past the first few behind a button: every sign-in makes one.
+  const SESSIONS_SHOWN = 5;
+  let allSessions = false;
   const link = (href, text) => h('a', { href, target: '_blank', rel: 'noopener' }, text);
   if (!m.Laneway) return [{ name: T('Profile'), section: 'Account', desc: T('your name, picture and time zone are kept by Jira'),
     render: () => h('span.st-val', link(m.ProfilePage, T('Open your Jira profile'))), change: () => window.open(m.ProfilePage, '_blank', 'noopener') }];
@@ -90,11 +93,15 @@ export function accountOptions(app, m, refresh) {
       render: () => h('span.st-val', h('button.btn.ghost', { tabindex: -1, onclick: () => setLocale(step(locales, m.Locale, 1)) }, localeName(m.Locale))),
       change: d => setLocale(step(locales, m.Locale, d)) },
     m.Sessions && { name: T('Sessions'), section: 'Account', wide: true, desc: T('browsers signed in to the server as you'),
-      render: () => h('div.st-tok',
-        m.Sessions.length ? m.Sessions.map(s => h('div.st-tok-row', { role: 'group', 'aria-label': s.IP || s.ID },
-          h('span.st-tok-name', s.IP || T('unknown address')), s.Method && h('span.chip', s.Method),
-          h('span.faint', T('seen %s', ago(s.LastSeen))))) : h('div.faint', T('none')),
-        h('div.row', h('button.btn', { onclick: endAll }, T('Sign out everywhere')))),
+      render: () => {
+        const shown = allSessions ? m.Sessions : m.Sessions.slice(0, SESSIONS_SHOWN), more = m.Sessions.length - shown.length;
+        return h('div.st-tok',
+          m.Sessions.length ? shown.map(s => h('div.st-tok-row', { role: 'group', 'aria-label': s.Browser || s.IP || s.ID },
+            h('span.st-tok-name', s.Browser || s.IP || T('unknown address')), s.Browser && s.IP && h('span.faint', s.IP), s.Method && h('span.chip', s.Method),
+            h('span.faint', T('seen %s', ago(s.LastSeen))))) : h('div.faint', T('none')),
+          more > 0 && h('button.btn.ghost', { onclick: () => { allSessions = true; refresh(); } }, T('+ %d more', more)),
+          h('div.row', h('button.btn', { onclick: endAll }, T('Sign out everywhere'))));
+      },
       change: endAll },
     { name: T('Password and two-step'), section: 'Account', desc: T('password, two-step verification and passkeys, on the server\'s own page'),
       render: () => h('span.st-val', link(m.SignInPage, T('Open my sign-in'))), change: () => window.open(m.SignInPage, '_blank', 'noopener') },

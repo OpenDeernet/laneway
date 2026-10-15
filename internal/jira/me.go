@@ -26,6 +26,7 @@ type Notifications struct {
 // Session is a browser signed in to laneway-server as you.
 type Session struct {
 	ID, IP, Method             string
+	Browser                    string // "Firefox on Linux"; empty on older servers
 	Created, LastSeen, Expires time.Time
 }
 
@@ -60,6 +61,7 @@ func (c *Client) Sessions(ctx context.Context) ([]Session, error) {
 		ID       string `json:"id"`
 		IP       string `json:"ip"`
 		Method   string `json:"method"`
+		Browser  string `json:"browser"`
 		Created  string `json:"created"`
 		LastSeen string `json:"lastSeen"`
 		Expires  string `json:"expires"`
@@ -69,7 +71,7 @@ func (c *Client) Sessions(ctx context.Context) ([]Session, error) {
 	}
 	out := make([]Session, len(resp))
 	for i, s := range resp {
-		out[i] = Session{ID: s.ID, IP: s.IP, Method: s.Method, Created: parseStamp(s.Created), LastSeen: parseStamp(s.LastSeen), Expires: parseStamp(s.Expires)}
+		out[i] = Session{ID: s.ID, IP: s.IP, Method: s.Method, Browser: s.Browser, Created: parseStamp(s.Created), LastSeen: parseStamp(s.LastSeen), Expires: parseStamp(s.Expires)}
 	}
 	return out, nil
 }
