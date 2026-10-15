@@ -77,8 +77,10 @@ export function tokenOptions(app, refresh) {
       made && h('div.st-tok-new', { role: 'status' },
         h('div', T('%s: copy it now, it shows only once.', made.Token.Label)),
         h('div.row', h('code.st-tok-secret', made.Secret), h('button.btn', { onclick: copy }, T('Copy')))),
-      page && h('div.st-tok-new', { role: 'status' }, T('This sign-in can’t make tokens. Make one on '), link(page, T('the server’s own page')), '.'),
-      h('div.row', h('button.btn', { onclick: make }, T('Make a token')), toks.length > 0 && h('button.btn.ghost', { onclick: revokeAll }, T('Revoke all'))),
+      page && h('div.st-tok-new', { role: 'status' }, h('span', T('This sign-in can’t make tokens. Make one on '), link(page, T('the server’s own page')), '.')),
+      // An app's sign-in (laneway web on the server) can't make one: the button is the server's page.
+      h('div.row', info.MakesTokens === false ? h('a.btn', { href: info.Page, target: '_blank', rel: 'noopener' }, T('Make a token'), ' ↗') : h('button.btn', { onclick: make }, T('Make a token')),
+        toks.length > 0 && h('button.btn.ghost', { onclick: revokeAll }, T('Revoke all'))),
       h('div.st-tok-h', T('Signed-in apps')),
       apps.length ? apps.map(g => h('div.st-tok-row', { role: 'group', 'aria-label': g.App },
         h('span.st-tok-name', g.App), g.Current && h('span.chip.st-tok-self', T('this app')), scopes(g.Scopes), ...when(g), h('span.spacer'),
@@ -86,5 +88,5 @@ export function tokenOptions(app, refresh) {
   }
   return [{ name: T('API tokens and apps'), section: 'Jira site', wide: true, row: 'tokens',
     desc: T('your tokens for scripts and the apps you signed in with; revoke what you no longer use'),
-    render, change: () => { if (info && info.Laneway) make(); else if (info) window.open(info.TokenURL, '_blank', 'noopener'); } }];
+    render, change: () => { if (info && info.Laneway && info.MakesTokens !== false) make(); else if (info) window.open(info.Laneway ? info.Page : info.TokenURL, '_blank', 'noopener'); } }];
 }

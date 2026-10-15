@@ -391,6 +391,10 @@ func (c *Client) expire(access string) {
 	}
 }
 
+// MakesTokens says whether this sign-in can make API tokens: an app's
+// (OAuth) can't, the server's own page can (TokenPage).
+func (c *Client) MakesTokens() bool { return c.oauth == nil }
+
 // SignedInAs is the account a laneway sign-in is for ("" for API-token
 // sites).
 func (c *Client) SignedInAs() string {

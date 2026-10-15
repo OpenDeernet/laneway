@@ -22,10 +22,10 @@ func tokensServer(t *testing.T, base string) *httptest.Server {
 }
 
 type tokensInfo struct {
-	Laneway        bool
-	TokenURL, Page string
-	Tokens         []jira.APIToken
-	Apps           []jira.AppGrant
+	Laneway, MakesTokens bool
+	TokenURL, Page       string
+	Tokens               []jira.APIToken
+	Apps                 []jira.AppGrant
 }
 
 // On laneway-server: the tokens and apps listed, one made, revoked one by
@@ -41,7 +41,7 @@ func TestSiteTokens(t *testing.T) {
 	ts := tokensServer(t, base)
 	var info tokensInfo
 	if code := issueCall(t, "GET", ts.URL+"/api/site/tokens", nil, &info); code != 200 || !info.Laneway || len(info.Tokens) != 2 || len(info.Apps) != 3 ||
-		!info.Apps[0].Current || info.Apps[1].Current || info.Page != base+"/admin#passkeys" || info.TokenURL != "" {
+		!info.Apps[0].Current || info.Apps[1].Current || info.Page != base+"/admin#passkeys" || info.TokenURL != "" || !info.MakesTokens {
 		t.Fatalf("%d %+v", code, info)
 	}
 	var made struct {
