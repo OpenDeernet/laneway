@@ -45,5 +45,6 @@ func hostedSetting(name string) bool {
 
 // HostedOffSettings are more ui: options a hosted app neither writes nor
 // reads: calendar is a file, directory or URL fetched by this machine;
-// download_dir is a directory on it.
-var HostedOffSettings = map[string]bool{"calendar": true, "download_dir": true}
+// download_dir is a directory on it; agent_view places agents, which
+// don't run there.
+var HostedOffSettings = map[string]bool{"calendar": true, "download_dir": true, "agent_view": true}

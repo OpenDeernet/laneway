@@ -69,11 +69,15 @@ func init() {
 	get("/settings", func(ctx context.Context, s *Server, r *http.Request) (any, error) {
 		c := s.UIConfig()
 		acts := ui.KeyActions()
+		list := settings(c)
+		if s.opt.Hosted { // only what a hosted app may set and a browser uses
+			list = slices.DeleteFunc(list, func(x Setting) bool { return x.Terminal || !hostedSetting(x.Name) })
+		}
 		return map[string]any{
 			"path":       s.opt.ConfigPath,
 			"editable":   s.opt.ConfigPath != "",
 			"groups":     groupTitles(),
-			"settings":   settings(c),
+			"settings":   list,
 			"warnings":   ui.ValidateUI(c),
 			"keyActions": acts,
 		}, nil

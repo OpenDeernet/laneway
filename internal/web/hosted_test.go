@@ -2,6 +2,7 @@ package web
 
 import (
 	"bytes"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -74,6 +75,21 @@ func TestHostedGate(t *testing.T) {
 	}
 	if c := call("PUT", "/api/settings/stale_days", `{"Value":5}`); c != http.StatusOK && c != http.StatusNoContent {
 		t.Errorf("an ordinary setting on a hosted app: %d", c)
+	}
+	// The settings screen lists neither those nor the terminal's own.
+	res, err := http.Get(ts.URL + "/api/settings")
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := io.ReadAll(res.Body)
+	res.Body.Close()
+	for _, name := range []string{"llm", "calendar", "agent_view", "theme"} {
+		if bytes.Contains(body, []byte(`"Name":"`+name+`"`)) {
+			t.Errorf("a hosted app lists %s", name)
+		}
+	}
+	if !bytes.Contains(body, []byte(`"Name":"stale_days"`)) {
+		t.Error("a hosted app lists no stale_days")
 	}
 	// Not hosted: the gate is open.
 	plain := New(t.Context(), Options{})

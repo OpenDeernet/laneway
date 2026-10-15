@@ -182,7 +182,8 @@ What would act as the server's own user is off: actions, asking an LLM,
 coding agents and their terminal, starting work and pull requests in
 checkouts, worklog proposals from commands and calendars, GitLab, rules,
 start at login, adding sites; settings that run commands or name files
-(`ui.calendar`, `ui.download_dir`) can't be set. `internal/web/hosted-routes.txt`
+(`ui.calendar`, `ui.download_dir`) can't be set, and the settings page
+leaves them out, with the terminal's own and `ui.agent_view`. `internal/web/hosted-routes.txt`
 lists which routes serve; any other answers 403.
 
 ## For many people, on Jira Cloud
