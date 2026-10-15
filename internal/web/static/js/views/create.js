@@ -223,7 +223,7 @@ export async function openCreate(app, opts = {}) {
       if (more.contains(el)) more.open = true;
       el.after(h('div.form-err.field-err', msg));
     }
-    return rest.length ? rest.join('; ') : T('Jira refused it: see the fields marked');
+    return rest.length ? rest.join('; ') : T('The site refused it: see the fields marked');
   }
 
   async function submit() {

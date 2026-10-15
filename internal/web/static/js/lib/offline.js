@@ -33,12 +33,12 @@ export function install(app) {
   const arm = () => { clearInterval(timer); timer = document.hidden ? 0 : setInterval(poll, 20000); };
   document.addEventListener('visibilitychange', () => { arm(); if (!document.hidden) poll(); });
   window.addEventListener('online', poll);
-  window.addEventListener('lw:queued', () => { ui.toast(T('Offline: kept for later, sent when Jira is back')); poll(); });
+  window.addEventListener('lw:queued', () => { ui.toast(T('Offline: kept for later, sent when the site is back')); poll(); });
   poll(); arm();
 
   async function open() {
     await poll();
-    if (!list.length) return ui.toast(T('Nothing waiting to reach Jira'));
+    if (!list.length) return ui.toast(T('Nothing waiting to reach the site'));
     const body = h('div.queue');
     const m = ui.modal(body, { title: T('Offline writes'), wide: true });
     const draw = () => {
@@ -53,13 +53,13 @@ export function install(app) {
           } }, T('Drop'))))),
         h('div.row.end',
           h('button.btn', { onclick: () => send(false) }, T('Retry')),
-          h('button.btn.primary', { title: T('Also over changes made in Jira since'), onclick: () => send(true) }, T('Send now'))));
+          h('button.btn.primary', { title: T('Also over changes made on the site since'), onclick: () => send(true) }, T('Send now'))));
     };
     async function send(force) {
       let r;
       try { r = await api.post('/queue/send', { Force: force }); } catch (e) { return ui.errToast(e); }
       for (const f of r.Failed || []) ui.toast(T('Refused, dropped: %s', f), { kind: 'err' });
-      if (r.Conflict) ui.toast(T('%s changed in Jira since you queued a write. Send now goes over it.', r.Conflict), { kind: 'err' });
+      if (r.Conflict) ui.toast(T('%s changed on the site since you queued a write. Send now goes over it.', r.Conflict), { kind: 'err' });
       else if (r.Error) ui.toast(r.Offline ? T('Still offline') : r.Error, { kind: 'err' });
       else if (r.Sent) ui.toast(Tn(r.Sent, 'Sent %d queued write', 'Sent %d queued writes', r.Sent));
       await poll(); draw();

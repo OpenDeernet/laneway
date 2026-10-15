@@ -102,7 +102,7 @@ export function install(app) {
   }
 
   // Offline: the browser says the network is gone. Writes queue on the server meanwhile (lib/offline.js).
-  const off = add(h('span.warn', { hidden: true, role: 'status', title: T('Offline. You see what was loaded; writes wait until Jira is back.') }, T('Offline')), 5);
+  const off = add(h('span.warn', { hidden: true, role: 'status', title: T('Offline. You see what was loaded; writes wait until the site is back.') }, T('Offline')), 5);
   const net = () => { off.hidden = navigator.onLine; document.body.classList.toggle('is-offline', !navigator.onLine); };
   addEventListener('online', net); addEventListener('offline', net); net();
 

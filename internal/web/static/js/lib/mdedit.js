@@ -449,7 +449,7 @@ export function mdEdit(app, o) {
       if (d.Doc) await set(d.Doc, true); else if (!adf) await set(d.Text, true); else await setMarkdown(d.Text, true);
       touched = true;
       if (d.Base && base) base = d.Base;
-      ui.toast(base !== was ? T('Draft restored; Jira’s has changed since') : T('Draft restored'),
+      ui.toast(base !== was ? T('Draft restored; the site’s has changed since') : T('Draft restored'),
         { action: { label: T('Drop it'), run: () => { restore(before); touched = false; base = was; draft.drop(); } } });
     }).catch(() => {});
   }

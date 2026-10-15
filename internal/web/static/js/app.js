@@ -314,7 +314,7 @@ async function boot() {
     onMetrics(kind => { bus.emit(kind); bus.emit('metrics', kind); });
     theme.attach(app.prefs); theme.fonts.attach(app.prefs); theme.fonts.refreshFiles(api).catch(() => {});
     keys.configure({ conf: session.ui.Keys || {}, web: session.ui.WebKeys || {} });
-  } catch (e) { $('#top').classList.remove('boot'); $('#viewbar').classList.remove('hold'); clear($('#view')).append(h('div.empty', h('h2', T('Cannot reach Jira')), h('pre', e.message))); return; }
+  } catch (e) { $('#top').classList.remove('boot'); $('#viewbar').classList.remove('hold'); clear($('#view')).append(h('div.empty', h('h2', T('Cannot reach the site')), h('pre', e.message))); return; }
   import('./lib/keybar.js').then(m => m.install(app)).catch(e => console.error('keybar', e));
   import('./lib/timer.js').then(m => m.install(app)).catch(e => console.error('timer', e));
   import('./lib/tools.js').then(m => m.install(app)).catch(e => console.error('tools', e));

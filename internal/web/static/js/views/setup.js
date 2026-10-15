@@ -65,7 +65,7 @@ export function mountSetup(el, st) {
   if (site.value) probe();
 
   clear(el).append(h('div.su-wrap', h('div.su-card',
-    h('h2', again ? T('Sign in to Jira again') : T('Connect laneway to Jira')),
+    h('h2', again ? T('Sign in again') : T('Connect laneway to Jira')),
     h('p.su-intro.dim', again
       ? T('The config has this site, but not everything it needs to sign in. Fill in what is missing.')
       : T('laneway shows your Jira boards and works on them as you. Tell it where your Jira is and give it a token to sign in with. Works with Jira Cloud.')),
@@ -81,7 +81,7 @@ export function mountSetup(el, st) {
     busy = true; connect.disabled = true;
     for (const k in errs) errs[k].textContent = '';
     status.className = 'su-status dim';
-    status.textContent = demo ? T('Starting the demo…') : T('Signing in to Jira…');
+    status.textContent = demo ? T('Starting the demo…') : T('Signing in…');
     try {
       const r = await api.post('/setup', demo ? { Demo: true } : { Site: site.value, Email: email.value, Token: token.value, Keyring: !!(keyring && keyring.checked), Autostart: !!(atLogin && atLogin.checked) });
       status.className = 'su-status ok';

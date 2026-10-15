@@ -436,7 +436,7 @@ export function fieldInput(app, fm, { project, issue, value, required, onChange 
       break;
     }
     default:
-      w.el = h('span.faint', required ? T('Not editable here: set it in Jira') : T('Not editable here'));
+      w.el = h('span.faint', required ? T('Not editable here: set it on the site') : T('Not editable here'));
   }
   return w;
 }

@@ -298,7 +298,7 @@ export function mountIssue(el, key, { app, full, card }) {
   function fieldCell(cell, f) {
     const v = valueText(fieldMeta().Values[f.ID]);
     let c;
-    if (f.ReadOnly) { c = cell(null, f.Name, v); c.title = f.ByRule ? T('A field rule lets you only read it') : T('Jira lets no one edit this issue now'); }
+    if (f.ReadOnly) { c = cell(null, f.Name, v); c.title = f.ByRule ? T('A field rule lets you only read it') : T('The site lets no one edit this issue now'); }
     else if (f.Kind === 'doc') c = h('button.fld', { title: T('Write %s', f.Name.toLowerCase()), onclick: () => editDoc(f) }, h('span.k' + (required(f.ID) ? '.req' : ''), f.Name), h('span.v', dash()));
     else c = cell(f.ID, f.Name, v);
     return c;
@@ -396,10 +396,10 @@ export function mountIssue(el, key, { app, full, card }) {
       const b = (label, val, cls = '') => h('button.btn' + cls, { onclick: () => { v = val; m.close(); } }, label);
       const diff = lineDiff(theirs, mine, 40);
       const m = ui.modal(h('div',
-        h('p', T('Someone changed it in Jira since you opened it. Nothing was saved.')),
+        h('p', T('Someone changed it on the site since you opened it. Nothing was saved.')),
         diff.length > 0 && [h('p.dim', T('Saving yours over theirs:')), h('div.chg-diff', diff.map(l => h('div.' + (l[0] === '-' ? 'del' : l[0] === '+' ? 'add' : 'more'), l)))],
         h('div.row.end', b(T('Keep editing'), false, '.primary'), b(T('Take theirs'), 'theirs'), b(T('Save yours over it'), 'mine', '.danger'))),
-      { title: T('%s changed in Jira', name), wide: true, onClose: () => resolve(v) });
+      { title: T('%s changed on the site', name), wide: true, onClose: () => resolve(v) });
     });
     if (pick !== 'mine') return pick;
     await api.put(path, { ...body, Base: now.Base });

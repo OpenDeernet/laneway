@@ -338,7 +338,7 @@ func formErrors(f *jiraFormState, err error) string {
 		f.create.fieldErrs[id] = fieldErr{msg: msg, val: jiraValueText(f.fields[i].val)}
 	}
 	if len(rest) == 0 {
-		return i18n.T("Jira refused it: see the fields marked")
+		return i18n.T("The site refused it: see the fields marked")
 	}
 	slices.Sort(rest[len(re.Messages):])
 	return strings.Join(rest, "; ")

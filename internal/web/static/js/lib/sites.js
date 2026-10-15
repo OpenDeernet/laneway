@@ -64,7 +64,7 @@ function addSite(app, info) {
     if (busy) return;
     busy = true; ok.disabled = true;
     for (const k in errs) errs[k].textContent = '';
-    status.className = 'su-status dim'; status.textContent = T('Signing in to Jira…');
+    status.className = 'su-status dim'; status.textContent = T('Signing in…');
     try {
       const r = await app.api.post('/sites', { Site: f.site.value, Email: f.email.value, Token: f.token.value, Name: f.name.value, Keyring: !!(keyring && keyring.checked) });
       status.className = 'su-status ok'; status.textContent = T('Signed in as %s. Opening %s…', r.who, r.site);
