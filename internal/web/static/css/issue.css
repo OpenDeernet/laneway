@@ -30,7 +30,7 @@
 .clip { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 
 /* fields */
-.fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(13.571rem, 1fr)); gap: .143rem .571rem; }
+.fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(13.571rem, calc(50% - .3rem)), 1fr)); gap: .143rem .571rem; }
 .fld { display: flex; flex-direction: column; gap: 1px; text-align: left; font: inherit; color: var(--fg); background: none; border: 1px solid transparent; border-radius: var(--radius); padding: .286rem .571rem; min-width: 0; }
 button.fld { cursor: pointer; } button.fld:hover { background: var(--bg-3); border-color: var(--border); }
 .fld .k { font-size: .75em; text-transform: uppercase; letter-spacing: .04em; color: var(--fg-3); }

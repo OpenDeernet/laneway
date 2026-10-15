@@ -120,3 +120,5 @@ button.pp-job { cursor: pointer; } button.pp-job:hover { background: var(--bg-3)
 .mr-signin { display: flex; flex-direction: column; gap: .429rem; padding: .429rem 0; overflow-wrap: anywhere; }
 .mr-signin p { margin: 0; }
 .mr-signin pre { margin: 0; padding: .429rem .571rem; background: var(--bg-3); border-radius: var(--radius); font-size: .9em; overflow-x: auto; }
+/* A phone: no key to press, and the summary wraps instead of clipping. */
+@media (max-width: 600px) { .dv-head > kbd { display: none; } .dv-head .dv-sum.clip { white-space: normal; } }
