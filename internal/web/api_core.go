@@ -87,8 +87,17 @@ func session(ctx context.Context, s *Server, r *http.Request) (any, error) {
 	if errors.Is(err, jira.ErrSignedOut) && o.SignedOut != nil {
 		return nil, err
 	}
+	// A laneway web for many people next to laneway-server is that site's
+	// own web: no "open in Jira" (its /browse links lead back here).
+	elsewhere := true
+	if o.Hosted {
+		if is, _ := s.Client().Laneway(ctx); is {
+			elsewhere = false
+		}
+	}
 	return map[string]any{
-		"site": o.Site, "sites": o.Sites, "defaultName": o.DefaultName, "demo": o.Demo, "version": o.Version,
+		"siteElsewhere": elsewhere,
+		"site":          o.Site, "sites": o.Sites, "defaultName": o.DefaultName, "demo": o.Demo, "version": o.Version,
 		"baseURL": s.Client().BaseURL(), "me": me,
 		"projects": s.projects(), "ui": s.UIConfig(), "autostart": s.autostartInfo(), "pins": fieldPins(s),
 		"repos":   slices.Sorted(maps.Keys(o.Jira.Repos)), // projects with a checkout: draft PR, removing a worktree

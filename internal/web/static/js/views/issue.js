@@ -110,6 +110,8 @@ export function mountIssue(el, key, { app, full, card }) {
     ui.toast(T('%s copied', what));
   };
   const browseURL = () => (st.issue && st.issue.URL) || (app.session.baseURL + '/browse/' + key);
+  // The site's own web is this one when it is laneway-server's (hosted): nothing to open elsewhere.
+  const elsewhere = !app.session || app.session.siteElsewhere !== false;
   const go = (k, push = true) => { expect = k; return full ? app.go('/issue/' + k, { replace: !push }) : app.panel.open(k, { force: true, push }); };
   const open = k => { if (k !== key) { trail.push(me_.entry()); go(k); } };
   const back = () => { if (!trail.length) return ui.toast(T('No previous issue')); go(trail.pop().key); };
@@ -168,7 +170,7 @@ export function mountIssue(el, key, { app, full, card }) {
         app.agents && app.agents.available && !(app.session && app.session.demo) &&
           h('button.btn.ghost.sm', { title: T('Start work: worktree and agent (S) · another agent (alt+s)'), onclick: () => app.agents.start(key) }, (app.agents.stateFor(key) || {}).count ? T('Agent') : T('Start work')),
         h('span.spacer'),
-        h('a.btn.ghost.sm', { href: browseURL(), target: '_blank', rel: 'noopener noreferrer', title: T('Open in Jira (o)') }, 'Jira', icon('external-link')),
+        elsewhere && h('a.btn.ghost.sm', { href: browseURL(), target: '_blank', rel: 'noopener noreferrer', title: T('Open in Jira (o)') }, 'Jira', icon('external-link')),
         h('button.btn.ghost.sm', { title: full ? T('Back (esc)') : T('Close (esc)'), onclick: goBack }, full ? [icon('arrow-left'), T('Back')] : icon('x'))),
       h('h1.iss-title', { title: T('Edit summary'), onclick: e => edit('summary', e.currentTarget) }, summary || '…'),
       ...(i || c ? [h('div.iss-sub', h('button.pill-btn', { title: T('Change status'), onclick: () => app.actions.transition(key) }, i ? ui.statusPill(i.Status, i.StatusCategory) : ui.statusPill(c.Status, catOf(c))),
@@ -942,7 +944,7 @@ export function mountIssue(el, key, { app, full, card }) {
   scope.bind('y', () => copy(key, key), T('copy key'), { group: G });
   scope.bind('*', () => pins.toggle(app, key, st.issue && st.issue.Summary), T('pin / unpin issue (first in the palette)'), { group: G });
   scope.bind('Y', () => copy(browseURL(), 'Link'), T('copy link'), { group: G });
-  scope.bind('o', () => window.open(browseURL(), '_blank', 'noopener'), T('open in Jira'), { group: G, bar: 'Jira' });
+  if (elsewhere) scope.bind('o', () => window.open(browseURL(), '_blank', 'noopener'), T('open in Jira'), { group: G, bar: 'Jira' });
   scope.bind('s', () => edit('status'), T('change status'), { group: G, bar: T('status') });
 
   // ---- resize (panel only): ui.panel_width (50%) until a drag or < > picks another, 20–80%; near
