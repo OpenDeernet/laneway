@@ -54,7 +54,10 @@ func (c *Client) SetIndex(ix Indexer) {
 func issuePathKey(path string) string {
 	rest, ok := strings.CutPrefix(path, "/rest/api/3/issue/")
 	if !ok {
-		return ""
+		// A service desk's request (its comments, its moves) is an issue too.
+		if rest, ok = strings.CutPrefix(path, "/rest/servicedeskapi/request/"); !ok {
+			return ""
+		}
 	}
 	key, _, _ := strings.Cut(rest, "/")
 	key, _, _ = strings.Cut(key, "?")

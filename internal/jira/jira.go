@@ -650,6 +650,9 @@ func (c *Client) attempt(ctx context.Context, method, path, what string, body an
 		if ctx.Err() == nil && isTimeout(err) {
 			return nil, -1, fmt.Errorf("jira: %s timed out after %s · raise jira.timeout for a slow instance: %w", what, c.timeout, err)
 		}
+		if unreached(err) {
+			return nil, -1, fmt.Errorf("%s: the site can't be reached; try again when it's back: %w", what, err)
+		}
 		return nil, -1, fmt.Errorf("call jira: %w", err)
 	}
 	defer resp.Body.Close()

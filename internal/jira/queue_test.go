@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 )
@@ -30,9 +31,17 @@ func TestOfflineQueue(t *testing.T) {
 	if _, err := c.CreateIssue(context.Background(), NewIssue{Project: "ABC", Type: "Task", Summary: "x"}); errors.Is(err, ErrQueued) {
 		t.Error("a create should fail, not queue")
 	}
+	if _, err := c.CreateIssue(context.Background(), NewIssue{Project: "ABC", Type: "Task", Summary: "x"}); err == nil || !strings.Contains(err.Error(), "can't be reached") {
+		t.Errorf("an unqueued write says the site can't be reached: %v", err)
+	}
 	if len(queued) != 1 {
 		t.Errorf("queued %d", len(queued))
 	}
+	// A service desk request's comment queues as an issue's does.
+	if err := c.AddRequestComment(context.Background(), "HELP-1", "later", true); !errors.Is(err, ErrQueued) || len(queued) != 2 || queued[1].Key() != "HELP-1" {
+		t.Fatalf("request comment: %v, queued %+v", err, queued)
+	}
+	queued = queued[:1]
 	if err := c.Replay(context.Background(), queued[0]); !errors.Is(err, ErrQueued) || len(queued) != 1 {
 		t.Errorf("still offline: %v, queued %d", err, len(queued))
 	}
