@@ -244,7 +244,7 @@ function globalKeys() {
   g.bind('O', () => app.go('/work?tab=issues'), T('my work, every project'), { group: 'Go' });
   g.bind('I', () => app.go('/inbox'), T('go to inbox'), { group: 'Go' });
   g.bind('U', () => app.go('/standup'), T('go to standup'), { group: 'Go' });
-  g.bind('ctrl+g', () => app.go('/agents'), T('go to agents'), { group: 'Go' });
+  if (routes.some(r => r.name === 'agents')) g.bind('ctrl+g', () => app.go('/agents'), T('go to agents'), { group: 'Go' });
   for (const r of routes) commands.register({ id: 'go:' + r.name, title: T('Go to %s', nav.routeTitle(r)), group: 'Go', run: () => app.go('/' + r.name) });
   commands.register({ id: 'theme:next', title: T('Theme: next'), group: 'Theme', run: () => ui.toast(T('Theme: %s', theme.next())) });
   for (const p of theme.presets) commands.register({ id: 'theme:' + p.id, title: T('Theme: %s', p.name), group: 'Theme', run: () => theme.set(p.id) });
@@ -298,9 +298,9 @@ async function boot() {
     import('./views/setup.js').then(m => m.mountSetup($('#view'), session.setup));
     return;
   }
+  // A laneway web shared by many people runs no agents, rules or GitLab on its machine: no nav, keys or commands for them.
+  if (session.hosted) for (let i = routes.length; i--;) if (['agents', 'mr', 'mrs', 'rules'].includes(routes[i].name)) routes.splice(i, 1);
   chrome(); globalKeys();
-  // A laneway web shared by many people runs no agents (nor commands) on its machine.
-  if (session.hosted) for (const n of ['agents', 'mrs', 'review']) { const a = document.querySelector(`#nav a[data-name=${n}]`); if (a) a.hidden = true; }
   if (!session.hosted) import('./lib/agents.js').then(m => m.install(app)).catch(e => console.error('agents', e));
   import('./views/plan_cmds.js').then(m => m.register(app));
   import('./lib/pwa.js').then(m => m.install(app)).catch(e => console.error('pwa', e));
