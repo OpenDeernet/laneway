@@ -96,7 +96,8 @@ export function mountDev(key, { app, el, full, card, details }) {
     const ci = builds.filter(b => b.Branch && b.Branch === p.Source).sort(newest)[0];
     const revs = p.Reviewers || [];
     const ok = revs.filter(r => r.Approved).length;
-    const mr = isMR(p.URL), open = mr && openMR.has(p.URL);
+    // A laneway web for many people reads no GitLab: a merge request is a link there.
+    const mr = isMR(p.URL) && !(app.session && app.session.hosted), open = mr && openMR.has(p.URL);
     const li = row('li', p, p.Source, T('Branch'),
       h('div.dv-line',
         mr ? h('span.dv-caret', { 'aria-hidden': 'true' }, icon('chevron-right')) : null,
