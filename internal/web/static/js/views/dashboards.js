@@ -38,7 +38,7 @@ export default async function mount(el, { app, params }) {
   function draw(g, d, db, charts) {
     const elsewhere = msg => [h('div.hnote.dim', msg, ' ', db.View ? h('a', { href: db.View, target: '_blank', rel: 'noopener' }, T('Open the dashboard')) : null)];
     if (d.elsewhere || d.unsupported) return elsewhere(T('This gadget shows on the site.'));
-    if (d.configure) return elsewhere(T('This gadget isn’t set up yet: set it up on the site.'));
+    if (d.configure) return elsewhere(db.View ? T('This gadget isn’t set up yet: set it up on the site.') : T('This gadget isn’t set up yet.'));
     if (d.text !== undefined) return [h('div.hnote', d.text)];
     if (d.issues) {
       const rows = d.issues.map(r => h('div.hrow', { onclick: () => app.panel.open(r.key), title: r.summary },
