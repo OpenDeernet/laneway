@@ -1,6 +1,7 @@
 // JSON API client. GETs are de-duplicated while in flight; `swr` answers from
 // a persisted cache at once and again when fresh data arrives.
 const inflight = new Map();
+let signingIn = false; // on the way to the sign-in (call)
 const mem = new Map();
 let site = '';
 export const setSite = s => { site = s; };
@@ -39,7 +40,11 @@ async function call(method, path, body, signal, keepalive = false) {
   let data = null;
   try { data = lists(await res.json()); } catch (e) { /* empty body */ }
   // A laneway web shared by many people: signed out (the page came from the cache), sign in and come back.
-  if (res.status === 401 && data && data.signedOut === '/auth/login') location.assign('/auth/login?next=' + encodeURIComponent(location.pathname + location.search));
+  // Once: a page's requests all find it signed out at the same time.
+  if (res.status === 401 && data && data.signedOut === '/auth/login' && !signingIn) {
+    signingIn = true;
+    location.assign('/auth/login?next=' + encodeURIComponent(location.pathname + location.search));
+  }
   if (!res.ok) throw new ApiError((data && data.error) || res.statusText, res.status, data && data.fields, data && data.signin);
   if (res.status === 202) window.dispatchEvent(new CustomEvent('lw:queued')); // a write kept for when Jira is back
   return data;

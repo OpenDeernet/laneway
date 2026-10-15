@@ -427,3 +427,38 @@ func TestHostedURLWithPath(t *testing.T) {
 		t.Error("a -url with a path was taken")
 	}
 }
+
+// Sign-ins started at once in one browser (a page's requests all finding
+// it signed out) don't spoil each other: the first one still finishes.
+func TestHostedParallelSignIns(t *testing.T) {
+	_, _, gw := newTestGateway(t)
+	b := browserFor()
+	b.CheckRedirect = func(r *http.Request, _ []*http.Request) error {
+		if r.URL.Path == "/auth/callback" {
+			return http.ErrUseLastResponse
+		}
+		return nil
+	}
+	// Both leave before either answer is in: the second without the
+	// first's cookie; its answer lands last.
+	res, err := b.Get(gw + "/auth/login")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cbs := []string{res.Header.Get("Location")}
+	bare := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	res2, err := bare.Get(gw + "/auth/login") // the answer that sets its cookie
+	if err != nil {
+		t.Fatal(err)
+	}
+	u, _ := url.Parse(gw)
+	b.Jar.SetCookies(u.ResolveReference(&url.URL{Path: "/auth/"}), res2.Cookies())
+	follow := *b
+	follow.CheckRedirect = nil
+	if res, err := follow.Get(cbs[0]); err != nil || res.StatusCode != http.StatusOK {
+		t.Fatalf("the first sign-in, after a second started: %v %v", res, err)
+	}
+	if res, _ := follow.Get(gw + "/api/session"); res.StatusCode != 200 {
+		t.Errorf("session: %d", res.StatusCode)
+	}
+}

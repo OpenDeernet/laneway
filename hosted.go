@@ -294,11 +294,10 @@ func (h *hosted) beginLogin(w http.ResponseWriter, r *http.Request, next string,
 		next = "/"
 	}
 	// The callback must come back to this browser, not one an attacker
-	// sent their own callback to (login CSRF). Two tabs share the cookie.
+	// sent their own callback to (login CSRF). Each sign-in has a cookie of
+	// its own: sign-ins started at once (a page's requests all finding it
+	// signed out) mustn't overwrite each other's.
 	nonce := randomString()
-	if c, err := r.Cookie(hostedLoginCookie); err == nil && len(c.Value) == len(nonce) {
-		nonce = c.Value
-	}
 	h.mu.Lock()
 	for k, p := range h.logins {
 		if time.Since(p.at) > hostedLoginTTL {
@@ -313,7 +312,7 @@ func (h *hosted) beginLogin(w http.ResponseWriter, r *http.Request, next string,
 	p.nonce, p.next, p.at = nonce, next, time.Now()
 	h.logins[state] = &p
 	h.mu.Unlock()
-	http.SetCookie(w, &http.Cookie{Name: hostedLoginCookie, Value: nonce, Path: "/auth/", MaxAge: int(hostedLoginTTL.Seconds()), HttpOnly: true,
+	http.SetCookie(w, &http.Cookie{Name: loginCookieName(state), Value: nonce, Path: "/auth/", MaxAge: int(hostedLoginTTL.Seconds()), HttpOnly: true,
 		Secure: h.secure, SameSite: http.SameSiteLaxMode})
 	http.Redirect(w, r, authURL, http.StatusFound)
 }
@@ -326,7 +325,7 @@ func (h *hosted) callback(w http.ResponseWriter, r *http.Request) {
 	p := h.logins[state]
 	delete(h.logins, state)
 	h.mu.Unlock()
-	c, _ := r.Cookie(hostedLoginCookie)
+	c, _ := r.Cookie(loginCookieName(state))
 	if p == nil || time.Since(p.at) > hostedLoginTTL || c == nil || subtle.ConstantTimeCompare([]byte(c.Value), []byte(p.nonce)) != 1 {
 		// Which check failed, for whoever runs this (no secrets: only whether each was there).
 		why := "no sign-in under way with that state"
@@ -348,7 +347,7 @@ func (h *hosted) callback(w http.ResponseWriter, r *http.Request) {
 			html.EscapeString(i18n.T("the sign-in took too long or didn't start here; open the page again")), html.EscapeString(i18n.T("Sign in again")))
 		return
 	}
-	http.SetCookie(w, &http.Cookie{Name: hostedLoginCookie, Value: "", Path: "/auth/", MaxAge: -1, HttpOnly: true, Secure: h.secure, SameSite: http.SameSiteLaxMode})
+	http.SetCookie(w, &http.Cookie{Name: loginCookieName(state), Value: "", Path: "/auth/", MaxAge: -1, HttpOnly: true, Secure: h.secure, SameSite: http.SameSiteLaxMode})
 	if h.atlassian != nil {
 		h.atlassianCallback(w, r, p)
 		return
@@ -591,4 +590,10 @@ func hostedUI(u config.UIConfig) config.UIConfig {
 		return config.UIConfig{}
 	}
 	return out
+}
+
+// loginCookieName is the cookie of one sign-in: its state, hashed short.
+func loginCookieName(state string) string {
+	sum := sha256.Sum256([]byte(state))
+	return hostedLoginCookie + "_" + hex.EncodeToString(sum[:6])
 }
