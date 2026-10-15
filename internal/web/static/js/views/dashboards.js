@@ -74,12 +74,13 @@ export default async function mount(el, { app, params }) {
     if (d.values) return [h('div', d.values.map(v => h('div.hrow', h('span.hs', v.label), h('span.hn', `${v.value}${v.unit ? (v.unit === '%' ? '%' : ' ' + v.unit) : d.unit ? ' ' + d.unit : ''}`))))];
     if (d.points && d.series) {
       if (!d.points.length) return [h('div.hnote.dim', T('No data yet.'))];
-      const [k, name] = d.series[0];
-      const pts = d.points.map(p => [Date.parse(p.start.replace(' ', 'T')), p[k]]);
-      const top = niceTicks(Math.max(1, ...pts.map(p => p[1])));
+      const at = d.points.map(p => Date.parse(p.start.replace(' ', 'T')));
+      const colors = ['var(--accent)', 'var(--ok)', 'var(--err)'];
+      const series = d.series.map(([k, name], i) => ({ name, color: colors[i % colors.length], pts: d.points.map((p, j) => [at[j], p[k] || 0]) }));
+      const top = niceTicks(Math.max(1, ...series.flatMap(s => s.pts.map(p => p[1]))));
       const wrap = h('div.db-chart');
-      charts.push(chart(wrap, { title: g.Title, height: 180, x: { min: pts[0][0], max: pts[pts.length - 1][0], ticks: timeTicks(pts[0][0], pts[pts.length - 1][0], 5) },
-        y: { max: top.max, ticks: top.ticks }, layers: [{ type: 'line', pts, color: 'var(--accent)', width: 2 }], legend: [{ color: 'var(--accent)', name }] }));
+      charts.push(chart(wrap, { title: g.Title, height: 180, x: { min: at[0], max: at[at.length - 1], ticks: timeTicks(at[0], at[at.length - 1], 5) },
+        y: { max: top.max, ticks: top.ticks }, layers: series.map(s => ({ type: 'line', pts: s.pts, color: s.color, width: 2 })), legend: series.map(s => ({ color: s.color, name: s.name })) }));
       return [wrap];
     }
     return elsewhere(T('This gadget shows on the site.'));

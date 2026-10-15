@@ -87,7 +87,8 @@ const issueOf = (app, key) => app.api.get('/issues/' + key);
 // mustFill reports whether editmeta requires a field the panel edits with its own row (LW-357): the
 // field configuration's, or a laneway field rule's; a read-only one isn't the panel's to refuse.
 async function mustFill(app, key, id) {
-  const m = await app.api.get(`/issues/${key}/editmeta`);
+  let m;
+  try { m = await app.api.get(`/issues/${key}/editmeta`); } catch (e) { return false; } // unknown: Jira still judges the write
   if (id === 'points') id = m.PointsField;
   return !!id && (m.OwnRequired || []).includes(id);
 }
@@ -254,8 +255,8 @@ export function moveForm(app, key, t) {
   let seq = 0, timer = 0;
   function reask() {
     clearTimeout(timer);
+    const my = ++seq;
     timer = setTimeout(async () => {
-      const my = ++seq;
       const Fields = [];
       rows.forEach((r, i) => { const f = t.Fields[i]; if (f.Kind !== 'other' && !r.widget.empty()) Fields.push({ ID: f.ID, Kind: f.Kind, Value: r.widget.get() }); });
       let fx;
@@ -273,7 +274,7 @@ export function moveForm(app, key, t) {
     title: T('Move %s → %s', key, t.ToName), intro: t.Message, rows, ok: T('Move'), wide: t.Fields.some(f => f.Kind === 'doc' || f.Kind === 'comment'),
     submit: async () => {
       const out = [];
-      rows.forEach((r, i) => { const f = t.Fields[i]; if (f.Kind !== 'other' && r.widget.touched()) out.push({ ID: f.ID, Kind: f.Kind, Value: r.widget.get() }); });
+      rows.forEach((r, i) => { const f = t.Fields[i]; if (f.Kind !== 'other' && !r.hidden && r.widget.touched()) out.push({ ID: f.ID, Kind: f.Kind, Value: r.widget.get() }); });
       app.bus.emit('issue:patch', { key, field: 'status', value: t.ToName });
       let r;
       try { r = await app.api.post(`/issues/${key}/transitionwith`, { ID: t.ID, Fields: out }); } catch (e) { app.bus.emit('issue:changed', { key }); throw e; }

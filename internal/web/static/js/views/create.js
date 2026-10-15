@@ -38,7 +38,7 @@ export async function openCreate(app, opts = {}) {
   let project = opts.project || (restore && restore.project) || projectOf(app, {});
   let type = opts.type || (restore && restore.type) || '';
   let widgets = new Map(), fields = [], pseq = 0, fseq = 0, busy = false, submitted = false;
-  let effects = {}, rseq = 0, rtimer = 0; // laneway-server's form rules (reask)
+  let effects = {}, rseq = 0, rtimer = 0, byRule = false; // laneway-server's form rules (reask); byRule: More opened by one, not a pref
   const rows = new Map();
   const kept = new Map(); // values typed, kept across a type change
 
@@ -58,7 +58,7 @@ export async function openCreate(app, opts = {}) {
   const sprintRow = h('div.form-sprint', { hidden: true });
   const count$ = h('div.faint.form-hint');
   const extra = h('div.form');
-  const more = h('details.form-more', { hidden: true, open: prefs.get('create.more', '') === '1', ontoggle: () => prefs.set('create.more', more.open ? '1' : '') }, h('summary', T('More fields')), h('div.form'));
+  const more = h('details.form-more', { hidden: true, open: prefs.get('create.more', '') === '1', ontoggle: () => { if (byRule) byRule = false; else prefs.set('create.more', more.open ? '1' : ''); } }, h('summary', T('More fields')), h('div.form'));
   const err = h('div.form-err', { role: 'alert' });
   const another = h('input', { type: 'checkbox', checked: prefs.get('create.another', '') === '1', onchange: () => prefs.set('create.another', another.checked ? '1' : '0') });
   const okBtn = h('button.btn.primary', { type: 'submit' }, T('Create'));
@@ -175,8 +175,8 @@ export async function openCreate(app, opts = {}) {
   // Jira has none (an empty answer); the server stays the judge at create.
   function reask() {
     clearTimeout(rtimer);
+    const my = ++rseq; // an answer to an earlier form (another type, say) lands on nothing
     rtimer = setTimeout(async () => {
-      const my = ++rseq;
       const Fields = [];
       for (const f of fields) { const w = widgets.get(f.ID); if (w && !w.empty()) Fields.push({ ID: f.ID, Kind: f.Kind, Value: w.get() }); }
       try {
@@ -188,12 +188,12 @@ export async function openCreate(app, opts = {}) {
           if (!label) continue;
           label.hidden = cell.hidden = !!e.hidden;
           label.classList.toggle('req', !!(f.Required || e.required));
-          if (e.required && !e.hidden && more.contains(label) && widgets.get(f.ID).empty()) more.open = true; // in view, not folded away
+          if (e.required && !e.hidden && more.contains(label) && widgets.get(f.ID).empty()) { byRule = true; more.open = true; } // in view, not folded away
           label.title = e.message || '';
           const w = widgets.get(f.ID);
           // Narrowed options (priority, option fields): the others can't be picked; a picked one that left is cleared.
           if (w && w.el.tagName === 'SELECT') {
-            for (const o of w.el.options) o.hidden = o.disabled = !!(o.value && e.options && !e.options.includes(o.text));
+            for (const o of w.el.options) o.hidden = o.disabled = !!(o.value && e.options && !e.options.some(x => x.toLowerCase() === o.text.toLowerCase()));
             if (w.el.selectedOptions[0] && w.el.selectedOptions[0].disabled) { w.el.value = ''; reask(); }
           }
           if (e.default && w && !w.touched() && w.empty() && w.el.matches && w.el.matches('input')) w.el.value = e.default;
@@ -236,6 +236,7 @@ export async function openCreate(app, opts = {}) {
     const Fields = [];
     for (const f of fields) {
       const w = widgets.get(f.ID);
+      if ((effects[f.ID] || {}).hidden) continue; // a rule hid it: not sent (the server would refuse it)
       if (w.touched() && !w.empty()) Fields.push({ ID: f.ID, Kind: f.Kind, Value: w.get() });
       else if (f.ID === 'parent' && !w.empty()) Fields.push({ ID: f.ID, Kind: f.Kind, Value: w.get() });
     }
