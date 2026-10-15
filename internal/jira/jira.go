@@ -670,7 +670,7 @@ func (c *Client) attempt(ctx context.Context, method, path, what string, body an
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		retryAfter := resp.Header.Get("Retry-After")
 		err := statusError(resp.StatusCode, what, respBody, retryAfter)
-		if u, ok := err.(unauthorized); ok && c.atl != nil {
+		if u, ok := err.(unauthorized); ok && (c.atl != nil || c.oauth != nil) {
 			u.oauth = true
 			err = u
 		}
@@ -730,8 +730,9 @@ func (e notFound) Is(t error) bool { return t == ErrNotFound }
 // ErrUnauthorized is a 401 (a wrong email or token), for errors.Is.
 var ErrUnauthorized = errors.New("jira: not authorized")
 
-// oauth: the client signs in through Atlassian, whose 401 for a scope
-// the sign-in lacks has nothing to do with a token in the config.
+// oauth: the client signs in through OAuth (Atlassian or laneway-server),
+// whose 401 for a scope the sign-in lacks has nothing to do with a token
+// in the config.
 type unauthorized struct {
 	what  string
 	oauth bool

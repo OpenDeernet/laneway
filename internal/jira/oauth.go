@@ -29,7 +29,7 @@ import (
 const ClientID = "laneway"
 
 // Scopes are what the app asks for: what a person does with it.
-const Scopes = "read:jira-work write:jira-work read:jira-user manage:jira-project read:servicedesk-request write:servicedesk-request read:me manage:me offline_access"
+const Scopes = "read:jira-work write:jira-work read:jira-user manage:jira-project read:servicedesk-request write:servicedesk-request read:confluence-content.all write:confluence-content read:me manage:me offline_access"
 
 // OAuthClient is who the app signs in as: the built-in public client
 // (the zero value), or an app an administrator registered with a secret
