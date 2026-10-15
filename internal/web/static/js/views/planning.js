@@ -332,7 +332,7 @@ export default async function mount(el, { app, params, scope, context, toolbar }
     if (r.k === 'c') { const c = r.c; return [cols, c.Key, c.Summary, c.Status, c.Done, c.InProgress, c.Priority, c.Assignee, c.AvatarURL, c.Points, c.Flagged, c.ParentSummary, c.Labels, c.Reporter, c.Due, c.Updated, c.Created, c.Since, c.Extra, sel.has(c.Key), pinned.has(c.Key), cellCtx.hl(c.Key), tmark(c.Key)].join('|'); }
     if (r.k === 'e') return 'e' + (filtering() ? 'f' : '');
     const s = r.s;
-    return ['h', s.id, s.name, s.sprint && s.sprint.State, s.sprint && s.sprint.Start, s.sprint && s.sprint.End, s.sprint && s.sprint.Goal, s.sprint && s.sprint.Mine && s.sprint.Mine.Capacity, folded.has(s.id), velAvg, velN, filter, whoKey(who),
+    return ['h', s.id, s.name, s.sprint && s.sprint.State, s.sprint && s.sprint.Start, s.sprint && s.sprint.End, s.sprint && s.sprint.Goal, s.sprint && s.sprint.Mine && s.sprint.Mine.Capacity, folded.has(s.id), velAvg, velN, filter, whoKey(who), mine,
       s.cards.map(c => c.Key + c.Points + c.Assignee + c.Done).join(',')].join('|');
   }
 
@@ -347,9 +347,9 @@ export default async function mount(el, { app, params, scope, context, toolbar }
   }
 
   function headNode(s, height) {
-    const sp = s.sprint, open = !folded.has(s.id), cs = s.cards;
+    const sp = s.sprint, open = !folded.has(s.id), all = s.cards, cs = filtering() ? all.filter(visible) : all;
     const sum = cs.reduce((a, c) => a + pts(c), 0), done = cs.reduce((a, c) => a + (c.Done ? pts(c) : 0), 0);
-    const over = sp && velAvg > 0 && sum > velAvg * 1.001;
+    const over = sp && velAvg > 0 && all.reduce((a, c) => a + pts(c), 0) > velAvg * 1.001;
     const dates = sp && !isZero(sp.Start) ? shortDate(sp.Start) + ' – ' + shortDate(sp.End) : '';
     const h1 = h('div.pl-h1',
       h('button.pl-fold', { tabindex: -1, 'aria-label': open ? T('Fold %s', s.name) : T('Unfold %s', s.name), 'aria-expanded': open, dataset: { act: 'fold' } }, icon(open ? 'chevron-down' : 'chevron-right')),
@@ -358,7 +358,7 @@ export default async function mount(el, { app, params, scope, context, toolbar }
       dates && h('span.pl-dates', dates),
       sp && h('span.pl-goal', { title: sp.Goal || T('No goal') }, sp.Goal || ''),
       !sp || !sp.Goal ? h('span.spacer') : null,
-      h('span.pl-tot' + (over ? '.over' : ''), s.rest ? T('%d of %d issues', cs.length, cs.length + s.rest) : Tn(cs.length, '%d issue', '%d issues', cs.length), ' · ', h('b', fmtP(sum) + 'p'), sp && velAvg > 0 && T(' of ~%sp (avg last %d)', fmtP(velAvg), velN),
+      h('span.pl-tot' + (over ? '.over' : ''), s.rest || cs !== all ? T('%d of %d issues', cs.length, all.length + (s.rest || 0)) : Tn(cs.length, '%d issue', '%d issues', cs.length), ' · ', h('b', fmtP(sum) + 'p'), sp && velAvg > 0 && T(' of ~%sp (avg last %d)', fmtP(velAvg), velN),
         unest(cs) ? h('span.pl-unest', { title: T('Issues without story points') }, T(' · %d unestimated', unest(cs))) : null),
       sp && sp.State === 'future' && h('button.btn.pl-act', { dataset: { act: 'start' }, tabindex: -1 }, T('Start')),
       sp && sp.State === 'active' && h('button.btn.pl-act', { dataset: { act: 'close' }, tabindex: -1 }, T('Complete')),
