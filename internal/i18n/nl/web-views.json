@@ -1395,5 +1395,8 @@
   "edited": "bewerkt",
   "%s are done. Jira leaves done issues out of the backlog: they show nowhere in planning after.": "%s zijn gereed. Jira laat gerede issues uit de backlog: ze staan daarna nergens in de planning.",
   "%s is done. Jira leaves done issues out of the backlog: it shows nowhere in planning after.": "%s is gereed. Jira laat gerede issues uit de backlog: het staat daarna nergens in de planning.",
-  "Move to the backlog?": "Naar de backlog verplaatsen?"
+  "Move to the backlog?": "Naar de backlog verplaatsen?",
+  "No starred filters.": "Geen filters met een ster.",
+  "No versions due in the next %s days.": "Geen versies die de komende %s dagen af moeten zijn.",
+  "No data yet.": "Nog geen gegevens."
 }
