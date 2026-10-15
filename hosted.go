@@ -10,6 +10,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"html"
 	"io"
 	"net"
 	"net/http"
@@ -232,6 +233,9 @@ func (h *hosted) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "/auth/login":
 		h.startLogin(w, r, r.URL.Query().Get("next"))
 		return
+	case "/auth/signed-out":
+		h.signedOut(w)
+		return
 	}
 	account := h.session(r)
 	if account == "" && !strings.HasPrefix(r.URL.Path, "/api/") && path.Ext(r.URL.Path) != "" {
@@ -406,7 +410,22 @@ func (h *hosted) logout(w http.ResponseWriter, r *http.Request) {
 		h.signOut(r.Context(), account)
 	}
 	http.SetCookie(w, &http.Cookie{Name: hostedCookie, Value: "", Path: "/", MaxAge: -1, HttpOnly: true, Secure: h.secure, SameSite: http.SameSiteLaxMode})
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	http.Redirect(w, r, "/auth/signed-out", http.StatusSeeOther)
+}
+
+// signedOut says so, rather than straight back to a sign-in that the
+// browser's session on laneway-server would answer at once; from there,
+// signing out of laneway-server too is one more step.
+func (h *hosted) signedOut(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'")
+	there := ""
+	if h.atlassian == nil {
+		there = `<p><a href="` + html.EscapeString(h.server+"/logout") + `">` + html.EscapeString(i18n.T("Also sign out of laneway-server in this browser")) + `</a></p>`
+	}
+	fmt.Fprintf(w, `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>laneway</title>
+<style>body{font:16px/1.5 system-ui,sans-serif;max-width:28rem;margin:15vh auto;padding:0 16px;color:#333;background:#f6f3ee}a{color:#6b4fa0}@media(prefers-color-scheme:dark){body{background:#1f1d1b;color:#ddd}a{color:#b9a3e3}}</style></head>
+<body><h2>%s</h2><p><a href="/auth/login?next=/">%s</a></p>%s</body></html>`, html.EscapeString(i18n.T("Signed out of laneway")), html.EscapeString(i18n.T("Sign in again")), there)
 }
 
 // signOut ends the person's sign-in, app or not.

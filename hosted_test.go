@@ -245,8 +245,14 @@ func TestHostedGateway(t *testing.T) {
 	req.Header.Set("Origin", gw.URL)
 	noFollow := *ada
 	noFollow.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
-	if res, _ := noFollow.Do(req); res.StatusCode != http.StatusSeeOther {
-		t.Errorf("logout: %d", res.StatusCode)
+	if res, _ := noFollow.Do(req); res.StatusCode != http.StatusSeeOther || res.Header.Get("Location") != "/auth/signed-out" {
+		t.Errorf("logout: %d to %q", res.StatusCode, res.Header.Get("Location"))
+	}
+	// It says so, with the way back in and out of laneway-server too.
+	if res, _ := noFollow.Get(gw.URL + "/auth/signed-out"); res.StatusCode != 200 {
+		t.Errorf("signed-out page: %d", res.StatusCode)
+	} else if raw, _ := io.ReadAll(res.Body); !strings.Contains(string(raw), `/auth/login?next=/`) || !strings.Contains(string(raw), "/logout") {
+		t.Errorf("signed-out page: %s", raw)
 	}
 	if len(lw.revoked) != revoked+1 || !strings.HasPrefix(lw.revoked[revoked], "r-acc1-") {
 		t.Errorf("revoked %v", lw.revoked)

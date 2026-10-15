@@ -361,5 +361,8 @@
   "instead of -server: the Jira Cloud site people sign in to through Atlassian (https://x.atlassian.net)": "in plaats van -server: de Jira Cloud-site waar mensen zich via Atlassian aanmelden (https://x.atlassian.net)",
   "with -atlassian: the scopes asked for, as the app has them in Atlassian's developer console": "met -atlassian: de gevraagde scopes, zoals de app ze heeft in Atlassians developer console",
   "with -atlassian: the site Confluence is on, when it is another one (https://y.atlassian.net)": "met -atlassian: de site waar Confluence op staat, als dat een andere is (https://y.atlassian.net)",
-  "your Atlassian sign-in doesn't include %s; sign in again and pick it": "je Atlassian-aanmelding omvat %s niet; meld je opnieuw aan en kies die site"
+  "your Atlassian sign-in doesn't include %s; sign in again and pick it": "je Atlassian-aanmelding omvat %s niet; meld je opnieuw aan en kies die site",
+  "Signed out of laneway": "Afgemeld bij laneway",
+  "Sign in again": "Opnieuw aanmelden",
+  "Also sign out of laneway-server in this browser": "Ook afmelden bij laneway-server in deze browser"
 }

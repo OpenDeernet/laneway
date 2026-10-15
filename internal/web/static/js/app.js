@@ -330,7 +330,7 @@ async function boot() {
   }).catch(() => {});
   if (app.session.hosted) commands.register({ id: 'signout', title: T('Sign out of laneway'), group: 'App', run: async () => { // the gateway's, which ends the sign-in on laneway-server too
     await fetch('/auth/logout', { method: 'POST' }).catch(() => {});
-    location.reload();
+    location.assign('/auth/signed-out');
   } });
   api.get('/branch').then(b => { if (b.Key) commands.register({ id: 'branch', title: '⎇ ' + b.Key + '  ' + (b.Summary || ''), group: 'Branch', run: () => app.panel.open(b.Key) }); }).catch(() => {}); // the cwd's, as the TUI: first in the palette
   $('.brand').title = 'laneway · ' + app.session.baseURL + (app.session.demo ? ' (demo)' : '');
