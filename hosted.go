@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"html"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
@@ -327,7 +328,24 @@ func (h *hosted) callback(w http.ResponseWriter, r *http.Request) {
 	h.mu.Unlock()
 	c, _ := r.Cookie(hostedLoginCookie)
 	if p == nil || time.Since(p.at) > hostedLoginTTL || c == nil || subtle.ConstantTimeCompare([]byte(c.Value), []byte(p.nonce)) != 1 {
-		http.Error(w, i18n.T("the sign-in took too long or didn't start here; open the page again"), http.StatusBadRequest)
+		// Which check failed, for whoever runs this (no secrets: only whether each was there).
+		why := "no sign-in under way with that state"
+		switch {
+		case p == nil && c == nil:
+			why = "no sign-in under way with that state, and no login cookie"
+		case p == nil:
+		case time.Since(p.at) > hostedLoginTTL:
+			why = "the sign-in started too long ago"
+		case c == nil:
+			why = "no login cookie came back"
+		default:
+			why = "the login cookie belongs to another sign-in"
+		}
+		slog.Warn("hosted sign-in refused", "why", why, "state", r.URL.Query().Get("state") != "", "error", r.URL.Query().Get("error"), "agent", r.UserAgent())
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, `<!doctype html><meta charset="utf-8"><title>laneway</title><p>%s</p><p><a href="/auth/login?next=/">%s</a></p>`,
+			html.EscapeString(i18n.T("the sign-in took too long or didn't start here; open the page again")), html.EscapeString(i18n.T("Sign in again")))
 		return
 	}
 	http.SetCookie(w, &http.Cookie{Name: hostedLoginCookie, Value: "", Path: "/auth/", MaxAge: -1, HttpOnly: true, Secure: h.secure, SameSite: http.SameSiteLaxMode})
