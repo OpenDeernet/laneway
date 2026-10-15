@@ -58,3 +58,5 @@
 .stbview { position: relative; flex: 1; min-height: 0; }
 @media (max-width: 900px) { .stgrip, .stboard { display: none; } .stsplit > .standup { flex-basis: 100%; } }
 .stbview .fchip kbd { display: none; } /* the board's keys are the standup's here */
+/* A phone: the buttons go under the title rather than squeeze it to a column. */
+@media (max-width: 700px) { .sthead { flex-wrap: wrap; } .sttitle { flex-basis: 100%; } }

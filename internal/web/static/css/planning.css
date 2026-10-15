@@ -45,3 +45,11 @@
 .pl-drop::before { content: ""; position: absolute; left: -.286rem; top: -.214rem; width: .571rem; height: .571rem; border-radius: 50%; background: var(--accent); }
 .pl-note { color: var(--fg-3); font-size: .857rem; }
 .pl-form { display: grid; gap: var(--pad); } .pl-form label { display: grid; gap: .214rem; color: var(--fg-2); font-size: .857rem; }
+/* A phone: the toolbar takes its own rows under the crumbs, the filter
+   the width, the chips one scrolling line (wrapped, they stack in a sliver). */
+@media (max-width: 700px) {
+  #viewbar:has(> #toolbar > .pl-chips) { flex-wrap: wrap; row-gap: .286rem; }
+  #toolbar:has(> .pl-chips) { flex: 1 1 100%; flex-wrap: wrap; row-gap: .286rem; }
+  #toolbar > .pl-chips { flex: 1 1 100%; flex-wrap: nowrap; order: 1; }
+  .pl-filter { flex: 1; width: auto; }
+}
