@@ -247,7 +247,8 @@ export function mountIssue(el, key, { app, full, card }) {
     const own = [
       ['status', 'status', T('Status'), i.Status && ui.statusPill(i.Status, i.StatusCategory)],
       ['priority', 'priority', T('Priority'), i.Priority],
-      ['assignee', 'assignee', T('Assignee'), i.Assignee && h('span.who', ui.avatar(i.Assignee, c.AvatarURL, 18), i.Assignee)],
+      // Nobody assigned reads as a word, not a person's avatar.
+      ['assignee', 'assignee', T('Assignee'), i.Assignee && (c.Key && !c.AssigneeID ? h('span.dim', T('Unassigned')) : h('span.who', ui.avatar(i.Assignee, c.AvatarURL, 18), i.Assignee))],
       ['reporter', 'reporter', T('Reporter'), i.Reporter],
       ['points', 'points', T('Points'), i.StoryPoints],
       ['labels', 'labels', T('Labels'), i.Labels && i.Labels.length ? h('span.chips', i.Labels.map(l => h('span.chip', l))) : null],
@@ -409,7 +410,8 @@ export function mountIssue(el, key, { app, full, card }) {
   // ---- a service desk's request: its type, customer and SLAs' time left, red once breached (TUI renderRequest)
   function renderRequest() {
     const r = st.req && st.req.Request;
-    if (!r) return clear(box.request);
+    // An issue of a desk's project that came in another way (no request type, no SLA) isn't a request to show.
+    if (!r || !r.Type && !(r.SLAs || []).length) return clear(box.request);
     const sla = s => (s.Done ? (s.Breached ? T('breached') : T('met')) : s.Breached ? T('%s · breached', s.Remaining) : s.Paused ? T('%s left · paused', s.Remaining) : T('%s left', s.Remaining));
     const cell = (k, v, cls = '') => h('div.fld' + cls, h('span.k', k), h('span.v', v));
     fill(box.request, h('div.sec-head', h('h3', T('Request'))),
