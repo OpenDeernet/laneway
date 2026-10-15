@@ -19,12 +19,17 @@ func TestDrafts(t *testing.T) {
 	if issueCall(t, "GET", u+"comment:DEMO-1", nil, &d) != 200 || d.Text != "" {
 		t.Fatalf("no draft = %+v", d)
 	}
-	for _, id := range []string{"desc:DEMO-1", "desc:DEMO-1:comment:10001", "comment:DEMO-2", "create"} {
+	for _, id := range []string{"desc:DEMO-1", "desc:DEMO-1:comment:10001", "comment:DEMO-2", "create", "wiki:10002", "wiki:10002:comment:new", "wiki:10002:comment:10005"} {
 		if code := issueCall(t, "PUT", u+id, map[string]string{"Text": "half a\nthought"}, nil); code != 200 {
 			t.Fatalf("put %s: %d", id, code)
 		}
 		if issueCall(t, "GET", u+id, nil, &d); d.Text != "half a\nthought" {
 			t.Errorf("%s = %q", id, d.Text)
+		}
+	}
+	for _, id := range []string{"wiki:x", "wiki:1:comment:", "wiki:1:field:a"} {
+		if code := issueCall(t, "PUT", u+id, map[string]string{"Text": "x"}, nil); code != 400 {
+			t.Errorf("bad wiki draft id %s: %d", id, code)
 		}
 	}
 	var db struct{ Text, Base string }

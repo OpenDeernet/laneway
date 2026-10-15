@@ -409,7 +409,6 @@
   "J K line": "J K regel",
   "JIRA_API_TOKEN is set: leave this empty to use it.": "JIRA_API_TOKEN is ingesteld: laat dit leeg om het te gebruiken.",
   "JQL of %s": "JQL van %s",
-  "Jira and server": "Jira en server",
   "Jira site": "Jira-site",
   "Jira: the resolution date": "Jira: de oplossingsdatum",
   "Job log": "Joblog",
@@ -1398,5 +1397,7 @@
   "Move to the backlog?": "Naar de backlog verplaatsen?",
   "No starred filters.": "Geen filters met een ster.",
   "No versions due in the next %s days.": "Geen versies die de komende %s dagen af moeten zijn.",
-  "No data yet.": "Nog geen gegevens."
+  "No data yet.": "Nog geen gegevens.",
+  "Site and account": "Site en account",
+  "Address": "Adres"
 }

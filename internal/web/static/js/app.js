@@ -320,7 +320,7 @@ async function boot() {
   import('./lib/tools.js').then(m => m.install(app)).catch(e => console.error('tools', e));
   import('./lib/account.js').then(m => m.install(app)).catch(e => console.error('account', e));
   import('./lib/sites.js').then(m => m.install(app)).catch(e => console.error('sites', e)).finally(() => $('#top').classList.remove('boot'));
-  api.get('/update').then(u => { // as the TUI's ↑ v1.2: a newer release, copy its command or open its page
+  if (!app.session.hosted) api.get('/update').then(u => { // as the TUI's ↑ v1.2: a newer release, copy its command or open its page
     if (!u.Tag) return;
     const desk = window.__lanewayDesktop; // the desktop app updates itself
     const up = () => desk ? desk.update() : (u.Command ? navigator.clipboard.writeText(u.Command).then(() => ui.toast(T('Copied %s', u.Command)), () => ui.toast(u.Command)) : window.open(u.Page, '_blank', 'noopener'));
@@ -332,7 +332,7 @@ async function boot() {
     await fetch('/auth/logout', { method: 'POST' }).catch(() => {});
     location.assign('/auth/signed-out');
   } });
-  api.get('/branch').then(b => { if (b.Key) commands.register({ id: 'branch', title: '⎇ ' + b.Key + '  ' + (b.Summary || ''), group: 'Branch', run: () => app.panel.open(b.Key) }); }).catch(() => {}); // the cwd's, as the TUI: first in the palette
+  if (!app.session.hosted) api.get('/branch').then(b => { if (b.Key) commands.register({ id: 'branch', title: '⎇ ' + b.Key + '  ' + (b.Summary || ''), group: 'Branch', run: () => app.panel.open(b.Key) }); }).catch(() => {}); // the cwd's, as the TUI: first in the palette
   $('.brand').title = 'laneway · ' + app.session.baseURL + (app.session.demo ? ' (demo)' : '');
   if (app.session.demo) $('#site').append(h('span.demo-badge', { title: T('Demo data, no Jira behind it') }, T('demo')));
   await import('./views/plan_ctx.js').then(m => m.sanitize(app)).catch(e => console.warn('ctx', e));

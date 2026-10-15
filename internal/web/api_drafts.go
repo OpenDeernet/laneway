@@ -31,9 +31,16 @@ var docBase = regexp.MustCompile(`^[0-9a-f]{0,64}$`)
 
 var draftID = regexp.MustCompile(`^(comment|desc):([A-Z][A-Z0-9_]*-[0-9]+)(:comment:[0-9]+|:field:[A-Za-z0-9_]+)?$`)
 
+// wikiDraftID is a wiki page's draft (its edit) or a comment's on it, new
+// or a reply.
+var wikiDraftID = regexp.MustCompile(`^wiki:[0-9]{1,18}(:comment:(?:new|[0-9]{1,18}))?$`)
+
 func draftKey(r *http.Request) (string, error) {
 	id := r.PathValue("id")
 	if id == "create" {
+		return draftPrefix + id, nil
+	}
+	if wikiDraftID.MatchString(id) {
 		return draftPrefix + id, nil
 	}
 	m := draftID.FindStringSubmatch(id)

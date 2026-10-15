@@ -36,12 +36,12 @@ css('settings');
 // GROUPS order the sections; a section none lists is the config file's (its topics in the server's order).
 const GROUPS = [
   { title: T('Web app'), desc: T('every browser on this laneway web; the terminal has its own'), sections: ['Appearance', 'Fonts', 'Board', 'Notifications'] },
-  { title: T('Jira and server'), sections: ['Account', 'Jira site', 'Server', 'GitLab', 'Data'] },
+  { title: T('Site and account'), sections: ['Account', 'Jira site', 'Server', 'GitLab', 'Data'] },
   { title: T('Config file'), desc: T('ui: options, shared with the terminal app'), sections: null },
   { title: T('Keyboard'), sections: ['Keyboard'] },
 ];
 // A section's name is its id (options carry it, the sidebar and anchors key on it); this is what shows.
-const SECTIONS = { Appearance: T('Appearance'), Fonts: T('Fonts'), Board: T('Board'), Notifications: T('Notifications'), Account: T('Account'), 'Jira site': T('Jira site'), Server: T('Server'), GitLab: 'GitLab', Data: T('Data'), Keyboard: T('Keyboard') };
+const SECTIONS = { Appearance: T('Appearance'), Fonts: T('Fonts'), Board: T('Board'), Notifications: T('Notifications'), Account: T('Account'), 'Jira site': T('Site'), Server: T('Server'), GitLab: 'GitLab', Data: T('Data'), Keyboard: T('Keyboard') };
 const secName = sec => SECTIONS[sec] || T(sec);
 const VAL = { compact: T('compact'), normal: T('normal'), roomy: T('roomy'), show: T('show'), hide: T('hide'), lanes: T('lanes'), list: T('list') };
 const CONFIG = GROUPS.findIndex(g => !g.sections);
@@ -110,7 +110,7 @@ export default function mount(el, { app, scope, toolbar, query }) {
       render: () => { const on = s.autostart.enabled; return h('span.st-val', h('button.st-switch' + (on ? '.on' : ''), { role: 'switch', 'aria-checked': on, 'aria-label': T('Start at login'), tabindex: -1, onclick: () => toggleLogin() }, h('i')), h('span.st-state', on ? T('on') : T('off'))); },
       change: () => toggleLogin() },
     ...siteOptions(app, () => refresh()),
-    info(T('Site'), s.site || '-', 'Jira site'), info('Jira', s.baseURL || '-', 'Jira site'),
+    info(T('Site'), s.site || '-', 'Jira site'), info(T('Address'), s.baseURL || '-', 'Jira site'),
     info(T('Signed in as'), (s.me && s.me.DisplayName) || '-', 'Jira site'), { ...info(T('Version'), s.version || 'dev', 'Server'), advanced: true },
     { ...action(T('Clear cached data'), T('the browser copy of API answers; reloaded on demand'), 'Data', () => { api.forget(); app.ui.toast(T('Caches cleared'), { kind: 'ok' }); }), advanced: true },
     { ...action(T('Clear recent issues'), T('the palette’s recent list and search history'), 'Data', () => {
@@ -339,7 +339,7 @@ export default function mount(el, { app, scope, toolbar, query }) {
     draw();
   }).catch(e => console.warn('account', e));
   // Each GitLab instance (the gitlab: config's, then glab's logins), signed in to.
-  api.get('/gitlab', { fresh: true }).then(list => {
+  if (!app.session.hosted) api.get('/gitlab', { fresh: true }).then(list => {
     if (dead || !list.length) return;
     options.push(...list.map(g => ({ ...info(g.Host, g.OK ? g.User + ' (' + g.From + ')' : g.From ? T('fails') : T('no token'), 'GitLab', g.Summary), advanced: true })));
     draw();
