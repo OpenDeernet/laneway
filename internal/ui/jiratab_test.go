@@ -384,7 +384,7 @@ func TestJiraTabOpensIssueInPanel(t *testing.T) {
 	if r := m.refs[0]; r.kind != refJira || r.jiraKey != "ABC-1" {
 		t.Fatalf("ref = %+v, want ABC-1", r)
 	}
-	if !strings.Contains(m.View().Content, "Jira") {
+	if !strings.Contains(m.View().Content, "laneway") {
 		t.Error("tab body missing")
 	}
 	m.closeRef()

@@ -535,9 +535,9 @@ func (m *Model) refPaneTitle() string {
 		return "GitLab"
 	}
 	if m.refLoading && m.jiraIssue == nil {
-		return "Jira (loading…)"
+		return i18n.T("Issue (loading…)")
 	}
-	return "Jira"
+	return i18n.T("Issue")
 }
 
 // setPanelHint writes the panel's key hint into the status slot and

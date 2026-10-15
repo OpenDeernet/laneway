@@ -287,5 +287,6 @@
   "yours · ctrl+r shows Jira's · ctrl+s saves yours over it": "de jouwe · ctrl+r toont die van Jira · ctrl+s slaat de jouwe eroverheen op",
   "↑↓ pick · ←→ tab column · ↵ add · ctrl+x drop last · esc close": "↑↓ kiezen · ←→ kolom · ↵ toevoegen · ctrl+x laatste weg · esc sluiten",
   "↰ %d earlier": "↰ %d eerder",
-  "↵ edit": "↵ bewerken"
+  "↵ edit": "↵ bewerken",
+  "Issue (loading…)": "Issue (laden…)"
 }

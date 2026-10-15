@@ -49,7 +49,7 @@ func joinSegs(segs []headSeg) string {
 func (m *Model) jiraTitleSegs() []headSeg {
 	t, k := m.jiraTab, m.keys
 	dim := refDimStyle.Render
-	segs := []headSeg{plainSeg(titleStyle.Render("Jira"))}
+	segs := []headSeg{plainSeg(titleStyle.Render("laneway"))} // the app's name, on Jira and laneway-server alike
 	if t.project != "" {
 		segs = append(segs, plainSeg(" "), keySeg(titleStyle.Render(t.project), k.Project))
 	}
