@@ -191,6 +191,11 @@ export async function openCreate(app, opts = {}) {
           if (e.required && !e.hidden && more.contains(label) && widgets.get(f.ID).empty()) more.open = true; // in view, not folded away
           label.title = e.message || '';
           const w = widgets.get(f.ID);
+          // Narrowed options (priority, option fields): the others can't be picked; a picked one that left is cleared.
+          if (w && w.el.tagName === 'SELECT') {
+            for (const o of w.el.options) o.hidden = o.disabled = !!(o.value && e.options && !e.options.includes(o.text));
+            if (w.el.selectedOptions[0] && w.el.selectedOptions[0].disabled) { w.el.value = ''; reask(); }
+          }
           if (e.default && w && !w.touched() && w.empty() && w.el.matches && w.el.matches('input')) w.el.value = e.default;
         }
       } catch (e) { /* the rules can't be read now: the create still checks them */ }
