@@ -1,4 +1,4 @@
-import { test, expect, inLane, selectCard } from '../fixtures.mjs';
+import { test, expect, inLane, selectCard, pick } from '../fixtures.mjs';
 
 const lane = (page, name) => page.locator('.bd-lane', { has: page.locator('.bd-lane-name', { hasText: name }) });
 const card = (page, key) => page.locator('.card', { hasText: key });
@@ -137,4 +137,20 @@ test('u undoes a move', async ({ page }) => {
   }).toPass();
   await page.reload();
   await expect(inLane(page, 'TO DO', 'DEMO-5')).toBeVisible();
+});
+
+// A sprint closed elsewhere while it is shown: the next refresh shows the active one, and the views drop it.
+test('a sprint closed elsewhere gives way to the active one', async ({ page }) => {
+  await page.keyboard.press('v');
+  await pick(page, 'Sprint 12 - Checkout');
+  await expect(page).toHaveURL(/sprint=12/);
+  const board = Number(new URL(page.url()).pathname.split('/').pop());
+  const closed = await page.request.post(new URL('/api/plan/sprints/12/close', page.url()).href, { data: { Board: board, MoveTo: 0 } });
+  expect(closed.ok()).toBe(true);
+  await page.keyboard.press('r');
+  await expect(page.getByText('Sprint 12 - Checkout has closed')).toBeVisible();
+  await expect(page).not.toHaveURL(/sprint=12/);
+  await expect(page.locator('.crumb', { hasText: 'Sprint 13' })).toBeVisible();
+  await page.keyboard.press('v');
+  await expect(page.getByRole('dialog').locator('.pick-row', { hasText: 'Sprint 12' })).toHaveCount(0);
 });

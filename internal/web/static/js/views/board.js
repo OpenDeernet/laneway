@@ -294,10 +294,12 @@ export default function mount(el, { app, params, query, scope, context, toolbar,
     const path = S.path || cardsPath();
     S.path = path;
     setBusy(1);
+    let dropped = false;
     const reqs = [api.get(path, { fresh: true }).then(d => { if (S.path === path && !S.dead) setCards(d); })];
-    if (loud) reqs.push(api.get('/boards/' + S.board.ID, { fresh: true }).then(setBundle));
+    // Quiet too on a scrum board: a sprint closed or started elsewhere shows.
+    if (loud || isScrum()) reqs.push(api.get('/boards/' + S.board.ID, { fresh: true }).then(b => { if (!S.dead && (loud || sprintsMoved(b))) dropped = setBundle(b); }));
     return Promise.all(reqs)
-      .then(() => { S.fetched = Date.now(); if (loud) ui.toast(T('Refreshed')); })
+      .then(() => { S.fetched = Date.now(); if (loud && !dropped) ui.toast(T('Refreshed')); })
       .catch(e => { if (loud || !S.loaded) fail(e); })
       .finally(() => setBusy(-1));
   }
@@ -305,10 +307,12 @@ export default function mount(el, { app, params, query, scope, context, toolbar,
     if (S.loaded) ui.errToast(e);
     else bdMsg(h('div', h('h2', T('Could not load the board')), h('pre', e.message)));
   }
-  function setBundle(b) {
-    const first = !S.bundle;
+  const sprintsMoved = b => JSON.stringify((b && b.sprints) || []) !== JSON.stringify(sprints());
+  function setBundle(b, meta) {
+    const first = !S.bundle, prev = sprints();
     S.bundle = b;
     if (b && b.quickFilters) for (const id of S.qf) if (!b.quickFilters.some(q => q.ID === id)) S.qf.delete(id); // a remembered one since removed
+    const dropped = !(meta && meta.cached) && dropClosed(prev);
     if (first && UI.CardColors !== 'off') {
       api.swr('/boards/' + S.board.ID + '/cardcolors?scope=' + encodeURIComponent('project = ' + S.project), c => { S.colors = c; for (const p of S.panes) p.vl.refresh(); }).catch(() => {});
     }
@@ -316,6 +320,17 @@ export default function mount(el, { app, params, query, scope, context, toolbar,
     renderToolbar(); renderBar();
     if (first || S.scope === 'active') loadCards();
     layout();
+    return dropped;
+  }
+  // The sprint shown has closed (or is gone): the active one takes its place.
+  function dropClosed(prev) {
+    if (S.closed || !isScrum() || !/^\d+$/.test(S.scope) || sprints().some(s => String(s.ID) === S.scope)) return false;
+    const was = prev.find(s => String(s.ID) === S.scope);
+    if (S.past) leavePast(true);
+    S.scope = 'active';
+    if (!embed) app.setQuery({ sprint: null });
+    ui.toast(was ? T('%s has closed  ·  showing the active sprint', was.Name) : T('That sprint has closed  ·  showing the active sprint'));
+    return true;
   }
   function setCards(d) {
     const list = d.cards || [];
@@ -1428,7 +1443,8 @@ export default function mount(el, { app, params, query, scope, context, toolbar,
     if (S.past) leavePast(true);
     S.closed = null;
     S.scope = id;
-    if (!embed) app.setQuery({ sprint: id === 'active' ? null : id });
+    if (S.bundle) dropClosed(sprints()); // back from a closed sprint to one closed since
+    if (!embed) app.setQuery({ sprint: S.scope === 'active' ? null : S.scope });
     renderToolbar();
     loadCards();
   }
