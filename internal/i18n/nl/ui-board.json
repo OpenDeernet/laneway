@@ -229,5 +229,6 @@
   "▾ %d · %s to pin/unpin": "▾ %d · %s vastzetten/losmaken",
   "✎ edit": "✎ bewerken",
   "✕ delete": "✕ verwijderen",
-  "✕ delete? again": "✕ verwijderen? nogmaals"
+  "✕ delete? again": "✕ verwijderen? nogmaals",
+  "%s has closed · showing %s": "%s is gesloten · %s staat er nu"
 }

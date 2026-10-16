@@ -971,6 +971,8 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleImageLoaded(msg)
 	case jiraAutoRefreshMsg:
 		return m.handleJiraAutoRefresh()
+	case jiraSprintsMsg:
+		return m.handleJiraSprints(msg)
 	case jiraSiteChangeMsg:
 		return m.handleSiteChange(msg)
 	case jiraEventRefreshMsg:

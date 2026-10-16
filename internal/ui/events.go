@@ -75,7 +75,7 @@ func (m Model) handleEventRefresh() (tea.Model, tea.Cmd) {
 	if m.modalOpen() || t.loading || t.searching || m.jiraDragging() || t.cfg == nil {
 		return m, nil // the idle tick picks it up
 	}
-	return m, m.loadJiraDelta()
+	return m, m.refreshJiraView()
 }
 
 func (m Model) handleEventInbox() (tea.Model, tea.Cmd) {

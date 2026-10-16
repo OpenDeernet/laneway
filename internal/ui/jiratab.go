@@ -731,11 +731,7 @@ func (m *Model) loadJiraBoard(project string, boardID int, view string, fromCach
 		}
 		msg.cfg = cfg
 		if board.Type == "scrum" {
-			for _, s := range sprints {
-				msg.views = append(msg.views, jiraView{kind: jiraViewSprint, name: s.Name, sprint: s.ID, lanes: s.State == "active",
-					start: s.Start, end: s.End, goal: s.Goal})
-			}
-			msg.views = append(msg.views, jiraView{kind: jiraViewBacklog, name: i18n.T("Backlog")})
+			msg.views = append(sprintViews(sprints), jiraView{kind: jiraViewBacklog, name: i18n.T("Backlog")})
 		} else {
 			msg.views = append(msg.views, jiraView{kind: jiraViewBoard, name: "Board", lanes: true, doneDays: doneDays})
 			if kanbanBacklog(cfg) >= 0 {
@@ -4165,7 +4161,7 @@ func (m Model) handleJiraAutoRefresh() (tea.Model, tea.Cmd) {
 	if m.modalOpen() || t.loading || t.searching || m.jiraDragging() || t.cfg == nil || time.Since(t.fetched) < m.opts.staleAfter {
 		return m, m.jiraAutoRefreshTick()
 	}
-	return m, tea.Batch(m.loadJiraDelta(), m.jiraAutoRefreshTick())
+	return m, tea.Batch(m.refreshJiraView(), m.jiraAutoRefreshTick())
 }
 
 // jiraFetchKey names a view and the current filters, which a delta must share

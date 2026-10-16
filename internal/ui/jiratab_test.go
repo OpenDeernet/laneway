@@ -745,8 +745,35 @@ func TestJiraAutoRefresh(t *testing.T) {
 		t.Error("refreshed under a modal")
 	}
 	m.helpOpen = false
-	if out, _ = m.handleJiraAutoRefresh(); out.(Model).jiraTab.seq == seq {
+	// A scrum board reads its sprints first, then the cards.
+	out, _ = m.handleJiraAutoRefresh()
+	out, _ = out.(Model).handleJiraSprints(jiraSprintsMsg{board: 1, sprints: []jira.Sprint{{ID: 9, Name: "Sprint 1", State: "active"}}})
+	if out.(Model).jiraTab.seq == seq {
 		t.Error("stale idle board did not refresh")
+	}
+}
+
+// TestJiraSprintClosedElsewhere: a refresh drops a sprint closed since; the
+// board on it shows the first view, one on another view keeps it.
+func TestJiraSprintClosedElsewhere(t *testing.T) {
+	next := jiraSprintsMsg{board: 1, sprints: []jira.Sprint{{ID: 10, Name: "Sprint 2", State: "active"}, {ID: 11, Name: "Sprint 3", State: "future"}}}
+	m := jiraTabModel(t)
+	seq := m.jiraTab.seq
+	out, _ := m.handleJiraSprints(next)
+	m = out.(Model)
+	if v, _ := m.jiraCurrentView(); v.sprint != 10 || m.jiraTab.seq == seq || !strings.Contains(m.status, "Sprint 1 has closed") {
+		t.Errorf("on the closed sprint: view %q, seq %d→%d, status %q", v.name, seq, m.jiraTab.seq, m.status)
+	}
+	if len(m.jiraTab.views) != 3 || m.jiraTab.views[2].kind != jiraViewBacklog {
+		t.Errorf("views = %v", m.jiraTab.views)
+	}
+
+	m = jiraTabModel(t)
+	m.jiraTab.viewIdx = 1
+	out, _ = m.handleJiraSprints(next)
+	m = out.(Model)
+	if v, _ := m.jiraCurrentView(); v.kind != jiraViewBacklog || m.status != "" {
+		t.Errorf("on the backlog: view %q, status %q", v.name, m.status)
 	}
 }
 
