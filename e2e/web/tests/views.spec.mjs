@@ -36,3 +36,32 @@ test.describe('a slow Jira', () => {
     });
   }
 });
+
+// A view left while it still loads stays gone: Planning resolving its board
+// after the board took its place draws nothing over it.
+test('a view left mid-load draws nothing', async ({ page, app }) => {
+  let release, held, first = true;
+  const seen = new Promise(r => { held = r; });
+  const gate = new Promise(r => { release = r; });
+  await page.route('**/api/projects/*/boards', async r => {
+    if (!first) return r.continue();
+    first = false;
+    held();
+    await gate;
+    await r.continue().catch(() => {});
+  });
+  await page.goto(new URL('/settings', app.url).href);
+  await expect(page.locator('#view')).toContainText('Appearance');
+  const nav = page.getByRole('navigation', { name: 'Views' });
+  await nav.getByRole('link', { name: 'Planning' }).click();
+  await seen;
+  await nav.getByRole('link', { name: 'Board' }).click();
+  release();
+  await expect(page.locator('.card', { hasText: 'DEMO-5' })).toBeVisible();
+  await page.waitForTimeout(500);
+  await expect(page.locator('#view .pl')).toHaveCount(0);
+  const crumbs = await page.locator('#context .crumb').count();
+  await page.reload();
+  await expect(page.locator('.card', { hasText: 'DEMO-5' })).toBeVisible();
+  await expect(page.locator('#context .crumb')).toHaveCount(crumbs);
+});

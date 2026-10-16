@@ -44,6 +44,7 @@ export function sprintCheer(vel) {
 export default async function mount(el, { app, params, scope, context, toolbar }) {
   css('board'); css('planning');
   const sc = await resolve(app, params);
+  if (!el.isConnected) return; // left while it resolved
   let { project, board } = sc;
   switcher(app, { scope, context, project, board, group: T('Planning'), onPick: r => app.go('/planning/' + r.project + (r.board ? '/' + r.board.ID : '')) });
   if (!board) { el.append(noBoard(T('Planning'), project)); return; }

@@ -171,6 +171,15 @@ function syncPanel(key) {
   if (key) { if (app.panel.key !== key) app.panel.open(key, { url: false }); } else if (app.panel.key) app.panel.close({ url: false });
 }
 
+// fresh swaps #view, #context or #toolbar for an empty copy: a view still mounting when it is left (an async
+// mount past an await) holds the old, detached one, so what it adds never shows.
+function fresh(id) {
+  const old = $('#' + id), el = old.cloneNode(false), had = document.activeElement === old;
+  old.replaceWith(el);
+  if (had) el.focus({ preventScroll: true });
+  return el;
+}
+
 // navigate mounts the view of the URL; one that differs from the shown only in ?issue just moves the panel.
 // force remounts the same (reload).
 async function navigate({ force = false } = {}) {
@@ -185,13 +194,12 @@ async function navigate({ force = false } = {}) {
   }
   let hit = null, params = {};
   for (const r of table) { const m = path.match(r.re); if (m) { hit = r; r.names.forEach((n, i) => { if (m[i + 1]) params[n] = decodeURIComponent(m[i + 1]); }); break; } }
-  const view = $('#view');
   const token = ++viewToken;
   if (current && current.cleanup) { try { current.cleanup(); } catch (e) { console.error(e); } }
   if (current && current.scope) current.scope.dispose();
   current = null; app.marked = app.listed = app.menuItems = null;
   $('#viewbar').classList.toggle('hold', !!hit && hit.bar !== false);
-  clear($('#toolbar')); clear($('#context'));
+  const view = fresh('view'), context = fresh('context'), toolbar = fresh('toolbar');
   if (!hit) {
     app.route = { name: '', params: {}, query: {} };
     viewTitle = T('Not found · laneway'); document.title = viewTitle;
@@ -215,8 +223,12 @@ async function navigate({ force = false } = {}) {
   }
   if (token !== viewToken) return;
   clear(view);
+  const cur = current;
   try {
-    current.cleanup = await (mod.default || mod.mount)(view, { app, params, query: app.route.query, scope: current.scope, context: $('#context'), toolbar: $('#toolbar') });
+    const cleanup = await (mod.default || mod.mount)(view, { app, params, query: app.route.query, scope: cur.scope, context, toolbar });
+    // Left while it mounted: its cleanup was due then.
+    if (token === viewToken) cur.cleanup = cleanup;
+    else if (cleanup) { try { cleanup(); } catch (e) { console.error(e); } }
   } catch (e) { console.error(e); clear(view).append(h('div.empty', h('h2', T('Something broke')), h('pre', e.stack || e.message))); }
   if (token === viewToken) $('#viewbar').classList.remove('hold');
   bus.emit('route', app.route);
