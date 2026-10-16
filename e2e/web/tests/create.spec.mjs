@@ -7,7 +7,7 @@ test('n creates an issue in the sprint shown', async ({ page, app }) => {
   await page.getByPlaceholder(/^Summary/).fill('Gift cards at checkout');
   await page.locator('[role="textbox"][aria-label^="Description"]').click();
   await page.keyboard.type('Pay part with a card.');
-  await page.getByRole('button', { name: 'Create', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Create', exact: true }).click();
   const added = page.locator('.bd-lanes .card', { hasText: 'Gift cards at checkout' });
   await expect(added).toBeVisible();
   await expect(page.locator('.bd-stats')).toContainText('11 issues');

@@ -90,7 +90,7 @@ test('a description changed in Jira meanwhile is not saved over unasked', async 
   await page.keyboard.press('ControlOrMeta+End');
   await page.keyboard.type(' Mine.');
   await page.keyboard.press('ControlOrMeta+Enter');
-  const dialog = page.getByRole('dialog', { name: 'Description changed in Jira' });
+  const dialog = page.getByRole('dialog', { name: 'Description changed on the site' });
   await expect(dialog).toContainText('- Acceptance: guests check out.');
   await dialog.getByRole('button', { name: 'Keep editing' }).click();
   await expect(page.locator('.iss [role="textbox"][aria-label^="Description"]')).toBeVisible();
