@@ -511,8 +511,8 @@ export function mountIssue(el, key, { app, full, card }) {
       dl.href = x.src + (x.src.includes('?') ? '&' : '?') + 'download=1&name=' + encodeURIComponent(x.name); dl.download = x.name;
     };
     const m = ui.modal(h('div.lb', list.length > 1 && h('button.btn.ghost.lb-prev', { onclick: () => show(-1), title: T('Previous (←)'), 'aria-label': T('Previous') }, icon('chevron-left')), shown, list.length > 1 && h('button.btn.ghost.lb-next', { onclick: () => show(1), title: T('Next (→)'), 'aria-label': T('Next') }, icon('chevron-right')), h('div.lb-cap', name, dl)), { wide: true, onClose: stop });
-    m.scope.bind(['ArrowRight', 'l', 'n'], () => show(1), '', { hidden: true });
-    m.scope.bind(['ArrowLeft', 'h', 'N'], () => show(-1), '', { hidden: true });
+    m.scope.bind(['ArrowRight', 'n'], () => show(1), '', { hidden: true });
+    m.scope.bind(['ArrowLeft', 'N'], () => show(-1), '', { hidden: true });
     m.scope.bind('d', () => dl.click(), T('download'));
     show(0);
   }

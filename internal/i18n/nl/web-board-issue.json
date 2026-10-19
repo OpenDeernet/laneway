@@ -813,8 +813,8 @@
   "Speed (< >)": "Snelheid (< >)",
   "Position": "Positie",
   "play / pause": "afspelen / pauzeren",
-  "back 5s": "5s terug",
-  "forward 5s": "5s vooruit",
+  "back 10s": "10s terug",
+  "forward 10s": "10s vooruit",
   "to the start": "naar het begin",
   "to the end": "naar het eind",
   "frame back": "beeldje terug",
@@ -822,5 +822,7 @@
   "slower": "langzamer",
   "faster": "sneller",
   "mute": "dempen",
-  "full screen": "volledig scherm"
+  "full screen": "volledig scherm",
+  "Picture-in-picture (p)": "Beeld-in-beeld (p)",
+  "picture-in-picture": "beeld-in-beeld"
 }

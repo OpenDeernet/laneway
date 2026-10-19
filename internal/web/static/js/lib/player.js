@@ -1,6 +1,6 @@
 // Video player in the app's style. player(src, {autoplay, poster, focusKeys, onError}) → {el, video, pause, keys(), dispose}.
 // Its keys are a scope of their own: from keys() until dispose (a modal's player), or while it has the focus
-// (focusKeys, one in the text). Space/k play, ← → 5s, Home End, m mute, f full screen, , . a frame, < > speed.
+// (focusKeys, one in the text). Space/k play, j l 10s (← → stay the carousel's), Home End, m mute, f full screen, p picture-in-picture (where the browser has it), , . a frame, < > speed.
 // It is 16:9 until the video says otherwise; --player-max-h caps its height. With a poster it fetches nothing
 // before it plays.
 import { h } from './dom.js';
@@ -18,18 +18,21 @@ export function player(src, { autoplay = false, poster, focusKeys = false, onErr
   const play = btn('play', T('Play (space)'), () => toggle());
   const mute = btn('volume-2', T('Mute (m)'), () => { video.muted = !video.muted; });
   const full = btn('maximize-2', T('Full screen (f)'), () => fullscreen());
+  const canPip = !!document.pictureInPictureEnabled && !video.disablePictureInPicture;
+  const pip = canPip && btn('picture-in-picture-2', T('Picture-in-picture (p)'), () => pictureInPicture());
   const speed = h('button.btn.ghost.sm.player-btn.player-speed', { type: 'button', title: T('Speed (< >)'), onclick: e => { e.stopPropagation(); rate(1); } }, '1×');
   const time = h('span.player-time.mono', '0:00 / 0:00');
   const buf = h('div.player-buf'), fill = h('div.player-fill');
   const track = h('div.player-track', { role: 'slider', 'aria-label': T('Position'), 'aria-valuemin': 0 }, buf, fill);
   const big = h('div.player-big', icon('play'));
-  const bar = h('div.player-bar', { onclick: e => e.stopPropagation() }, play, time, track, speed, mute, full);
+  const bar = h('div.player-bar', { onclick: e => e.stopPropagation() }, play, time, track, speed, mute, pip, full);
   const el = h('div.player.paused', { tabIndex: 0, onclick: () => toggle(), ondblclick: () => fullscreen() }, video, big, bar);
 
   const swap = (b, name) => b.replaceChildren(icon(name));
   const toggle = () => (video.paused || video.ended ? video.play().catch(() => {}) : video.pause());
   const seek = t => { if (isFinite(video.duration)) video.currentTime = Math.min(video.duration, Math.max(0, t)); wake(); };
   const rate = d => { const i = SPEEDS.indexOf(video.playbackRate); video.playbackRate = SPEEDS[Math.min(SPEEDS.length - 1, Math.max(0, (i < 0 ? 2 : i) + d))] || 1; wake(); };
+  const pictureInPicture = () => (document.pictureInPictureElement === video ? document.exitPictureInPicture() : video.requestPictureInPicture()).catch(() => {});
   const fullscreen = () => (document.fullscreenElement ? document.exitFullscreen() : el.requestFullscreen()).catch(() => {});
   const draw = () => {
     const d = video.duration, t = video.currentTime;
@@ -66,8 +69,8 @@ export function player(src, { autoplay = false, poster, focusKeys = false, onErr
     const s = km.scope('video', { layer: 3 });
     const o = { group: 'Video', when: () => el.isConnected };
     s.bind(['Space', 'k'], () => { toggle(); wake(); }, T('play / pause'), o);
-    s.bind('ArrowLeft', () => seek(video.currentTime - 5), T('back 5s'), o);
-    s.bind('ArrowRight', () => seek(video.currentTime + 5), T('forward 5s'), o);
+    s.bind('j', () => seek(video.currentTime - 10), T('back 10s'), o);
+    s.bind('l', () => seek(video.currentTime + 10), T('forward 10s'), o);
     s.bind('Home', () => seek(0), T('to the start'), o);
     s.bind('End', () => seek(video.duration), T('to the end'), o);
     s.bind(',', () => { video.pause(); seek(video.currentTime - FRAME); }, T('frame back'), o);
@@ -76,6 +79,7 @@ export function player(src, { autoplay = false, poster, focusKeys = false, onErr
     s.bind('>', () => rate(1), T('faster'), o);
     s.bind('m', () => { video.muted = !video.muted; wake(); }, T('mute'), o);
     s.bind('f', fullscreen, T('full screen'), o);
+    if (canPip) s.bind('p', pictureInPicture, T('picture-in-picture'), o);
     return s;
   }
   const keys = () => { if (!scope) scope = bindKeys(); };
@@ -88,6 +92,7 @@ export function player(src, { autoplay = false, poster, focusKeys = false, onErr
   return {
     el, video, keys,
     pause: () => video.pause(),
-    dispose() { video.pause(); clearTimeout(idle); unkeys(); },
+    // One in picture-in-picture plays on there.
+    dispose() { if (document.pictureInPictureElement !== video) video.pause(); clearTimeout(idle); unkeys(); },
   };
 }
