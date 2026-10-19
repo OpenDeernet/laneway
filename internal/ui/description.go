@@ -315,7 +315,7 @@ func (m Model) handleDescEditKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.dropDraft(d.draftID())
 		m.descEdit, m.status = nil, ""
 		return m, nil
-	case "ctrl+s":
+	case "ctrl+s", "ctrl+enter":
 		if ff, ok := m.extraField(d.key, d.field); ok && d.comment == "" {
 			ff.val = jira.Value{Text: d.input.Value()}
 			if m.refuseEmpty(ff) {

@@ -149,8 +149,8 @@ func (m *Model) closeJiraComment() {
 }
 
 // handleJiraCommentKey owns every keystroke while the composer is open: esc
-// cancels (asking once when you wrote something), ctrl+s posts, enter
-// inserts a newline (bound on the textarea), everything else edits the text.
+// cancels (asking once when you wrote something), ctrl+s or ctrl+enter
+// posts, enter inserts a newline (bound on the textarea), everything else edits the text.
 func (m Model) handleJiraCommentKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if m.mentionKey(msg.String()) { // an open list takes its keys first
 		return m, nil
@@ -170,7 +170,7 @@ func (m Model) handleJiraCommentKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.closeJiraComment()
 		m.status = ""
 		return m, nil
-	case "ctrl+s":
+	case "ctrl+s", "ctrl+enter":
 		return m.applyJiraComment()
 	case "ctrl+o":
 		return m, m.cycleCommentVis()

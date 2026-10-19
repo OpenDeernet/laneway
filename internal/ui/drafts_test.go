@@ -187,3 +187,15 @@ func TestCommentVisibilityCycle(t *testing.T) {
 		}
 	}
 }
+
+// TestCommentCtrlEnterPosts: ctrl+enter posts like ctrl+s.
+func TestCommentCtrlEnterPosts(t *testing.T) {
+	m := jiraTabModel(t)
+	m.jiraIssue = &jira.Issue{Key: "ABC-1"}
+	m.openJiraCommentInput()
+	m.jiraCommentInput.SetValue("hi")
+	out, cmd := m.handleJiraCommentKey(tea.KeyPressMsg{Code: tea.KeyEnter, Mod: tea.ModCtrl})
+	if out.(Model).jiraCommentActive || cmd == nil {
+		t.Fatal("ctrl+enter should close the composer and post")
+	}
+}
