@@ -39,8 +39,7 @@ body.panel-focus #panel { border-left-color: var(--accent); box-shadow: inset 1p
 .btn.link { background: none; border: 0; color: var(--accent); padding: 0 .286rem; }
 .btn[disabled] { opacity: .5; cursor: default; }
 .btn .btn-key { font-size: .786em; line-height: 1.2; padding: 0 .286rem; color: inherit; opacity: .75; } /* keys.js keyHint */
-.btn.primary .btn-key { background: var(--accent-fg); color: var(--accent); border-color: transparent; opacity: 1; }
-.btn.danger .btn-key { background: #fff; color: var(--err); border-color: transparent; opacity: 1; }
+.btn.primary .btn-key, .btn.danger .btn-key { background: rgb(255 255 255 / .2); border-color: transparent; opacity: 1; }
 html[data-btn-keys="hide"] .btn-key, html[data-btn-keys="hide"] .key-off, html:not([data-btn-keys="hide"]) .key-dup { display: none; } /* .key-dup: a hint the buttons' keys repeat; .key-off: its stand-in */
 .input, select.input, textarea.input { font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: .357rem .571rem; width: 100%; }
 .input:focus { border-color: var(--accent); outline: none; }
