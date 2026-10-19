@@ -98,7 +98,7 @@ export default function mount(el, { app, params, query, scope, context, toolbar,
   const compactBtn = h('button.btn', { title: T('Compact (one-line) cards  (c)'), 'aria-pressed': 'false', onclick: () => setCompact(!S.compact) });
   const emptyBtn = h('button.btn', { title: T('Hide / show empty lanes  (alt+e)'), 'aria-pressed': 'false', onclick: () => setHideEmpty(!S.hideEmpty) });
   const layoutBtn = h('button.btn', { title: T('Lane layout: the board\'s columns or a ui.lane_layouts entry  (alt+l)'), onclick: () => cycleLayout() });
-  const refreshBtn = h('button.btn.ghost.bd-refresh', { title: T('Refresh  (r)'), 'aria-label': T('Refresh'), onclick: () => refresh(true) }, h('span.ico-spin', { 'aria-hidden': 'true' }, icon('refresh-cw')), keyHint('r'));
+  const refreshBtn = h('button.btn.ghost.bd-refresh', { title: T('Refresh  (r)'), 'aria-label': T('Refresh'), onclick: () => refresh(true) }, h('span.ico-spin', { 'aria-hidden': 'true' }, icon('refresh-cw')));
   if (!embed) context.append(projectBtn, boardBtn, sprintBtn, sprintEl);
   toolbar.append(h('span.spacer'), layoutBtn, swimBtn, colsBtn, emptyBtn, compactBtn, modeBtn, refreshBtn);
 
@@ -1538,7 +1538,7 @@ export default function mount(el, { app, params, query, scope, context, toolbar,
     k.bind('y', () => { if (S.marks.size) return copyTable(); const c = curCard(); if (c) copy(c.Key, c.Key); else ui.toast(T('Select a card first')); }, T('copy key (marked cards: as a table)'), { group: G });
     k.bind('Y', need(c => copy(app.session.baseURL + '/browse/' + c.Key, T('link'))), T('copy link'), { group: G });
     k.bind('ctrl+y', need(copyBranch), T('copy branch name'), { group: G });
-    k.bind('r', () => refresh(true), T('refresh'), { group: G });
+    k.bind('r', () => refresh(true), T('refresh'), { group: G, bar: T('refresh') });
     k.bind('t', () => setMode(S.mode === 'lanes' ? 'list' : 'lanes'), T('lanes / list'), { group: V, bar: T('lanes / list') });
     k.bind('O', cycleO, T('lanes: cycle swimlanes · list: cycle sort'), { group: V });
     k.bind('z', () => foldBand(), T('fold the swimlane, or the stacked lane\'s section'), { group: V });
