@@ -168,7 +168,8 @@ func TestIssuePanelRoutes(t *testing.T) {
 
 func TestAttachmentProxy(t *testing.T) {
 	png := []byte("\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR")
-	files := map[string][]byte{"1": png, "2": []byte(`<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>`)}
+	big := make([]byte, 17<<20)
+	files := map[string][]byte{"1": png, "2": []byte(`<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>`), "3": big}
 	fake := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		id := r.URL.Path[len("/rest/api/3/attachment/content/"):]
 		if b, ok := files[id]; ok && r.Header.Get("Authorization") != "" {
@@ -192,6 +193,12 @@ func TestAttachmentProxy(t *testing.T) {
 	res.Body.Close()
 	if res.Header.Get("Content-Type") != "application/octet-stream" || res.Header.Get("Content-Disposition") == "" {
 		t.Errorf("svg must download: %q %q", res.Header.Get("Content-Type"), res.Header.Get("Content-Disposition"))
+	}
+	res, _ = http.Get(ts.URL + "/api/attachments/3?download=1&name=a.mov")
+	n, _ := io.Copy(io.Discard, res.Body)
+	res.Body.Close()
+	if res.StatusCode != 200 || n != int64(len(big)) {
+		t.Errorf("big file: %d, %d bytes", res.StatusCode, n)
 	}
 	if code := issueCall(t, "GET", ts.URL+"/api/attachments/9", nil, nil); code == 200 {
 		t.Error("missing attachment answered 200")

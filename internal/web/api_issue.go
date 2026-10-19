@@ -3,6 +3,7 @@ package web
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"mime"
 	"net/http"
 	"regexp"
@@ -399,10 +400,22 @@ func attachment(s *Server, w http.ResponseWriter, r *http.Request) {
 		writeErr(w, badRequest(i18n.T("bad attachment id")))
 		return
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), 90*time.Second)
-	defer cancel()
-	body, err := s.Client().AttachmentContent(ctx, id)
-	serveFile(w, r, body, err, "attachment-"+id)
+	body, err := s.Client().OpenAttachment(r.Context(), id)
+	if err != nil {
+		writeErr(w, err)
+		return
+	}
+	defer body.Close()
+	head := make([]byte, 512)
+	n, err := io.ReadFull(body, head)
+	if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
+		writeErr(w, err)
+		return
+	}
+	fileHeaders(w, r, head[:n], "attachment-"+id)
+	if _, err := w.Write(head[:n]); err == nil {
+		_, _ = io.Copy(w, body)
+	}
 }
 
 // pageImage is an image of a Confluence page, through the server so the
@@ -426,7 +439,14 @@ func serveFile(w http.ResponseWriter, r *http.Request, body []byte, err error, f
 		writeErr(w, err)
 		return
 	}
-	typ := http.DetectContentType(body)
+	fileHeaders(w, r, body, fallback)
+	_, _ = w.Write(body)
+}
+
+// fileHeaders sets the headers for a file whose first bytes are head:
+// inline for a safe image, else a download named by the query.
+func fileHeaders(w http.ResponseWriter, r *http.Request, head []byte, fallback string) {
+	typ := http.DetectContentType(head)
 	if i := strings.IndexByte(typ, ';'); i >= 0 {
 		typ = typ[:i]
 	}
@@ -443,7 +463,6 @@ func serveFile(w http.ResponseWriter, r *http.Request, body []byte, err error, f
 		}
 		h.Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": name}))
 	}
-	_, _ = w.Write(body)
 }
 
 // webLink is a remote link and, for a Confluence page on this site, its id

@@ -397,27 +397,11 @@ const mediaScheme = "media:"
 // DownloadAttachment saves attachment id as name in dir, never over an
 // existing file ("a (1).png"), and returns the path written.
 func (c *Client) DownloadAttachment(ctx context.Context, id, name, dir string) (string, error) {
-	if !c.Enabled() {
-		return "", errNotConfigured
-	}
-	reqCtx, moved, stop := c.stallGuard(ctx)
-	defer stop()
-	req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, c.apiURL("/rest/api/3/attachment/content/"+url.PathEscape(id)), nil)
+	body, err := c.OpenAttachment(ctx, id)
 	if err != nil {
-		return "", fmt.Errorf("build request: %w", err)
-	}
-	if _, err := c.authorize(req); err != nil {
 		return "", err
 	}
-	resp, err := c.transfer.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("call jira: %w", stallCause(reqCtx, err))
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return "", statusError(resp.StatusCode, "attachment "+id, body, resp.Header.Get("Retry-After"))
-	}
+	defer body.Close()
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return "", err
 	}
@@ -425,17 +409,68 @@ func (c *Client) DownloadAttachment(ctx context.Context, id, name, dir string) (
 	if err != nil {
 		return "", err
 	}
-	if _, err = io.Copy(f, progressReader{resp.Body, moved}); err == nil {
+	if _, err = io.Copy(f, body); err == nil {
 		err = f.Close()
 	} else {
 		f.Close()
-		err = stallCause(reqCtx, err)
 	}
 	if err != nil {
 		os.Remove(path)
 		return "", err
 	}
 	return path, nil
+}
+
+// OpenAttachment streams attachment id, of any size. The transfer ends when
+// it stalls; Close releases it.
+func (c *Client) OpenAttachment(ctx context.Context, id string) (io.ReadCloser, error) {
+	if !c.Enabled() {
+		return nil, errNotConfigured
+	}
+	reqCtx, moved, stop := c.stallGuard(ctx)
+	req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, c.apiURL("/rest/api/3/attachment/content/"+url.PathEscape(id)), nil)
+	if err != nil {
+		stop()
+		return nil, fmt.Errorf("build request: %w", err)
+	}
+	if _, err := c.authorize(req); err != nil {
+		stop()
+		return nil, err
+	}
+	resp, err := c.transfer.Do(req)
+	if err != nil {
+		stop()
+		return nil, fmt.Errorf("call jira: %w", stallCause(reqCtx, err))
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		resp.Body.Close()
+		stop()
+		return nil, statusError(resp.StatusCode, "attachment "+id, body, resp.Header.Get("Retry-After"))
+	}
+	return &stream{ctx: reqCtx, r: progressReader{resp.Body, moved}, body: resp.Body, stop: stop}, nil
+}
+
+// stream is a response body under stallGuard.
+type stream struct {
+	ctx  context.Context
+	r    io.Reader
+	body io.Closer
+	stop func()
+}
+
+func (s *stream) Read(b []byte) (int, error) {
+	n, err := s.r.Read(b)
+	if err != nil && err != io.EOF {
+		err = stallCause(s.ctx, err)
+	}
+	return n, err
+}
+
+func (s *stream) Close() error {
+	err := s.body.Close()
+	s.stop()
+	return err
 }
 
 // errStalled is a transfer that moved nothing for the client's timeout.
