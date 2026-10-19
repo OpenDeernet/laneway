@@ -3,6 +3,7 @@ import { $, h, openURL } from './dom.js';
 import { css } from './css.js';
 import { notify, enabled } from './notify.js';
 import { T, Tn } from './i18n.js';
+import { stream } from './streams.js';
 
 export const latest = t => Date.parse(t.Entries[t.Entries.length - 1].When);
 
@@ -88,9 +89,9 @@ export function installBadge(app) {
 function followSite(app, poll) {
   if (!window.EventSource) return;
   let pending = 0;
-  const es = new EventSource('/api/site/events');
-  es.addEventListener('none', () => es.close());
-  es.addEventListener('change', e => {
+  const es = stream('/api/site/events');
+  es.on('none', () => es.close());
+  es.on('change', e => {
     let ch;
     try { ch = JSON.parse(e.data); } catch { return; }
     app.bus.emit('site:change', ch);

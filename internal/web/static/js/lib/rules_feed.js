@@ -3,9 +3,10 @@
 // until it is opened (app.highlights: key → colour, bus 'highlights'), as in the TUI.
 import { notify, enabled, supported, permission, setEnabled } from './notify.js';
 import { T } from './i18n.js';
+import { stream } from './streams.js';
 
 const subs = new Set();
-let es = null, last = 0, asked = false;
+let last = 0, asked = false;
 
 export const onRuleEvent = fn => { subs.add(fn); return () => subs.delete(fn); };
 
@@ -20,8 +21,7 @@ export async function install(app) {
 }
 
 function connect(app) {
-  es = new EventSource('/api/rules/stream?since=' + last);
-  es.onmessage = m => {
+  stream('/api/rules/stream?since=' + last).on('message', m => {
     let ev; try { ev = JSON.parse(m.data); } catch (e) { return; }
     last = Math.max(last, ev.ID);
     for (const fn of subs) fn(ev);
@@ -31,7 +31,7 @@ function connect(app) {
     const title = ev.Title || 'laneway';
     if (!document.hidden) app.ui.toast(title + ': ' + ev.Text, { ms: 6000 });
     if (!notify(title, ev.Text, () => ev.Key && app.panel.open(ev.Key), 'rule:' + ev.ID)) optIn(app);
-  };
+  });
 }
 
 // Once per page: offer browser notifications for notify actions.

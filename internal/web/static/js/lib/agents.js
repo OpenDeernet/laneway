@@ -7,6 +7,7 @@ import { css } from './css.js';
 import { target } from './timer.js';
 import { notify } from './notify.js';
 import { T } from './i18n.js';
+import { stream } from './streams.js';
 
 export const GLYPH = { working: '⚙', blocked: '✋', done: '✓', idle: '○', unknown: '?', worktree: '◌' };
 // ICON: the same states drawn (lib/icons.js); GLYPH stays for plain-text labels (palette rows).
@@ -90,9 +91,11 @@ export function install(app) {
   const stopPoll = () => { clearInterval(poll); poll = 0; };
   function connect() {
     if (!window.EventSource) { poll = setInterval(fetchOnce, 5000); fetchOnce(); return; }
-    const es = new EventSource('/api/agents/events');
-    es.onmessage = e => { stopPoll(); try { set(JSON.parse(e.data)); } catch (err) { console.error(err); } };
-    es.onerror = () => { if (!poll) { fetchOnce(); poll = setInterval(fetchOnce, 5000); } };
+    // A stream another tab opened sends its next snapshot only on a change.
+    fetchOnce();
+    const es = stream('/api/agents/events');
+    es.on('message', e => { stopPoll(); try { set(JSON.parse(e.data)); } catch (err) { console.error(err); } });
+    es.on('error', () => { if (!poll) { fetchOnce(); poll = setInterval(fetchOnce, 5000); } });
   }
   connect();
 
