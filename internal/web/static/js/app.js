@@ -3,7 +3,7 @@
 import { h, clear, $ } from './lib/dom.js';
 import api from './lib/api.js';
 import bus from './lib/bus.js';
-import { keys } from './lib/keys.js';
+import { keys, keyHint } from './lib/keys.js';
 import theme from './lib/theme.js';
 import { onChange as onMetrics } from './lib/metrics.js';
 import * as ui from './lib/ui.js';
@@ -278,6 +278,7 @@ function chrome() {
   cb.addEventListener('click', () => (app.createHere ? app.createHere() : app.actions.create({ project: app.route && app.route.params.project })));
   cb.title = T('Create issue (n)');
   cb.querySelector('.create-text').textContent = T('Create');
+  cb.append(keyHint('n'));
   // index.html's own text, in ui.language.
   sb.setAttribute('aria-label', T('Search issues'));
   sb.title = T('Search (/) · commands (:) · jump to a key (g g)');
