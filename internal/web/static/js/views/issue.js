@@ -19,6 +19,7 @@ import { goDate } from '../lib/godate.js';
 import { grip } from '../lib/grip.js';
 import { T, Tn } from '../lib/i18n.js';
 import { keyHint } from '../lib/keys.js';
+import { player } from '../lib/player.js';
 
 const RECENT = 40;           // comments drawn at first; the rest on demand
 const trail = [];            // issues left by following a link, oldest first: {key, summary, status, cat}
@@ -151,7 +152,7 @@ export function mountIssue(el, key, { app, full, card }) {
   const mdOpts = () => {
     const pre = prefixes();
     const att = id => ((st.issue && st.issue.Attachments) || []).find(a => a.ID === id);
-    return { attachment: id => (att(id) ? mediaURL(att(id)) : '/api/attachments/' + encodeURIComponent(id)), video: id => !!att(id) && isVideo(att(id)), names: [...people().keys()].sort((a, b) => b.length - a.length),
+    return { attachment: id => (att(id) ? mediaURL(att(id)) : '/api/attachments/' + encodeURIComponent(id)), video: id => (att(id) && isVideo(att(id)) ? player(mediaURL(att(id)), { poster: poster(att(id)), focusKeys: true }).el : null), names: [...people().keys()].sort((a, b) => b.length - a.length),
       isKey: s => pre.has(s.slice(0, s.lastIndexOf('-'))), onKey: open, site: app.session.baseURL };
   };
   const fail = e => ui.errToast(e);
@@ -473,6 +474,7 @@ export function mountIssue(el, key, { app, full, card }) {
   const isImage = a => a.MimeType.startsWith('image/') && !/svg/.test(a.MimeType);
   const isVideo = a => /^video\/(mp4|quicktime|webm|ogg)$/.test(a.MimeType);
   const mediaURL = a => '/api/attachments/' + encodeURIComponent(a.ID) + (isVideo(a) ? '?type=' + encodeURIComponent(a.MimeType) : '');
+  const poster = a => '/api/attachments/' + encodeURIComponent(a.ID) + '/thumbnail';
   const size = n => (n > 1 << 20 ? (n / (1 << 20)).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB');
   function renderFiles() {
     const fs = (st.issue && st.issue.Attachments) || [];
@@ -480,15 +482,15 @@ export function mountIssue(el, key, { app, full, card }) {
     const shown = fs.filter(a => isImage(a) || isVideo(a)), rest = fs.filter(a => !shown.includes(a));
     fill(box.files,h('div.sec-head', h('h3', T('Attachments')), h('span.dim', String(fs.length))),
       shown.length > 0 && h('div.thumbs', shown.map(a => h('a.thumb', { href: mediaURL(a), title: a.Filename + ' · ' + size(a.Size), onclick: e => { e.preventDefault(); gallery(0, mediaURL(a)); } },
-        isVideo(a) ? h('span.thumb-video', h('video', { src: mediaURL(a) + '#t=0.1', preload: 'metadata', muted: true, playsInline: true, tabIndex: -1 }), icon('play'))
+        isVideo(a) ? h('span.thumb-video', h('img', { src: poster(a), alt: a.Filename, loading: 'lazy', decoding: 'async' }), icon('play'))
           : h('img', { src: mediaURL(a), alt: a.Filename, loading: 'lazy', decoding: 'async' }), h('span.clip', a.Filename)))),
       rest.map(a => h('a.row-link', { href: '/api/attachments/' + encodeURIComponent(a.ID) + '?download=1&name=' + encodeURIComponent(a.Filename), download: a.Filename }, h('span.clip', a.Filename), h('span.dim', size(a.Size)))));
   }
   // In-page viewer: the attachments' images and videos, then the images drawn in the text. ← → step, esc closes.
   function galleryList() {
     const seen = new Set(), out = [];
-    const add = (src, name, video) => { if (src && !seen.has(src)) { seen.add(src); out.push({ src, name, video }); } };
-    for (const a of (st.issue && st.issue.Attachments) || []) if (isImage(a) || isVideo(a)) add(mediaURL(a), a.Filename, isVideo(a));
+    const add = (src, name, video, still) => { if (src && !seen.has(src)) { seen.add(src); out.push({ src, name, video, still }); } };
+    for (const a of (st.issue && st.issue.Attachments) || []) if (isImage(a) || isVideo(a)) add(mediaURL(a), a.Filename, isVideo(a), isVideo(a) && poster(a));
     for (const im of root.querySelectorAll('img.md-img')) add(im.getAttribute('src'), im.alt);
     return out;
   }
@@ -496,19 +498,19 @@ export function mountIssue(el, key, { app, full, card }) {
     const list = galleryList();
     if (!list.length) return ui.toast(T('No images'));
     let i = src ? Math.max(0, list.findIndex(x => x.src === src)) : at;
-    let shown = h('img.lightbox');
-    const stop = () => { if (shown.pause) shown.pause(); };
+    let shown = h('img.lightbox'), vid = null;
+    const stop = () => { if (vid) vid.dispose(); vid = null; };
     const name = h('span'), dl = h('a.btn.ghost.sm', { title: T('Download (d)'), 'aria-label': T('Download') }, icon('download'));
     const show = d => {
       i = (i + d + list.length) % list.length; const x = list[i];
-      const el = x.video
-        ? h('video.lightbox', { src: x.src, controls: true, autoplay: true, playsInline: true, onerror: () => ui.toast(T("This video doesn't play in the browser; download it (d).")) })
-        : h('img.lightbox', { src: x.src, alt: x.name });
-      stop(); shown.replaceWith(el); shown = el;
+      stop();
+      if (x.video) { vid = player(x.src, { autoplay: true, poster: x.still, onError: () => ui.toast(T("This video doesn't play in the browser; download it (d).")) }); vid.keys(); }
+      const el = vid ? vid.el : h('img.lightbox', { src: x.src, alt: x.name });
+      el.classList.add('lightbox'); shown.replaceWith(el); shown = el;
       name.textContent = x.name + (list.length > 1 ? '  ' + (i + 1) + '/' + list.length : '');
       dl.href = x.src + (x.src.includes('?') ? '&' : '?') + 'download=1&name=' + encodeURIComponent(x.name); dl.download = x.name;
     };
-    const m = ui.modal(h('div.lb', list.length > 1 && h('button.btn.ghost.lb-prev', { onclick: () => show(-1), title: T('Previous (←)'), 'aria-label': T('Previous') }, icon('chevron-left'), keyHint('ArrowLeft')), shown, list.length > 1 && h('button.btn.ghost.lb-next', { onclick: () => show(1), title: T('Next (→)'), 'aria-label': T('Next') }, icon('chevron-right'), keyHint('ArrowRight')), h('div.lb-cap', name, dl)), { wide: true, onClose: stop });
+    const m = ui.modal(h('div.lb', list.length > 1 && h('button.btn.ghost.lb-prev', { onclick: () => show(-1), title: T('Previous (←)'), 'aria-label': T('Previous') }, icon('chevron-left')), shown, list.length > 1 && h('button.btn.ghost.lb-next', { onclick: () => show(1), title: T('Next (→)'), 'aria-label': T('Next') }, icon('chevron-right')), h('div.lb-cap', name, dl)), { wide: true, onClose: stop });
     m.scope.bind(['ArrowRight', 'l', 'n'], () => show(1), '', { hidden: true });
     m.scope.bind(['ArrowLeft', 'h', 'N'], () => show(-1), '', { hidden: true });
     m.scope.bind('d', () => dl.click(), T('download'));

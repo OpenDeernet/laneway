@@ -32,6 +32,7 @@ off GET /api/agents/{pane}/terminal
 off GET /api/ask
 on  GET /api/attachments/{id}
 on  GET /api/attachments/{id}/media
+on  GET /api/attachments/{id}/thumbnail
 off GET /api/autostart
 on  GET /api/avatar/{id}
 on  GET /api/boards/{board}

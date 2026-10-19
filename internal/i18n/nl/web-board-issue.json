@@ -805,5 +805,22 @@
   "reply to the customer: they read this": "antwoord aan de klant: die leest dit",
   "%s has closed  ·  showing the active sprint": "%s is gesloten  ·  de actieve sprint staat er nu",
   "That sprint has closed  ·  showing the active sprint": "Die sprint is gesloten  ·  de actieve sprint staat er nu",
-  "This video doesn't play in the browser; download it (d).": "Deze video speelt niet af in de browser; download hem (d)."
+  "This video doesn't play in the browser; download it (d).": "Deze video speelt niet af in de browser; download hem (d).",
+  "Play (space)": "Afspelen (spatie)",
+  "Pause (space)": "Pauzeren (spatie)",
+  "Mute (m)": "Dempen (m)",
+  "Full screen (f)": "Volledig scherm (f)",
+  "Speed (< >)": "Snelheid (< >)",
+  "Position": "Positie",
+  "play / pause": "afspelen / pauzeren",
+  "back 5s": "5s terug",
+  "forward 5s": "5s vooruit",
+  "to the start": "naar het begin",
+  "to the end": "naar het eind",
+  "frame back": "beeldje terug",
+  "frame forward": "beeldje vooruit",
+  "slower": "langzamer",
+  "faster": "sneller",
+  "mute": "dempen",
+  "full screen": "volledig scherm"
 }

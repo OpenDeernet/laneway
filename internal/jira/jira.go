@@ -151,6 +151,9 @@ type Client struct {
 	// mediaIDs are attachments' Media Services file ids (attachment.go),
 	// behind mu.
 	mediaIDs map[string]string
+	// mediaURLs are where attachments' content was last redirected to
+	// (attachment.go), behind mu.
+	mediaURLs map[string]mediaURL
 }
 
 // New builds a Client from cfg. The returned client is always non-nil; call

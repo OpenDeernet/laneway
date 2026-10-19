@@ -124,6 +124,15 @@ func (c *Client) download(ctx context.Context, path, what string) ([]byte, error
 	return body, nil
 }
 
+// AttachmentThumbnail downloads the picture Jira made of attachment id: a
+// frame of a video.
+func (c *Client) AttachmentThumbnail(ctx context.Context, id string) ([]byte, error) {
+	if !c.Enabled() {
+		return nil, errNotConfigured
+	}
+	return c.download(ctx, "/rest/api/3/attachment/thumbnail/"+url.PathEscape(id), "thumbnail of attachment "+id)
+}
+
 // AttachmentURL is where a browser signed in to Jira downloads attachment id.
 func (c *Client) AttachmentURL(id string) string {
 	if c == nil || c.baseURL == "" {
@@ -438,13 +447,55 @@ func (c *Client) OpenAttachment(ctx context.Context, id, rng string) (*Attachmen
 		return nil, errNotConfigured
 	}
 	reqCtx, moved, stop := c.stallGuard(ctx)
-	req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, c.apiURL("/rest/api/3/attachment/content/"+url.PathEscape(id)), nil)
+	resp, err := c.openMedia(reqCtx, id, rng)
 	if err != nil {
 		stop()
+		return nil, err
+	}
+	out := &AttachmentStream{ReadCloser: &stream{ctx: reqCtx, r: progressReader{resp.Body, moved}, body: resp.Body, stop: stop}, Size: resp.ContentLength}
+	if resp.StatusCode == http.StatusPartialContent {
+		out.Range = resp.Header.Get("Content-Range")
+	}
+	return out, nil
+}
+
+// mediaURL is where Jira redirected an attachment's content: a signed
+// Media Services link, good for a while.
+type mediaURL struct {
+	url string
+	at  time.Time
+}
+
+// mediaURLAge is how long openMedia goes straight to a mediaURL. A video
+// player asks for many ranges; each skips Jira's hop.
+const mediaURLAge = 5 * time.Minute
+
+// openMedia gets attachment id (the part rng asks for), from the link Jira
+// last sent it to while fresh, else through Jira. The answer is 2xx.
+func (c *Client) openMedia(ctx context.Context, id, rng string) (*http.Response, error) {
+	c.mu.Lock()
+	m, ok := c.mediaURLs[id]
+	c.mu.Unlock()
+	if ok && time.Since(m.at) < mediaURLAge {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, m.url, nil)
+		if err == nil {
+			if rng != "" {
+				req.Header.Set("Range", rng)
+			}
+			resp, err := c.transfer.Do(req)
+			if err == nil && resp.StatusCode >= 200 && resp.StatusCode < 300 {
+				return resp, nil
+			}
+			if err == nil {
+				resp.Body.Close()
+			}
+		}
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.apiURL("/rest/api/3/attachment/content/"+url.PathEscape(id)), nil)
+	if err != nil {
 		return nil, fmt.Errorf("build request: %w", err)
 	}
 	if _, err := c.authorize(req); err != nil {
-		stop()
 		return nil, err
 	}
 	if rng != "" {
@@ -452,20 +503,23 @@ func (c *Client) OpenAttachment(ctx context.Context, id, rng string) (*Attachmen
 	}
 	resp, err := c.transfer.Do(req)
 	if err != nil {
-		stop()
-		return nil, fmt.Errorf("call jira: %w", stallCause(reqCtx, err))
+		return nil, fmt.Errorf("call jira: %w", stallCause(ctx, err))
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 		resp.Body.Close()
-		stop()
 		return nil, statusError(resp.StatusCode, "attachment "+id, body, resp.Header.Get("Retry-After"))
 	}
-	out := &AttachmentStream{ReadCloser: &stream{ctx: reqCtx, r: progressReader{resp.Body, moved}, body: resp.Body, stop: stop}, Size: resp.ContentLength}
-	if resp.StatusCode == http.StatusPartialContent {
-		out.Range = resp.Header.Get("Content-Range")
+	// Only a link off the site: one there would need the credentials.
+	if final := resp.Request.URL; final.Host != req.URL.Host {
+		c.mu.Lock()
+		if c.mediaURLs == nil {
+			c.mediaURLs = map[string]mediaURL{}
+		}
+		c.mediaURLs[id] = mediaURL{final.String(), time.Now()}
+		c.mu.Unlock()
 	}
-	return out, nil
+	return resp, nil
 }
 
 // stream is a response body under stallGuard.

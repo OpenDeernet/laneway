@@ -1,0 +1,24 @@
+/* video player (js/lib/player.js) */
+.player { --ar: 1.7778; --player-max-h: 70vh; position: relative; display: block; aspect-ratio: var(--ar); width: min(100%, calc(var(--player-max-h) * var(--ar))); max-height: var(--player-max-h);
+  background: #000; border-radius: var(--radius); overflow: hidden; cursor: pointer; outline-offset: 2px; }
+.player video { display: block; width: 100%; height: 100%; object-fit: contain; }
+.player:fullscreen { width: 100%; max-height: none; border-radius: 0; }
+.player-big { position: absolute; inset: 50% auto auto 50%; transform: translate(-50%, -50%); display: grid; place-items: center; width: 3.429rem; height: 3.429rem;
+  border-radius: 50%; background: color-mix(in srgb, var(--accent) 85%, transparent); color: var(--accent-fg); font-size: 1.429rem; pointer-events: none; opacity: 0; transition: opacity .15s; }
+.player-big .ico { margin-left: .143rem; }
+.player.paused .player-big { opacity: 1; }
+.player-bar { position: absolute; left: .429rem; right: .429rem; bottom: .429rem; display: flex; align-items: center; gap: .286rem; padding: .214rem .429rem;
+  background: var(--bg-2); color: var(--fg); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow);
+  cursor: default; transition: opacity .2s, transform .2s; }
+.player.idle { cursor: none; }
+.player.idle .player-bar { opacity: 0; transform: translateY(.286rem); pointer-events: none; }
+.player-btn { flex: none; }
+.player-speed { min-width: 2.857rem; font-variant-numeric: tabular-nums; }
+.player-time { flex: none; font-size: .857em; color: var(--fg-2); font-variant-numeric: tabular-nums; }
+.player-track { position: relative; flex: 1; height: .357rem; margin: 0 .286rem; border-radius: 99px; background: var(--bg-4); cursor: pointer; touch-action: none; }
+.player-track::before { content: ''; position: absolute; inset: -.5rem 0; } /* a taller target than the line */
+.player-buf, .player-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: inherit; }
+.player-buf { background: color-mix(in srgb, var(--fg-3) 45%, transparent); }
+.player-fill { background: var(--accent); }
+.player-fill::after { content: ''; position: absolute; right: -.357rem; top: 50%; width: .714rem; height: .714rem; transform: translateY(-50%); border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--bg-2); }
+@media (prefers-reduced-motion: reduce) { .player-big, .player-bar { transition: none; } }

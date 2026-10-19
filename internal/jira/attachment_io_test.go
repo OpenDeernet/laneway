@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -148,5 +149,48 @@ func TestInlineFileNamed(t *testing.T) {
 	}
 	if asked != 1 {
 		t.Errorf("asked Jira for the media id %d times, want once", asked)
+	}
+}
+
+// TestOpenAttachmentMediaURL: a range goes straight to the media link Jira
+// last redirected to, and back through Jira once that link fails.
+func TestOpenAttachmentMediaURL(t *testing.T) {
+	var jiraHits, mediaHits int
+	expired := false
+	media := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mediaHits++
+		if expired {
+			http.Error(w, "no", http.StatusForbidden)
+			return
+		}
+		http.ServeContent(w, r, "", time.Time{}, strings.NewReader("0123456789"))
+	}))
+	defer media.Close()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		jiraHits++
+		expired = false
+		http.Redirect(w, r, media.URL+"/file", http.StatusSeeOther)
+	}))
+	defer srv.Close()
+	c := New(Config{BaseURL: srv.URL, Email: "me@x.test", APIToken: "tok"})
+	read := func(rng string) string {
+		t.Helper()
+		s, err := c.OpenAttachment(context.Background(), "7", rng)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer s.Close()
+		b, _ := io.ReadAll(s)
+		return string(b) + "|" + s.Range
+	}
+	if got := read("bytes=2-4"); got != "234|bytes 2-4/10" {
+		t.Errorf("first: %q", got)
+	}
+	if got := read("bytes=5-"); got != "56789|bytes 5-9/10" || jiraHits != 1 {
+		t.Errorf("cached: %q, %d jira hits", got, jiraHits)
+	}
+	expired = true
+	if got := read(""); got != "0123456789|" || jiraHits != 2 {
+		t.Errorf("expired link: %q, %d jira hits", got, jiraHits)
 	}
 }

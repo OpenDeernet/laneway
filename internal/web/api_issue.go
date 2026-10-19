@@ -334,6 +334,7 @@ func init() {
 	})
 
 	handle("GET /api/attachments/{id}", attachment)
+	handle("GET /api/attachments/{id}/thumbnail", thumbnail)
 	handle("GET /api/confluence/images/{id}", pageImage)
 }
 
@@ -427,7 +428,7 @@ func attachment(s *Server, w http.ResponseWriter, r *http.Request) {
 	if video != "" {
 		h := w.Header()
 		h.Set("Content-Security-Policy", "default-src 'none'; sandbox")
-		h.Set("Cache-Control", "private, max-age=86400")
+		h.Set("Cache-Control", "no-store") // a cached entry is locked to one player; the thumbnail's held the others
 		h.Set("Content-Type", video)
 		h.Set("Accept-Ranges", "bytes")
 		if body.Size >= 0 {
@@ -453,6 +454,20 @@ func attachment(s *Server, w http.ResponseWriter, r *http.Request) {
 	if _, err := w.Write(head[:n]); err == nil {
 		_, _ = io.Copy(w, body)
 	}
+}
+
+// thumbnail is the picture Jira made of an attachment, for a video's tile
+// and poster.
+func thumbnail(s *Server, w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if !attachmentID.MatchString(id) {
+		writeErr(w, badRequest(i18n.T("bad attachment id")))
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 90*time.Second)
+	defer cancel()
+	body, err := s.Client().AttachmentThumbnail(ctx, id)
+	serveFile(w, r, body, err, "thumbnail-"+id)
 }
 
 // pageImage is an image of a Confluence page, through the server so the
