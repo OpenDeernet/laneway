@@ -114,6 +114,7 @@ test.describe('on laneway-server', () => {
   test("someone else's comment shows", async ({ page }) => {
     let tell;
     const told = new Promise(r => { tell = r; });
+    await page.addInitScript(() => { window.SharedWorker = undefined; }); // page.route misses a shared worker's requests
     await page.route('**/api/site/events', async route => {
       const ch = await told;
       await route.fulfill({ contentType: 'text/event-stream', body: `retry: 60000\n\nevent: change\ndata: ${JSON.stringify(ch)}\n\n` });

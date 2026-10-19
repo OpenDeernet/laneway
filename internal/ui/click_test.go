@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -549,13 +550,13 @@ func TestCommentKeepsText(t *testing.T) {
 // brings it back, and posting it again finds it there instead of posting
 // a second copy.
 func TestCommentTimedOut(t *testing.T) {
-	posts := 0
+	var posts atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case r.URL.Path == "/rest/api/3/myself":
 			fmt.Fprint(w, `{"accountId":"me1"}`)
 		case r.Method == http.MethodPost:
-			posts++
+			posts.Add(1)
 			_, _ = io.Copy(io.Discard, r.Body)
 			<-r.Context().Done() // stored, but answered too late
 		case r.URL.Path == "/rest/api/3/issue/ABC-1/comment":
@@ -588,8 +589,8 @@ func TestCommentTimedOut(t *testing.T) {
 	}
 	out, _ = m.handleKey(keyMsg(t, "c"))
 	m = out.(Model)
-	if msg := post(); !msg.found || posts != 1 || !strings.Contains(m.status, "already") {
-		t.Errorf("again: found %v, %d posts, %q", msg.found, posts, m.status)
+	if msg := post(); !msg.found || posts.Load() != 1 || !strings.Contains(m.status, "already") {
+		t.Errorf("again: found %v, %d posts, %q", msg.found, posts.Load(), m.status)
 	}
 }
 
