@@ -18,6 +18,7 @@ import { ago, dateTime as localDateTime, shortDate, isZero, duration } from '../
 import { goDate } from '../lib/godate.js';
 import { grip } from '../lib/grip.js';
 import { T, Tn } from '../lib/i18n.js';
+import { keyHint } from '../lib/keys.js';
 
 const RECENT = 40;           // comments drawn at first; the rest on demand
 const trail = [];            // issues left by following a link, oldest first: {key, summary, status, cat}
@@ -165,13 +166,13 @@ export function mountIssue(el, key, { app, full, card }) {
       h('div.iss-top',
         ...(type ? [h('span.chip', type)] : []),
         h('button.iss-key.btn.link', { title: T('Copy key (y)'), onclick: () => copy(key, key) }, key),
-        h('button.btn.ghost.sm', { title: T('Copy link (Y)'), onclick: () => copy(browseURL(), T('Link')) }, T('Copy link')),
-        h('button.btn.ghost.sm', { title: T('Subtask, clone, move, watchers… (A)'), onclick: () => actions() }, T('Actions')),
+        h('button.btn.ghost.sm', { title: T('Copy link (Y)'), onclick: () => copy(browseURL(), T('Link')) }, T('Copy link'), keyHint('Y')),
+        h('button.btn.ghost.sm', { title: T('Subtask, clone, move, watchers… (A)'), onclick: () => actions() }, T('Actions'), keyHint('A')),
         app.agents && app.agents.available && !(app.session && app.session.demo) &&
-          h('button.btn.ghost.sm', { title: T('Start work: worktree and agent (S) · another agent (alt+s)'), onclick: () => app.agents.start(key) }, (app.agents.stateFor(key) || {}).count ? T('Agent') : T('Start work')),
+          h('button.btn.ghost.sm', { title: T('Start work: worktree and agent (S) · another agent (alt+s)'), onclick: () => app.agents.start(key) }, (app.agents.stateFor(key) || {}).count ? T('Agent') : T('Start work'), keyHint('S')),
         h('span.spacer'),
         elsewhere && h('a.btn.ghost.sm', { href: browseURL(), target: '_blank', rel: 'noopener noreferrer', title: T('Open in Jira (o)') }, 'Jira', icon('external-link')),
-        h('button.btn.ghost.sm', { title: full ? T('Back (esc)') : T('Close (esc)'), onclick: goBack }, full ? [icon('arrow-left'), T('Back')] : icon('x'))),
+        h('button.btn.ghost.sm', { title: full ? T('Back (esc)') : T('Close (esc)'), onclick: goBack }, full ? [icon('arrow-left'), T('Back')] : icon('x'), keyHint('Escape'))),
       h('h1.iss-title', { title: T('Edit summary'), onclick: e => edit('summary', e.currentTarget) }, summary || '…'),
       ...(i || c ? [h('div.iss-sub', h('button.pill-btn', { title: T('Change status'), onclick: () => app.actions.transition(key) }, i ? ui.statusPill(i.Status, i.StatusCategory) : ui.statusPill(c.Status, catOf(c))),
         ...(c && c.Flagged ? [h('span.chip.flag', T('Flagged'))] : []),
@@ -357,7 +358,7 @@ export function mountIssue(el, key, { app, full, card }) {
     const body = h('div.md');
     if (sig && sig.trim()) body.append(md(sig, { ...mdOpts(), onTask: toggleTask }));
     else body.append(h('p.faint', T('No description. Press e to write one.')));
-    clear(box.desc).append(h('div.sec-head', h('h3', T('Description')), h('button.btn.ghost.sm', { title: T('Edit (E)'), onclick: editDesc }, T('Edit'))), body);
+    clear(box.desc).append(h('div.sec-head', h('h3', T('Description')), h('button.btn.ghost.sm', { title: T('Edit (E)'), onclick: editDesc }, T('Edit'), keyHint('E'))), body);
     box.desc.ondblclick = e => { if (!e.target.closest('a,input,img,summary')) editDesc(); };
   }
   let taskChain = Promise.resolve();
@@ -438,7 +439,7 @@ export function mountIssue(el, key, { app, full, card }) {
     const groups = new Map();
     for (const l of links) (groups.get(l.Rel) || groups.set(l.Rel, []).get(l.Rel)).push(l);
     fill(box.links,
-      h('div.sec-head', h('h3', T('Links')), h('button.btn.ghost.sm', { title: T('Link an issue (L)'), onclick: addLink }, T('+ Issue')), h('button.btn.ghost.sm', { onclick: addWebLink }, T('+ Web'))),
+      h('div.sec-head', h('h3', T('Links')), h('button.btn.ghost.sm', { title: T('Link an issue (L)'), onclick: addLink }, T('+ Issue'), keyHint('L')), h('button.btn.ghost.sm', { onclick: addWebLink }, T('+ Web'))),
       !links.length && !web.length && h('p.faint', T('No links.')),
       [...groups].map(([rel, ls]) => h('div.lgroup', h('div.rel', rel), ls.map(l => h('div.row-link', { dataset: { key: l.Key }, onclick: () => open(l.Key) },
         h('span.mono.k', l.Key), h('span.clip', l.Summary), l.Status && h('span.chip', l.Status),
@@ -496,7 +497,7 @@ export function mountIssue(el, key, { app, full, card }) {
       img.src = x.src; img.alt = x.name; name.textContent = x.name + (list.length > 1 ? '  ' + (i + 1) + '/' + list.length : '');
       dl.href = x.src + (x.src.includes('?') ? '&' : '?') + 'download=1&name=' + encodeURIComponent(x.name); dl.download = x.name;
     };
-    const m = ui.modal(h('div.lb', list.length > 1 && h('button.btn.ghost.lb-prev', { onclick: () => show(-1), title: T('Previous (←)'), 'aria-label': T('Previous') }, icon('chevron-left')), img, list.length > 1 && h('button.btn.ghost.lb-next', { onclick: () => show(1), title: T('Next (→)'), 'aria-label': T('Next') }, icon('chevron-right')), h('div.lb-cap', name, dl)), { wide: true });
+    const m = ui.modal(h('div.lb', list.length > 1 && h('button.btn.ghost.lb-prev', { onclick: () => show(-1), title: T('Previous (←)'), 'aria-label': T('Previous') }, icon('chevron-left'), keyHint('ArrowLeft')), img, list.length > 1 && h('button.btn.ghost.lb-next', { onclick: () => show(1), title: T('Next (→)'), 'aria-label': T('Next') }, icon('chevron-right'), keyHint('ArrowRight')), h('div.lb-cap', name, dl)), { wide: true });
     m.scope.bind(['ArrowRight', 'l', 'n'], () => show(1), '', { hidden: true });
     m.scope.bind(['ArrowLeft', 'h', 'N'], () => show(-1), '', { hidden: true });
     m.scope.bind('d', () => dl.click(), T('download'));
@@ -521,7 +522,7 @@ export function mountIssue(el, key, { app, full, card }) {
   const findBar = h('div.iss-find', { hidden: true });
   const findIn = h('input.input', { type: 'text', placeholder: T('Find in this issue…'), spellcheck: false, oninput: () => findRun(findIn.value) });
   const findCount = h('span.dim');
-  findBar.append(findIn, findCount, h('button.btn.ghost.sm', { onclick: () => findStep(-1), title: T('Previous (N)'), 'aria-label': T('Previous') }, icon('arrow-up')), h('button.btn.ghost.sm', { onclick: () => findStep(1), title: T('Next (n)'), 'aria-label': T('Next') }, icon('arrow-down')), h('button.btn.ghost.sm', { onclick: () => findClose(), title: T('Close (esc)'), 'aria-label': T('Close') }, icon('x')));
+  findBar.append(findIn, findCount, h('button.btn.ghost.sm', { onclick: () => findStep(-1), title: T('Previous (N)'), 'aria-label': T('Previous') }, icon('arrow-up'), keyHint('N')), h('button.btn.ghost.sm', { onclick: () => findStep(1), title: T('Next (n)'), 'aria-label': T('Next') }, icon('arrow-down'), keyHint('n')), h('button.btn.ghost.sm', { onclick: () => findClose(), title: T('Close (esc)'), 'aria-label': T('Close') }, icon('x'), keyHint('Escape')));
   findIn.addEventListener('keydown', e => {
     if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); findStep(e.shiftKey ? -1 : 1); findIn.blur(); }
     else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); findClose(); }
@@ -728,7 +729,7 @@ export function mountIssue(el, key, { app, full, card }) {
   st.vis = everyone();
   const visBtn = h('button.btn.ghost.sm.vis-chip', { title: T('Who sees it  (ctrl+o)'), onclick: () => cycleVis() });
   const paintVis = () => {
-    visBtn.replaceChildren(icon('eye'), ' ' + (st.vis.Customer ? T('reply to the customer: they read this') : desk() && st.vis.Internal ? T('internal note: only agents see it') : visLabel(st.vis)));
+    visBtn.replaceChildren(icon('eye'), ' ' + (st.vis.Customer ? T('reply to the customer: they read this') : desk() && st.vis.Internal ? T('internal note: only agents see it') : visLabel(st.vis)), keyHint('ctrl+o'));
     visBtn.classList.toggle('on', visLimited(st.vis)); visBtn.classList.toggle('customer', !!st.vis.Customer);
   };
   paintVis();
@@ -887,7 +888,7 @@ export function mountIssue(el, key, { app, full, card }) {
       h('h2', gone ? T('%s not found', key) : T('Could not load %s', key)),
       h('p.dim', gone ? T('It does not exist, or you cannot see it.') : (e && e.message) || ''),
       h('div', h('button.btn', { onclick: () => { clear(box.fields).append(h('div.loading', T('Loading %s…', key))); reload(true).then(() => { if (!st.issue && !dead) loadFailed(e); }); } }, T('Retry')),
-        ' ', h('button.btn.ghost', { onclick: goBack }, full ? T('← Back') : T('Close')))));
+        ' ', h('button.btn.ghost', { onclick: goBack }, full ? T('← Back') : T('Close'), keyHint('Escape')))));
   }
 
   renderHead(); renderTabs(); setTab('details');

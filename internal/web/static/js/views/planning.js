@@ -15,6 +15,7 @@ import { selBar } from '../lib/selbar.js';
 import { COLS, SORTS, gridCols, fixCols, nextSort, listHead, paintHead, pickCols as pickListCols, dragCols, resizeCols, readWidths, buildRow, fillCells } from '../lib/cardlist.js';
 import { goDate } from '../lib/godate.js';
 import { T, Tn } from '../lib/i18n.js';
+import { keyHint } from '../lib/keys.js';
 
 const pts = c => Number(c.Points) || 0;
 const fmtP = n => String(Math.round(n * 10) / 10);
@@ -99,7 +100,7 @@ export default async function mount(el, { app, params, scope, context, toolbar }
   const allRows = () => panes.flatMap(p => p.rows);
   app.listed = () => allRows().filter(r => r.k === 'c').map(r => r.c);
   const sidePick = h('select.input.pl-side-pick', { 'aria-label': T('Section kept in view'), onchange: () => setSide(Number(sidePick.value)) });
-  const sideEl = h('div.pl-side', h('div.pl-side-bar', sidePick, h('button.btn.ghost', { title: T('Close the split (|)'), 'aria-label': T('Close the split'), onclick: () => setSide(null) }, icon('x'))), right.el);
+  const sideEl = h('div.pl-side', h('div.pl-side-bar', sidePick, h('button.btn.ghost', { title: T('Close the split (|)'), 'aria-label': T('Close the split'), onclick: () => setSide(null) }, icon('x'), keyHint('|'))), right.el);
   sideEl.hidden = !sideOn();
   const bar = selBar({ edit: () => { const ks = targets(); if (ks.length) app.actions.bulk(ks); }, clear: () => clearSel() });
   const root = h('div.pl.pl-panes', left.el, sideEl, bar.el);
@@ -116,8 +117,8 @@ export default async function mount(el, { app, params, scope, context, toolbar }
     else clearFilters();
   });
   const colsBtn = h('button.btn.ghost', { title: T('List columns'), onclick: () => pickCols() }, icon('columns-3'), T('Columns'));
-  const splitBtn = h('button.btn.ghost.pl-split', { title: T('Keep a sprint in view beside the list (|)'), onclick: () => setSide(side == null ? defaultSide() : null) }, T('Split'));
-  toolbar.append(filterIn, chips, h('span.spacer'), colsBtn, splitBtn, h('button.btn.nw', { title: T('New sprint (N)'), onclick: () => newSprint() }, T('+ Sprint')));
+  const splitBtn = h('button.btn.ghost.pl-split', { title: T('Keep a sprint in view beside the list (|)'), onclick: () => setSide(side == null ? defaultSide() : null) }, T('Split'), keyHint('|'));
+  toolbar.append(filterIn, chips, h('span.spacer'), colsBtn, splitBtn, h('button.btn.nw', { title: T('New sprint (N)'), onclick: () => newSprint() }, T('+ Sprint'), keyHint('N')));
 
   // ---- data
   const secOf = id => sections.find(s => s.id === id);
@@ -205,7 +206,7 @@ export default async function mount(el, { app, params, scope, context, toolbar }
       h('button.fchip' + (who != null ? '.on' : ''), { dataset: { act: 'who' }, title: T('Assignee  (A)') }, h('kbd', 'A'), who == null ? T('Assignee') : whoLabel(who, id => names.get(id) || id)),
       ...qfs().slice(0, 9).map((q, i) => h('button.fchip' + (qf.has(q.ID) ? '.on' : ''), { dataset: { qf: q.ID }, title: q.JQL }, h('kbd', i + 1), q.Name)),
     ];
-    if (filtering()) kids.push(h('button.fchip.clear', { dataset: { act: 'clear' }, title: T('Clear filters  (0)') }, icon('x'), T('clear')));
+    if (filtering()) kids.push(h('button.fchip.clear', { dataset: { act: 'clear' }, title: T('Clear filters  (0)') }, icon('x'), T('clear'), keyHint('0')));
     clear(chips).append(...kids);
   }
   function setWho(w) {
@@ -598,7 +599,7 @@ export default async function mount(el, { app, params, scope, context, toolbar }
     const form = h('form.pl-form', { onsubmit: async e => {
       e.preventDefault();
       try { await run(form); m.close(); load(true); } catch (err) { app.ui.errToast(err); }
-    } }, fields, h('div.row.end', h('button.btn', { type: 'button', onclick: () => m.close() }, T('Cancel')), h('button.btn.primary', { type: 'submit' }, ok)));
+    } }, fields, h('div.row.end', h('button.btn', { type: 'button', onclick: () => m.close() }, T('Cancel'), keyHint('Escape')), h('button.btn.primary', { type: 'submit' }, ok)));
     const m = app.ui.modal(form, { title });
     return m;
   }

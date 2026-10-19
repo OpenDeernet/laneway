@@ -5,6 +5,7 @@ import { css } from './css.js';
 import { render } from './md.js';
 import { target } from './timer.js';
 import { T } from './i18n.js';
+import { keyHint } from './keys.js';
 
 export function install(app) {
   const ask = () => {
@@ -82,7 +83,7 @@ export async function openAsk(app, key) {
     h('div.ask-qs', canned),
     h('form.ask-free', { onsubmit: e => { e.preventDefault(); ask(); } }, free, h('button.btn.primary', { type: 'submit' }, T('Ask'))),
     out,
-    h('div.row.end', status, h('span.spacer'), stop, copy, post, h('button.btn', { onclick: () => m.close() }, T('Close')))),
+    h('div.row.end', status, h('span.spacer'), stop, copy, post, h('button.btn', { onclick: () => m.close() }, T('Close'), keyHint('Escape')))),
   { title: T('Ask %s about %s', info.Command, key), wide: true, onClose: () => abort && abort.abort() });
   info.Asks.forEach((a, i) => m.scope.bind('alt+' + (i + 1), () => run({ Question: a.ID }, a.Label), '', { input: true, hidden: true }));
 }

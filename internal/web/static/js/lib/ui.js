@@ -1,7 +1,7 @@
 // Shared widgets: toast, modal, pick (fuzzy list picker), prompt, confirm, avatar, chip.
 import { h, clear } from './dom.js';
 import { icon } from './icons.js';
-import { keys } from './keys.js';
+import { keys, keyHint } from './keys.js';
 import { fuzzy } from './fuzzy.js';
 import { T } from './i18n.js';
 
@@ -123,7 +123,7 @@ export function pick(o) {
     input.addEventListener('input', () => { q = input.value; sel = 0; render(); if (o.search) remote(q); });
     let rt = 0;
     const remote = q => { clearTimeout(rt); rt = setTimeout(async () => { try { const r = await o.search(q); if (input.value === q) { items = r; render(); } } catch (e) { /* keep list */ } }, 180); };
-    const foot = o.multi && h('div.pick-foot.row', h('span', o.enterPicks ? T('space / tab / box ticks · click picks · enter applies') : T('space / tab / click ticks · enter applies')), h('span.spacer'), h('button.btn.primary.sm', { type: 'button', onclick: () => { ticked = true; enter(); } }, T('Apply')));
+    const foot = o.multi && h('div.pick-foot.row', h('span', o.enterPicks ? T('space / tab / box ticks · click picks · enter applies') : T('space / tab / click ticks · enter applies')), h('span.spacer'), h('button.btn.primary.sm', { type: 'button', onclick: () => { ticked = true; enter(); } }, T('Apply'), keyHint('Enter')));
     const m = modal(h('div.pick', o.title && h('div.pick-title', o.title), input, list, foot), { className: 'pick-modal', onClose: () => finish(null) });
     const move = d => { if (!shown.length) return; sel = (sel + d + Math.min(shown.length, 200)) % Math.min(shown.length, 200); mark(); };
     // Tab on typed text without a match ticks it as a new item (create) instead of finishing.
@@ -156,7 +156,7 @@ export function prompt({ title, value = '', placeholder = '', multiline = false,
     const f = multiline ? h('textarea.input', { rows: 6, value, placeholder, autofocus: true }) : h('input.input', { type: 'text', value, placeholder, autofocus: true });
     let v = null;
     const m = modal(h('form.prompt', { onsubmit: e => { e.preventDefault(); v = f.value; m.close(); } }, f,
-      h('div.row.end', h('button.btn', { type: 'button', onclick: () => m.close() }, T('Cancel')), h('button.btn.primary', { type: 'submit' }, ok))), { title, onClose: () => resolve(v) });
+      h('div.row.end', h('button.btn', { type: 'button', onclick: () => m.close() }, T('Cancel'), keyHint('Escape')), h('button.btn.primary', { type: 'submit' }, ok, keyHint(multiline ? 'ctrl+Enter' : 'Enter')))), { title, onClose: () => resolve(v) });
     m.scope.bind('ctrl+Enter', () => { v = f.value; m.close(); }, '', { input: true, hidden: true });
     f.select && f.select();
   });
@@ -164,8 +164,8 @@ export function prompt({ title, value = '', placeholder = '', multiline = false,
 export function confirm({ title, text = '', ok = T('OK'), danger = false } = {}) {
   return new Promise(resolve => {
     let v = false;
-    const b = h('button.btn.' + (danger ? 'danger' : 'primary'), { autofocus: true, onclick: () => { v = true; m.close(); } }, ok);
-    const m = modal(h('div', h('p', text), h('div.row.end', h('button.btn', { onclick: () => m.close() }, T('Cancel')), b)), { title, onClose: () => resolve(v) });
+    const b = h('button.btn.' + (danger ? 'danger' : 'primary'), { autofocus: true, onclick: () => { v = true; m.close(); } }, ok, keyHint('y'));
+    const m = modal(h('div', h('p', text), h('div.row.end', h('button.btn', { onclick: () => m.close() }, T('Cancel'), keyHint('n')), b)), { title, onClose: () => resolve(v) });
     m.scope.bind('y', () => { v = true; m.close(); }, '', { hidden: true });
     m.scope.bind('n', () => m.close(), '', { hidden: true });
   });

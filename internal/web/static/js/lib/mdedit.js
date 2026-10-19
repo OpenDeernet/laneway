@@ -30,6 +30,7 @@ import { mdArea } from './mdarea.js';
 import { lines, enter, indent, toggleTask, pasteLink, tableTab, tableArrow, moveLines, wrapWith, backspace, inFence as fenced } from './mdhl.js';
 import { htmlToMd, rich } from './html2md.js';
 import { T } from './i18n.js';
+import { keyHint } from './keys.js';
 import { mentionsIn } from './comment.js';
 
 css('mdedit');
@@ -127,7 +128,7 @@ export function mdEdit(app, o) {
   const pop = h('div.mention-pop', { hidden: true, role: 'listbox' });
   const preview = h('div.md.ed-preview', { hidden: true });
   const fileIn = h('input', { type: 'file', multiple: true, hidden: true, onchange: () => { if (fileIn.files.length) files([...fileIn.files]); fileIn.value = ''; } });
-  const go = h('button.btn.primary', { onclick: () => run() }, o.label || T('Save'));
+  const go = h('button.btn.primary', { onclick: () => run() }, o.label || T('Save'), keyHint('ctrl+Enter'));
 
   // ---- text operations: each one undo step
   const replace = (from, to, text, s0 = text.length, s1 = s0) => {
@@ -315,8 +316,9 @@ export function mdEdit(app, o) {
   const body = h('div.ed-body');
   document.body.append(pop); // floats over the page: in the panel, contain would hold position: fixed to it
   const node = h('div.ed', head, body, preview, fileIn,
-    h('div.ed-foot', h('span.dim.hint', o.hint || (o.noCancel ? T('ctrl+⏎ %s · / formats', (o.label || T('Save')).toLowerCase()) : T('ctrl+⏎ %s · esc cancels · / formats', (o.label || T('Save')).toLowerCase()))), h('span.spacer'),
-      !o.noCancel && o.cancel && h('button.btn.ghost', { onclick: () => node._cancel() }, T('Cancel')), o.save && go));
+    h('div.ed-foot', h('span.dim.hint', o.hint || [h(o.save ? 'span.key-dup' : 'span', o.noCancel ? T('ctrl+⏎ %s · / formats', (o.label || T('Save')).toLowerCase()) : T('ctrl+⏎ %s · esc cancels · / formats', (o.label || T('Save')).toLowerCase())),
+        o.save && h('span.key-off', T('/ formats'))]), h('span.spacer'),
+      !o.noCancel && o.cancel && h('button.btn.ghost', { onclick: () => node._cancel() }, T('Cancel'), keyHint('Escape')), o.save && go));
 
   // ---- the Visual mode: mounted once its module is in. Until then a plain box stands in and takes
   // what is typed (c, then typing at once), which goes into the document when it mounts.

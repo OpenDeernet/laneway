@@ -330,6 +330,8 @@ async function boot() {
     const p = await api.get('/prefs'); app.prefs.data = p || {};
     onMetrics(kind => { bus.emit(kind); bus.emit('metrics', kind); });
     theme.attach(app.prefs); theme.fonts.attach(app.prefs); theme.fonts.refreshFiles(api).catch(() => {});
+    const btnKeys = () => { document.documentElement.dataset.btnKeys = app.prefs.get('btnkeys', 'show'); }; // keyHint's
+    btnKeys(); bus.on('prefs', p => { if (p && p.key === 'btnkeys') btnKeys(); });
     keys.configure({ conf: session.ui.Keys || {}, web: session.ui.WebKeys || {} });
   } catch (e) { $('#top').classList.remove('boot'); $('#viewbar').classList.remove('hold'); clear($('#view')).append(h('div.empty', h('h2', T('Cannot reach the site')), h('pre', e.message))); return; }
   import('./lib/keybar.js').then(m => m.install(app)).catch(e => console.error('keybar', e));

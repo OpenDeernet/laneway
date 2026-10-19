@@ -11,6 +11,7 @@ import * as pins from '../lib/pins.js';
 import { check, setCheck, selBar } from '../lib/selbar.js';
 import { openFilterBuilder } from './board_filter.js';
 import { T, Tn } from '../lib/i18n.js';
+import { keyHint } from '../lib/keys.js';
 
 const KEY_RE = /^[A-Z][A-Z0-9]+-\d+$/;
 const today = () => { const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate()); };
@@ -60,7 +61,7 @@ export default function mount(el, { app, scope, toolbar, query }) {
     clear(toolbar).append(...kids([
       h('div.seg', [['issues', T('Issues'), '1'], ['day', T('Day'), '2'], ['week', T('Week'), '3']].map(([t, n, k]) => h('button.btn' + (tab === t ? '.on' : ''), { onclick: () => setTab(t), title: k }, n))),
       tab === 'issues' && [filterIn, groupSel, doneBtn], h('span.spacer')]));
-    doneBtn.textContent = hideDone ? T('Done hidden') : T('Hide done');
+    doneBtn.replaceChildren(hideDone ? T('Done hidden') : T('Hide done'), keyHint('d'));
     doneBtn.classList.toggle('on', hideDone);
   }
   function toggleDone() { hideDone = !hideDone; prefs.set('work_hide_done', hideDone); paintToolbar(); buildRows(); }
@@ -185,13 +186,13 @@ export default function mount(el, { app, scope, toolbar, query }) {
   function paintTime() { clear(body); tab === 'week' ? paintWeek() : paintDay(); selbar.set(tab === 'day' ? marks.size : 0); }
   function nav(label, sub) {
     return h('div.time-head',
-      h('button.btn.ghost', { onclick: () => step(-1), title: T('Previous (h)'), 'aria-label': T('Previous') }, icon('chevron-left')),
+      h('button.btn.ghost', { onclick: () => step(-1), title: T('Previous (h)'), 'aria-label': T('Previous') }, icon('chevron-left'), keyHint('h')),
       h('div.time-title', h('h2', label), h('div.dim', sub)),
-      h('button.btn.ghost', { onclick: () => step(1), title: T('Next (l)'), 'aria-label': T('Next') }, icon('chevron-right')),
-      h('button.btn', { onclick: goToday, title: '0' }, T('Today')),
+      h('button.btn.ghost', { onclick: () => step(1), title: T('Next (l)'), 'aria-label': T('Next') }, icon('chevron-right'), keyHint('l')),
+      h('button.btn', { onclick: goToday, title: '0' }, T('Today'), keyHint('0')),
       h('span.spacer'),
-      h('button.btn', { onclick: () => addLog(), title: 'a' }, T('Log work')),
-      h('button.btn', { onclick: copyText, title: 'y' }, T('Copy')));
+      h('button.btn', { onclick: () => addLog(), title: 'a' }, T('Log work'), keyHint('a')),
+      h('button.btn', { onclick: copyText, title: 'y' }, T('Copy'), keyHint('y')));
   }
   // As the TUI: nothing after today (day) or this week (week) to step to.
   const step = n => {
@@ -210,7 +211,7 @@ export default function mount(el, { app, scope, toolbar, query }) {
     selbar.buttons[0].hidden = !canMove;
     body.append(nav(day.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' }), T('%s of %s', duration(total), duration(target))),
       h('div.wbar', h('div.wbar-fill' + (total >= target ? '.full' : ''), { style: { width: Math.min(100, (total / target) * 100) + '%' } })));
-    if (!ws.length && !dayProps().length) { body.append(h('div.empty', logsPath ? T('Nothing logged. ') : T('Loading…'), logsPath && h('button.btn.link', { onclick: () => addLog() }, T('Log work (a)')), logsPath && h('button.btn.link', { onclick: propose }, T(' Propose from git (p)')))); return; }
+    if (!ws.length && !dayProps().length) { body.append(h('div.empty', logsPath ? T('Nothing logged. ') : T('Loading…'), logsPath && h('button.btn.link', { onclick: () => addLog() }, T('Log work (a)'), keyHint('a')), logsPath && h('button.btn.link', { onclick: propose }, T(' Propose from git (p)'), keyHint('p')))); return; }
     const t = h('div.wlist' + (marks.size ? '.marking' : ''));
     const chk = w => { const c = check(); setCheck(c, marks.has(idOf(w))); return c; };
     ws.forEach((w, i) => t.append(h('div.wlog' + (i === wsel ? '.sel' : '') + (marks.has(idOf(w)) ? '.mark' : ''), { dataset: { key: w.Key, i } },
@@ -240,7 +241,7 @@ export default function mount(el, { app, scope, toolbar, query }) {
     cell.row = Math.min(cell.row, Math.max(weekRows.length - 1, 0));
     body.append(nav(s.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) + ' – ' + addDays(s, 6).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }), T('%s this week', duration(sum(logs)))));
     const tbl = h('table.wweek');
-    tbl.append(h('thead', h('tr', h('th.wissue', h('button.btn.link', { onclick: addRow, title: T('Add row (+)') }, T('+ row'))),
+    tbl.append(h('thead', h('tr', h('th.wissue', h('button.btn.link', { onclick: addRow, title: T('Add row (+)') }, T('+ row'), keyHint('+'))),
       days.map(d => h('th.wcol' + (wd.includes(d.getDay()) ? '' : '.off') + (ymd(d) === ymd(now) ? '.today' : ''), { onclick: () => openDay(d) },
         d.toLocaleDateString(undefined, { weekday: 'short' }), h('div.dim', d.getDate()))), h('th.wcol', T('Total')))));
     const tb = h('tbody');

@@ -13,6 +13,7 @@ import { ymd, addDays, workdays } from '../lib/worktime.js';
 import { grip } from '../lib/grip.js';
 import mountBoard from './board.js';
 import { T, Tn } from '../lib/i18n.js';
+import { keyHint } from '../lib/keys.js';
 
 const PARK = T('Parking lot');
 
@@ -140,7 +141,7 @@ export default function mount(el, { app, scope, context, toolbar }) {
         h('span.stnum', left === null ? clock(turnMs()) : left < 0 ? '+' + clock(-left) : clock(left + 999)), h('span.dim', left !== null && left < 0 ? T('over') : T('left'))),
       h('span.sttotal' + (total > length ? '.over' : ''), h('span.stnum', clock(total)), T(' of '), h('span.stnum', clock(length))),
       h('button.btn.ghost.sm.stgo' + (paused ? '.on' : ''), { onclick: pause, title: started ? 'space' : T('space or → starts the timer') },
-        icon(!started || paused ? 'play' : 'pause'), !started ? T('Start') : paused ? T('Resume') : T('Pause')));
+        icon(!started || paused ? 'play' : 'pause'), !started ? T('Start') : paused ? T('Resume') : T('Pause'), keyHint('Space')));
   }
 
   // go moves to stop i, marking the person left heard; a turn starts on a person's stop, the timer with the first.
@@ -208,13 +209,13 @@ export default function mount(el, { app, scope, context, toolbar }) {
     });
     const st = stops[at] || { Person: {} }, all = (data.Stops || []).length - 1;
     return h('div.ststrip',
-      h('div.stround', h('button.btn.ghost.sm', { onclick: () => go(at - 1), title: '←' }, icon('chevron-left')), h('div.stpeople', ...chips),
-        h('button.btn.ghost.sm', { onclick: () => go(at + 1), title: '→' }, icon('chevron-right'))),
+      h('div.stround', h('button.btn.ghost.sm', { onclick: () => go(at - 1), title: '←' }, icon('chevron-left'), keyHint('ArrowLeft')), h('div.stpeople', ...chips),
+        h('button.btn.ghost.sm', { onclick: () => go(at + 1), title: '→' }, icon('chevron-right'), keyHint('ArrowRight'))),
       h('div.stbar',
         h('div.stwhom', st.Person.ID ? [h('span.stname', st.Person.Name), st.Quiet && h('span.dim', T(' · no changes'))] : h('span.stname', T('Everyone')),
           h('span.dim', ' · ' + (at ? T('%d of %d', at, stops.length - 1) : T('the board')))),
-        h('button.btn.ghost.sm', { onclick: pickPeople, title: 'A' }, T("Who's in "), h('span.stnum.stcount', (stops.length - 1) + '/' + all)),
-        h('button.btn.ghost.sm' + (shuffled ? '.on' : ''), { onclick: shuffle, title: 's' }, icon('shuffle'), T('Shuffle')),
+        h('button.btn.ghost.sm', { onclick: pickPeople, title: 'A' }, T("Who's in "), h('span.stnum.stcount', (stops.length - 1) + '/' + all), keyHint('A')),
+        h('button.btn.ghost.sm' + (shuffled ? '.on' : ''), { onclick: shuffle, title: 's' }, icon('shuffle'), T('Shuffle'), keyHint('s')),
         timerOn() && timerEl));
   }
 
@@ -236,8 +237,8 @@ export default function mount(el, { app, scope, context, toolbar }) {
     clear(root);
     const label = since ? since.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'short' }) : '…';
     root.append(h('div.sthead', h('div.sttitle', h('h2', T('Standup')), view && view.name && h('span.chip', { title: T('The view the board showed last') }, view.name), h('span.dim', T('since %s', label)), data && data.Head && h('span.dim', data.Head), loading && data && h('span.dim', T('loading…'))),
-      h('div.stbtns', h('button.btn.ghost', { onclick: () => step(-1), title: '[' }, icon('chevron-left'), T('earlier')), h('button.btn.ghost', { onclick: () => step(1), title: ']' }, T('later'), icon('chevron-right')),
-        h('button.btn', { onclick: copy, title: 'y' }, T('Copy')))));
+      h('div.stbtns', h('button.btn.ghost', { onclick: () => step(-1), title: '[' }, icon('chevron-left'), T('earlier'), keyHint('[')), h('button.btn.ghost', { onclick: () => step(1), title: ']' }, T('later'), icon('chevron-right'), keyHint(']')),
+        h('button.btn', { onclick: copy, title: 'y' }, T('Copy'), keyHint('y')))));
     if (err) return root.append(h('div.empty', err));
     if (!data) return root.append(h('div.loading', T('Loading…')));
     root.append(strip());
@@ -249,7 +250,7 @@ export default function mount(el, { app, scope, context, toolbar }) {
     let sec = null;
     lines.forEach((l, i) => {
       if (l.Head) {
-        sec = h('section.stsec', h('h3', l.Head, l.Unfold && h('button.btn.ghost.sm', { onclick: () => { sel = i; unfold(); } }, T(' show (z)'))));
+        sec = h('section.stsec', h('h3', l.Head, l.Unfold && h('button.btn.ghost.sm', { onclick: () => { sel = i; unfold(); } }, T(' show (z)'), keyHint('z'))));
         return root.append(sec);
       }
       (sec || root).append(rowEl(l, i));

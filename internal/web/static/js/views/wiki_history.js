@@ -8,6 +8,7 @@ import { icon } from '../lib/icons.js';
 import { render as md } from '../lib/md.js';
 import { dateTime, shortDate } from '../lib/fmt.js';
 import { T, Tn } from '../lib/i18n.js';
+import { keyHint } from '../lib/keys.js';
 import { pageDiff, titleDiff, MARKS, INS, DEL, END_INS, END_DEL } from '../lib/pagediff.js';
 
 const CONTEXT = 1;   // unchanged blocks shown each side of a change
@@ -27,7 +28,7 @@ export function openHistory(app, o) {
   const restoreLabel = h('span');
   const restoreBtn = h('button.btn', { onclick: () => restore() }, icon('undo-2'), ' ', restoreLabel);
   const head = h('div.wk-head', titleEl, h('span.wk-acts', restoreBtn,
-    h('button.btn.ghost', { onclick: () => o.close(), title: T('Back to now (esc)') }, icon('x'), ' ', T('Close history'))));
+    h('button.btn.ghost', { onclick: () => o.close(), title: T('Back to now (esc)') }, icon('x'), ' ', T('Close history'), keyHint('Escape'))));
   const strip = h('div.wkh-strip', { role: 'slider', tabindex: 0, 'aria-label': T('Versions') });
   const info = h('div.wkh-info');
   const bar = h('div.wkh-bar', strip, info);
@@ -144,12 +145,12 @@ export function openHistory(app, o) {
       h('span.spacer'),
       !clean && d && (d.add || d.del) ? h('span.wkh-count', h('span.wkh-plus', '+' + d.add), ' ', h('span.wkh-minus', '−' + d.del)) : null,
       h('span.wkh-seg', { role: 'group', 'aria-label': T('Show') },
-        h('button.btn.sm' + (clean ? '' : '.on'), { onclick: () => setClean(false), 'aria-pressed': String(!clean), title: T('The changes marked (d)') }, T('Changes')),
-        h('button.btn.sm' + (clean ? '.on' : ''), { onclick: () => setClean(true), 'aria-pressed': String(clean), title: T('The page as it read (d)') }, T('Page'))),
+        h('button.btn.sm' + (clean ? '' : '.on'), { onclick: () => setClean(false), 'aria-pressed': String(!clean), title: T('The changes marked (d)') }, T('Changes'), keyHint('d')),
+        h('button.btn.sm' + (clean ? '.on' : ''), { onclick: () => setClean(true), 'aria-pressed': String(clean), title: T('The page as it read (d)') }, T('Page'), keyHint('d'))),
       clean ? null : h('span.wkh-nav',
-        h('button.btn.ghost.sm', { onclick: () => jump(-1), title: T('Previous change (N)'), 'aria-label': T('Previous change') }, icon('chevron-up')),
+        h('button.btn.ghost.sm', { onclick: () => jump(-1), title: T('Previous change (N)'), 'aria-label': T('Previous change') }, icon('chevron-up'), keyHint('N')),
         h('span.wkh-pos.dim', ''),
-        h('button.btn.ghost.sm', { onclick: () => jump(1), title: T('Next change (n)'), 'aria-label': T('Next change') }, icon('chevron-down'))),
+        h('button.btn.ghost.sm', { onclick: () => jump(1), title: T('Next change (n)'), 'aria-label': T('Next change') }, icon('chevron-down'), keyHint('n'))),
       h('span.dim.wkh-keys', T('← older  ·  → newer  ·  esc now'))].filter(Boolean));
     drawBody(d);
   }

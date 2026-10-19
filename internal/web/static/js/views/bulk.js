@@ -4,6 +4,7 @@ import { h } from '../lib/dom.js';
 import { css } from '../lib/css.js';
 import { pickUser, pickLabels, bulkUndo, undo } from './fields.js';
 import { T, Tn } from '../lib/i18n.js';
+import { keyHint } from '../lib/keys.js';
 
 css('forms');
 
@@ -102,7 +103,7 @@ async function run(app, keys, { edit, what, patch }) {
   const bar = h('progress', { max: keys.length, value: 0 });
   const label = h('div.dim', `0 / ${keys.length}`);
   const list = h('ul.bulk-failed');
-  const closeBtn = h('button.btn', { type: 'button', onclick: () => m.close() }, T('Stop'));
+  const closeBtn = h('button.btn', { type: 'button', onclick: () => m.close() }, T('Stop'), keyHint('Escape'));
   const m = app.ui.modal(h('div.bulk', bar, label, list, h('div.row.end', closeBtn)), { title: what, onClose: () => { stop = true; } });
   const res = { Done: [], Undo: {}, Failed: {} };
   let n = 0;
@@ -127,7 +128,7 @@ async function run(app, keys, { edit, what, patch }) {
     app.ui.toast(`${what}`, { kind: 'ok', action: step && { label: T('Undo'), run: () => undo(app, step) } });
   } else if (!stop) {
     label.textContent = T('%d done, %d failed', res.Done.length, failed.length);
-    closeBtn.textContent = T('Close'); closeBtn.focus();
+    closeBtn.replaceChildren(T('Close'), keyHint('Escape')); closeBtn.focus();
   }
   return res;
 }

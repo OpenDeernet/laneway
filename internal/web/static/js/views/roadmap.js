@@ -10,6 +10,7 @@ import { hwheel } from '../lib/hscroll.js';
 import { isZero, shortDate } from '../lib/fmt.js';
 import { resolve, switcher, noBoard } from './plan_ctx.js';
 import { T, Tn } from '../lib/i18n.js';
+import { keyHint } from '../lib/keys.js';
 
 const DAY = 86400000;
 const ZOOMS = [2, 4, 8, 14, 24, 40, 64]; // px per day
@@ -34,9 +35,9 @@ export default async function mount(el, { app, params, scope, context, toolbar }
   el.append(scroller);
   switcher(app, { scope, context, project, boards: false, group: T('Roadmap'), onPick: r => { project = r.project; epics = []; app.setURL('/roadmap/' + project, { push: true }); load(); } });
   toolbar.append(h('span.spacer'),
-    h('button.btn', { title: T('Zoom out (-)'), 'aria-label': T('Zoom out'), onclick: () => setZoom(zoom - 1) }, icon('minus')),
-    h('button.btn', { title: T('Zoom in (+)'), 'aria-label': T('Zoom in'), onclick: () => setZoom(zoom + 1) }, icon('plus')),
-    h('button.btn', { title: T('Today (.)'), onclick: () => today() }, T('Today')));
+    h('button.btn', { title: T('Zoom out (-)'), 'aria-label': T('Zoom out'), onclick: () => setZoom(zoom - 1) }, icon('minus'), keyHint('-')),
+    h('button.btn', { title: T('Zoom in (+)'), 'aria-label': T('Zoom in'), onclick: () => setZoom(zoom + 1) }, icon('plus'), keyHint('+')),
+    h('button.btn', { title: T('Today (.)'), onclick: () => today() }, T('Today'), keyHint('.')));
   const said = h('span.rm-said.dim', { role: 'status', 'aria-live': 'polite' });
   let filter = '';
   const find = h('input.input.rm-find', { type: 'search', placeholder: T('Filter (F)'), spellcheck: false, 'aria-label': T('Filter epics by key or summary'),

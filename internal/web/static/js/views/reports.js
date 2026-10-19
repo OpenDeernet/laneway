@@ -8,6 +8,7 @@ import { KINDS } from './report_kinds.js';
 import { makeLine, label, past, statusAt, order } from './report_lines.js';
 import { put } from './settings_config.js';
 import { T, Tn } from '../lib/i18n.js';
+import { keyHint } from '../lib/keys.js';
 
 const SPRINT_KINDS = ['burndown', 'burnup', 'cfd'];
 // The reports a line changes; velocity and releases keep Jira's done.
@@ -92,9 +93,9 @@ export default async function mount(el, { app, params, query, scope, context, to
   function lineBar() {
     const on = LINE_KINDS.includes(kind) && !!board, why = on ? '' : (board ? T("Velocity and releases count Jira's done") : T('Lines need a board'));
     doneBtn.disabled = cmpBtn.disabled = !on;
-    doneBtn.textContent = doneName() ? T('Done: %s →', doneName()) : T('Done: Jira');
+    doneBtn.replaceChildren(doneName() ? T('Done: %s →', doneName()) : T('Done: Jira'), keyHint('d'));
     doneBtn.title = why || T('The column done counts from: it and those right of it (d)');
-    cmpBtn.textContent = compare ? T('vs %s ×', compare) : T('+ Compare');
+    cmpBtn.replaceChildren(compare ? T('vs %s ×', compare) : T('+ Compare'), keyHint('c'));
     cmpBtn.title = why || (compare ? T('One line again (c)') : T('Set a second line beside done, for this visit (c)'));
   }
   async function pickDone() {
@@ -371,7 +372,7 @@ export default async function mount(el, { app, params, query, scope, context, to
     const end = label(last);
     const cyc = list.filter(i => i.Cycle > 0), cycD = cyc.map(i => toDays(i.Cycle)), leadD = list.map(i => toDays(i.Lead));
     const actD = cyc.map(i => toDays(i.Cycle - i.Wait)), waitD = cyc.map(i => toDays(i.Wait));
-    const weeksBtn = h('button.btn', { title: T('Weeks (W)'), onclick: nextWeeks }, Tn(weeks, '%d week', '%d weeks', weeks));
+    const weeksBtn = h('button.btn', { title: T('Weeks (W)'), onclick: nextWeeks }, Tn(weeks, '%d week', '%d weeks', weeks), keyHint('W'));
     const sub = T('in progress to %s', end);
     const title = () => { const el = head(T('Cycle time'), sub); if (L.done || L.compare) el.append(byLine(L)); return el; };
     if (!list.length) return h('div.rp-in', title(), h('div.empty', T('Nothing got to %s in the last %d weeks.', end, weeks)), weeksBtn);

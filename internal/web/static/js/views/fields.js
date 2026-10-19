@@ -3,7 +3,7 @@
 // Also the form widgets (fieldInput, formDialog) that create, bulk and the transition form share.
 import { h } from '../lib/dom.js';
 import { css } from '../lib/css.js';
-import { keys } from '../lib/keys.js';
+import { keys, keyHint } from '../lib/keys.js';
 import { T } from '../lib/i18n.js';
 import { mdEdit } from '../lib/mdedit.js';
 
@@ -335,11 +335,11 @@ export function formRow(label, el, required) {
 // may throw; its message shows in the form and the dialog stays. ctrl+Enter submits.
 export function formDialog(app, { title, intro, rows, ok = T('Save'), submit, wide = false }) {
   const err = h('div.form-err', { role: 'alert' });
-  const okBtn = h('button.btn.primary', { type: 'submit' }, ok);
+  const okBtn = h('button.btn.primary', { type: 'submit' }, ok, keyHint('ctrl+Enter'));
   const form = h('form.form-dialog', { onsubmit: e => { e.preventDefault(); go(); } },
     intro && h('p.dim', intro),
     h('div.form', rows.map(r => (r.dom = formRow(r.label, r.widget.el, r.required)))), err,
-    h('div.row.end', h('span.faint.form-hint.kb-only', T('ctrl+⏎ saves')), h('button.btn', { type: 'button', onclick: () => m.close() }, T('Cancel')), okBtn));
+    h('div.row.end', h('span.faint.form-hint.kb-only.key-dup', T('ctrl+⏎ saves')), h('button.btn', { type: 'button', onclick: () => m.close() }, T('Cancel'), keyHint('Escape')), okBtn));
   const m = app.ui.modal(form, { title, wide, onClose: () => rows.forEach(r => r.widget.dispose && r.widget.dispose()) });
   m.scope.bind('ctrl+Enter', () => go(), T('submit'), { input: true, hidden: true });
   const firstEmpty = rows.find(r => r.widget.empty());

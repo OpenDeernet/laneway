@@ -417,6 +417,8 @@
   "Keep the token in this computer's keyring instead of in the config file": "Bewaar het token in de sleutelhanger van deze computer in plaats van in het configbestand",
   "Key": "Sleutel",
   "Key bar": "Toetsenbalk",
+  "Keys on buttons": "Toetsen op knoppen",
+  "a button with a shortcut shows it, as Save ⌃⏎": "een knop met een sneltoets toont die, zoals Opslaan ⌃⏎",
   "Keyboard": "Toetsenbord",
   "Keys reset": "Toetsen hersteld",
   "Labels": "Labels",

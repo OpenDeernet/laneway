@@ -15,6 +15,7 @@
 // In inputs/textareas only `input: true` bindings fire (and Escape always reaches modal scopes).
 import { actionFor, specFromTUI } from './keymap.js';
 import { T } from './i18n.js';
+import { h } from './dom.js';
 
 const scopes = [];
 // A bind's group as shown: the id stays what the code compares.
@@ -197,4 +198,7 @@ const GLOBAL = new Set(['global', 'timer', 'undo']);
 // Scopes that exist only while a text field has the focus.
 const FIELD = new Set(['mdedit']);
 export const kbd = spec => spec.split(' ').map(k => k.replace('ArrowUp', '↑').replace('ArrowDown', '↓').replace('ArrowLeft', '←').replace('ArrowRight', '→').replace('Escape', 'esc').replace('Enter', '⏎').replace('Space', '␣').replace('ctrl+', '⌃').replace('alt+', '⌥').replace('meta+', '⌘'));
+// keyHint is a button's shortcut, drawn in the button: h('button.btn', T('Save'), keyHint('ctrl+Enter')).
+// Every button with a key shows it; Appearance › Keys on buttons hides them all (html[data-btn-keys=hide]).
+export const keyHint = spec => h('kbd.btn-key', { 'aria-hidden': 'true' }, kbd(spec).join(' '));
 export default keys;

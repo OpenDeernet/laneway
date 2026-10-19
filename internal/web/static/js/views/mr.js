@@ -16,6 +16,7 @@ import { ago, isZero, duration } from '../lib/fmt.js';
 import { render as md } from '../lib/md.js';
 import { stateBadge, issueKeys, pipeline, pipelineMini, approvals, mrHref, glyph, running, signInHelp } from '../lib/mr.js';
 import { T, Tn } from '../lib/i18n.js';
+import { keyHint } from '../lib/keys.js';
 
 const raw = s => { const t = document.createElement('template'); t.innerHTML = s; return t.content; };
 const catOf = c => (c.Done ? 'done' : c.InProgress ? 'indeterminate' : 'new');
@@ -63,7 +64,7 @@ export default function mount(el, { app, scope, query }) {
         h('span.spacer'),
         open ? h('button.btn.ghost.sm', { title: T('GitLab merges no draft'), onclick: () => edit('draft') }, mr.Draft ? T('Mark as ready') : T('Mark as draft')) : null,
         safe(url) ? h('a.btn.ghost.sm', { href: safe(url), target: '_blank', rel: 'noopener noreferrer', title: T('Open in GitLab (o)') }, 'GitLab', icon('external-link')) : null,
-        h('button.btn.ghost.sm', { title: T('Back (esc)'), onclick: back }, icon('arrow-left'), T('Back'))),
+        h('button.btn.ghost.sm', { title: T('Back (esc)'), onclick: back }, icon('arrow-left'), T('Back'), keyHint('Escape'))),
       open ? h('h1.iss-title', { title: T('Edit the title'), onclick: () => edit('title') }, t) : h('h1.iss-title.mrp-title', t || (mrErr ? '' : '…')),
       h('div.iss-sub.mrp-sub',
         mr ? stateBadge(mr) : null,
@@ -81,10 +82,10 @@ export default function mount(el, { app, scope, query }) {
     // The review's buttons at the tabs' end: beside the diff, on either tab.
     clear(tabs).append(...ts.map(([id, text, k]) => h('button.tab' + (tab === id ? '.on' : ''), { role: 'tab', 'aria-selected': tab === id, title: text + ' (' + k + ')', onclick: () => setTab(id) }, text)),
       h('span.spacer'), h('div.mrp-acts',
-        h('button.btn.ghost.sm', { title: T('An agent reviews it in a worktree of its branch; its notes come back as pending (C)'), onclick: agentReview }, icon('zap'), T('Agent review')),
-        h('button.btn.sm', { title: T('Approve without a review (A)'), onclick: () => review(true) }, icon('check'), T('Approve')),
-        isOpen() ? h('button.btn.sm', { title: mr.Mergeable ? T('Merge (M)') : T('Not ready to merge: %s', mr.MergeStatus), disabled: !mr.Mergeable, onclick: merge }, icon('git-merge'), T('Merge')) : null,
-        h('button.btn.primary.sm', { title: T('Submit your review: comment, approve or request changes (S)'), onclick: () => review(false) }, n ? T('Submit review · %s', Tn(n, '%d pending note', '%d pending notes', n)) : T('Submit review'))));
+        h('button.btn.ghost.sm', { title: T('An agent reviews it in a worktree of its branch; its notes come back as pending (C)'), onclick: agentReview }, icon('zap'), T('Agent review'), keyHint('C')),
+        h('button.btn.sm', { title: T('Approve without a review (A)'), onclick: () => review(true) }, icon('check'), T('Approve'), keyHint('A')),
+        isOpen() ? h('button.btn.sm', { title: mr.Mergeable ? T('Merge (M)') : T('Not ready to merge: %s', mr.MergeStatus), disabled: !mr.Mergeable, onclick: merge }, icon('git-merge'), T('Merge'), keyHint('M')) : null,
+        h('button.btn.primary.sm', { title: T('Submit your review: comment, approve or request changes (S)'), onclick: () => review(false) }, n ? T('Submit review · %s', Tn(n, '%d pending note', '%d pending notes', n)) : T('Submit review'), keyHint('S'))));
   }
   function setTab(t) {
     tab = t;
@@ -139,7 +140,7 @@ export default function mount(el, { app, scope, query }) {
       },
     };
   })();
-  const closeBtn = () => h('button.btn.ghost.sm', { title: T('Close the log (esc)'), 'aria-label': T('Close the log'), onclick: closeJob }, icon('x'));
+  const closeBtn = () => h('button.btn.ghost.sm', { title: T('Close the log (esc)'), 'aria-label': T('Close the log'), onclick: closeJob }, icon('x'), keyHint('Escape'));
   async function showJob(id) {
     const fresh = id !== jobId;
     jobId = id; syncURL();
@@ -255,7 +256,7 @@ export default function mount(el, { app, scope, query }) {
     };
     const cancel = () => (form.ReplyTo || form.NewPath || form.OldPath ? box.remove() : renderOverview());
     ta.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); post(); } else if (e.key === 'Escape') { e.stopPropagation(); cancel(); } });
-    const box = h('div.df-compose', ta, h('div.df-acts', h('button.btn.primary.sm', { onclick: post }, form.ReplyTo ? T('Reply') : T('Add to review')), suggest, h('button.btn.ghost.sm', { onclick: cancel }, T('Cancel')),
+    const box = h('div.df-compose', ta, h('div.df-acts', h('button.btn.primary.sm', { onclick: post }, form.ReplyTo ? T('Reply') : T('Add to review'), keyHint('ctrl+Enter')), suggest, h('button.btn.ghost.sm', { onclick: cancel }, T('Cancel'), keyHint('Escape')),
       h('span.df-when', T('ctrl+enter adds it') + (form.Range || form.ReplyTo || !form.NewPath ? '' : T(' · shift+click another line number: a range')))));
     setTimeout(() => ta.focus());
     return box;
@@ -326,7 +327,7 @@ export default function mount(el, { app, scope, query }) {
       inline ? h('span.dim', Tn(inline, '%d thread on the lines', '%d threads on the lines', inline)) : null,
       general ? h('button.btn.link', { onclick: () => setTab('overview') }, Tn(general, '%d discussion on Overview', '%d discussions on Overview', general)) : null,
       version ? h('span.chip', T('an earlier version: no threads')) : null,
-      h('span.spacer'), picker, h('button.btn.ghost.sm', { title: T('Fold or unfold every file (Z)'), onclick: foldAll }, T('Fold all')), h('button.btn.ghost.sm', { title: T('Reload (r)'), onclick: () => load(true) }, icon('refresh-cw'))].filter(Boolean));
+      h('span.spacer'), picker, h('button.btn.ghost.sm', { title: T('Fold or unfold every file (Z)'), onclick: foldAll }, T('Fold all'), keyHint('Z')), h('button.btn.ghost.sm', { title: T('Reload (r)'), onclick: () => load(true) }, icon('refresh-cw'), keyHint('r'))].filter(Boolean));
     files.replaceChildren(...fs.map((f, i) => h('div.df-file-link' + (i === cur ? '.cur' : ''), { dataset: { file: i }, title: f.Path },
       h('span.df-path', f.Path), h('span.df-add', '+' + f.Add), h('span.df-del', '−' + f.Del))));
     const secs = fs.map((f, i) => section(whole.get(i) || f, i));

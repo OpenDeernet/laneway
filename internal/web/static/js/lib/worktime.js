@@ -2,6 +2,7 @@
 import { h } from './dom.js';
 import { duration } from './fmt.js';
 import { T } from './i18n.js';
+import { keyHint } from './keys.js';
 
 const UNIT = { d: 8 * 3600, h: 3600, m: 60 };
 
@@ -83,14 +84,14 @@ export function logDialog(app, o) {
       bus.emit('issue:changed', { key: o.key });
       m.close();
     };
-    const save = h('button.btn.primary', { type: 'submit' }, o.edit ? T('Save') : T('Log work'));
+    const save = h('button.btn.primary', { type: 'submit' }, o.edit ? T('Save') : T('Log work'), keyHint('ctrl+Enter'));
     const form = h('form.wl-form', { onsubmit: e => { e.preventDefault(); submit(); } },
       o.note && h('div.dim.wl-note', o.note),
       row(T('Time'), time), row(T('Date'), date), row(T('Comment'), comment),
       !o.edit && row(T('Remaining'), left, leftVal), err,
       h('div.row.end', o.discard && h('button.btn.ghost', { type: 'button', onclick: () => { result = 'discard'; m.close(); } }, T('Discard timer')),
         o.move && h('button.btn.ghost', { type: 'button', title: T('Its time goes along; nothing is logged'), onclick: () => { result = 'move'; m.close(); } }, T('Move timer to %s', o.move)), h('span.spacer'),
-        h('button.btn', { type: 'button', onclick: () => m.close() }, T('Cancel')), save));
+        h('button.btn', { type: 'button', onclick: () => m.close() }, T('Cancel'), keyHint('Escape')), save));
     const title = (o.edit ? T('Edit work on %s', o.key) : T('Log work on %s', o.key)) + (o.summary ? ' · ' + o.summary : '');
     const m = ui.modal(form, { title, onClose: () => resolve(result) });
     m.scope.bind('ctrl+Enter', submit, 'save', { input: true, hidden: true });

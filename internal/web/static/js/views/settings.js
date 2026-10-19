@@ -30,6 +30,7 @@ import { fontOptions } from './settings_fonts.js';
 import { siteOptions } from './settings_site.js';
 import { accountOptions } from './settings_account.js';
 import { T } from '../lib/i18n.js';
+import { keyHint } from '../lib/keys.js';
 
 css('settings');
 
@@ -96,6 +97,7 @@ export default function mount(el, { app, scope, toolbar, query }) {
     fontSize,
     ...fontOptions(app, () => refresh()),
     choice(T('Motion'), T('animations and transitions'), 'Appearance', ['auto', 'reduce'], () => theme.motion, v => { theme.setMotion(v); refresh(); }, v => (v === 'reduce' ? T('reduced') : T('system'))),
+    choice(T('Keys on buttons'), T('a button with a shortcut shows it, as Save ⌃⏎'), 'Appearance', ['show', 'hide'], () => pref('btnkeys', 'show'), v => { setPref('btnkeys', v); refresh(); }),
     choice(T('Key bar'), T('the main keys here at the bottom, a click presses one; messages show in it'), 'Appearance', ['show', 'hide'], () => pref('keybar', 'show'), v => { setPref('keybar', v); refresh(); }),
     { name: T('Custom tokens'), desc: T('CSS variables as JSON, e.g. {"--bg": "#101010", "--radius": "2px"}; ctrl+enter applies'), section: 'Appearance', wide: true, advanced: true, render: customEditor, change: () => editor && editor.focus() },
 
@@ -179,7 +181,7 @@ export default function mount(el, { app, scope, toolbar, query }) {
   const nav = h('nav.st-nav', { 'aria-label': T('Settings sections') });
   let adv = false;
   try { adv = localStorage.getItem('lw:settings.advanced') === '1'; } catch (e) { /* ignore */ }
-  const advBtn = h('button.btn', { 'aria-pressed': String(adv), title: T('Show the options for specifics and tuning too  (a)'), onclick: () => setAdv(!adv) }, T('Advanced'));
+  const advBtn = h('button.btn', { 'aria-pressed': String(adv), title: T('Show the options for specifics and tuning too  (a)'), onclick: () => setAdv(!adv) }, T('Advanced'), keyHint('a'));
   toolbar.append(filter, advBtn);
   el.append(h('div.st', nav, h('div.st-main', list, foot)));
   const setFoot = () => { foot.textContent = T('j/k move · enter/space change · ←/→ cycle · del reset · / filter · a advanced · esc leaves') + (cfg && cfg.path ? T(' · ui: options write to %s', cfg.path) : ''); };

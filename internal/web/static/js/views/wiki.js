@@ -9,6 +9,7 @@ import { render as md } from '../lib/md.js';
 import { mdEdit } from '../lib/mdedit.js';
 import { ago } from '../lib/fmt.js';
 import { T } from '../lib/i18n.js';
+import { keyHint } from '../lib/keys.js';
 import { grip } from '../lib/grip.js';
 import { openHistory } from './wiki_history.js';
 
@@ -141,9 +142,9 @@ export default async function mount(el, { app, params, query, scope }) {
     clear(page).append(
       crumbs(id),
       h('div.wk-head', h('h1', p.Title), h('span.wk-acts',
-        h('button.btn', { onclick: () => edit(id), title: T('Edit (e)') }, icon('pencil'), ' ', T('Edit')),
-        h('button.btn.ghost', { onclick: () => newPage(id), title: T('New page under this one (n)'), 'aria-label': T('New page') }, icon('plus')),
-        h('button.btn.ghost', { onclick: () => showHistory(id), title: T('Its versions, and what each changed (h)'), 'aria-label': T('History') }, icon('rotate-ccw-clock')),
+        h('button.btn', { onclick: () => edit(id), title: T('Edit (e)') }, icon('pencil'), ' ', T('Edit'), keyHint('e')),
+        h('button.btn.ghost', { onclick: () => newPage(id), title: T('New page under this one (n)'), 'aria-label': T('New page') }, icon('plus'), keyHint('n')),
+        h('button.btn.ghost', { onclick: () => showHistory(id), title: T('Its versions, and what each changed (h)'), 'aria-label': T('History') }, icon('rotate-ccw-clock'), keyHint('h')),
         p.URL ? h('a.btn.ghost', { href: p.URL, target: '_blank', rel: 'noopener noreferrer', title: T('Open on the site'), 'aria-label': T('Open on the site') }, icon('external-link')) : null,
         h('button.btn.ghost', { onclick: () => remove(id, p.Title), title: T('Move to the trash'), 'aria-label': T('Move to the trash') }, icon('trash-2')))),
       // Who saved it last, and when: the history a click away.

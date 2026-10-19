@@ -8,6 +8,7 @@ import { fieldInput, formRow } from './fields.js';
 import { mdEdit } from '../lib/mdedit.js';
 import { projectOf } from './plan_ctx.js';
 import { T } from '../lib/i18n.js';
+import { keyHint } from '../lib/keys.js';
 
 css('forms');
 
@@ -61,13 +62,13 @@ export async function openCreate(app, opts = {}) {
   const more = h('details.form-more', { hidden: true, open: prefs.get('create.more', '') === '1', ontoggle: () => { if (byRule) byRule = false; else prefs.set('create.more', more.open ? '1' : ''); } }, h('summary', T('More fields')), h('div.form'));
   const err = h('div.form-err', { role: 'alert' });
   const another = h('input', { type: 'checkbox', checked: prefs.get('create.another', '') === '1', onchange: () => prefs.set('create.another', another.checked ? '1' : '0') });
-  const okBtn = h('button.btn.primary', { type: 'submit' }, T('Create'));
+  const okBtn = h('button.btn.primary', { type: 'submit' }, T('Create'), keyHint('ctrl+Enter'));
 
   const form = h('form.form-dialog', { onsubmit: e => { e.preventDefault(); submit(); } },
     h('div.form', formRow(T('Project'), projectSel), formRow(T('Type'), typeSel), formRow(T('Summary'), [summary, count$], true), formRow(T('Description'), [ed.el, fileBar, opts.note ? h('div.faint.form-hint', opts.note) : ''], true)),
     extra, sprintRow, more, err,
-    h('div.row.end', h('label.check', another, ' ' + T('Create another')), h('span.spacer'), h('span.faint.form-hint.kb-only', T('ctrl+⏎ creates')),
-      h('button.btn', { type: 'button', onclick: () => m.close() }, T('Cancel')), okBtn));
+    h('div.row.end', h('label.check', another, ' ' + T('Create another')), h('span.spacer'), h('span.faint.form-hint.kb-only.key-dup', T('ctrl+⏎ creates')),
+      h('button.btn', { type: 'button', onclick: () => m.close() }, T('Cancel'), keyHint('Escape')), okBtn));
   const m = app.ui.modal(form, { title: opts.cloneOf ? T('Clone of %s', opts.cloneOf) : T('Create issue'), wide: true, onClose: () => { ed.dispose(); unLeave(); keep(); } });
   m.scope.bind('ctrl+Enter', () => submit(), T('create'), { input: true, hidden: true });
   summary.focus();
@@ -246,7 +247,7 @@ export async function openCreate(app, opts = {}) {
     const made = [], warn = [];
     let failed = null;
     for (const [i, s] of sums.entries()) {
-      okBtn.textContent = sums.length > 1 ? T('Creating %d/%d…', i + 1, sums.length) : T('Creating…');
+      okBtn.replaceChildren(sums.length > 1 ? T('Creating %d/%d…', i + 1, sums.length) : T('Creating…'), keyHint('ctrl+Enter'));
       try {
         const r = await app.api.post('/issues', { Project: project, Type: type, Summary: s, ...desc, Parent: parent, CloneOf: opts.cloneOf || '', Sprint: Number(sprintSel.value) || 0, Fields });
         made.push(r.Key);
@@ -255,7 +256,7 @@ export async function openCreate(app, opts = {}) {
         app.bus.emit('issue:changed', { key: r.Key, created: true });
       } catch (e) { failed = e; summary.value = sums.slice(i).join('\n'); break; }
     }
-    busy = false; okBtn.disabled = false; okBtn.textContent = T('Create');
+    busy = false; okBtn.disabled = false; okBtn.replaceChildren(T('Create'), keyHint('ctrl+Enter'));
     if (made.length) {
       prefs.set('create.project', project); prefs.set('create.type.' + project, type);
       const first = made[0];

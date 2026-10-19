@@ -3,6 +3,7 @@
 import { h } from '../lib/dom.js';
 import { restart } from '../lib/sites.js';
 import { T, Tn } from '../lib/i18n.js';
+import { keyHint } from '../lib/keys.js';
 
 const cycle = (list, cur, d) => list[(Math.max(0, list.indexOf(cur)) + d + list.length) % list.length];
 const show = v => (Array.isArray(v) ? v.join(', ') : String(v));
@@ -96,7 +97,7 @@ function make(app, host, st0, editable) {
     if (o.edit) {
       const ed = o.edit;
       return h('div.st-edit', ed.input, o.err && h('div.st-err', o.err),
-        h('div.row', h('button.btn', { tabindex: -1, onclick: () => host.commit() }, T('Save')), h('button.btn.ghost', { tabindex: -1, onclick: () => host.cancel() }, T('Cancel')),
+        h('div.row', h('button.btn', { tabindex: -1, onclick: () => host.commit() }, T('Save'), keyHint(ed.multi ? 'ctrl+Enter' : 'Enter')), h('button.btn.ghost', { tabindex: -1, onclick: () => host.cancel() }, T('Cancel'), keyHint('Escape')),
           h('span.faint', ed.multi ? T('ctrl+enter saves · esc cancels · empty resets') : T('enter saves · esc cancels · empty resets'))));
     }
     const reset = s.Set && h('button.btn.ghost.st-x', { tabindex: -1, title: T('Back to the default (del)'), 'aria-label': T('Reset %s', o.name), onclick: e => { e.stopPropagation(); o.reset(); } }, '×');

@@ -5,7 +5,7 @@
 import { h, clear, delegate, openURL } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
 import { css } from '../lib/css.js';
-import { kbd } from '../lib/keys.js';
+import { kbd, keyHint } from '../lib/keys.js';
 import { ICON, LABEL } from '../lib/agents.js';
 import { terminal, LEAVE } from '../lib/term.js';
 import { T, Tn } from '../lib/i18n.js';
@@ -107,7 +107,7 @@ export default async function mount(el, { app, scope, query }) {
     const sig = r ? (r.pane || r.key) + '|' + (a ? a.Status + a.Title : '') + '|' + summary(r.key) + (c ? c.Status + c.Assignee : '') : '';
     if (info._sig !== sig) {
       info._sig = sig;
-      const btn = (label, key, fn, cls = '') => h('button.btn' + cls, { onclick: fn }, label, h('kbd', key));
+      const btn = (label, key, fn, cls = '') => h('button.btn' + cls, { onclick: fn }, label, keyHint(key));
       clear(info);
       if (r) info.append(
         h('h2', h('a.issue-ref', { href: away(r.key) ? issues.get(r.key).URL : '/issue/' + r.key, onclick: e => { e.preventDefault(); openIssue(r.key); } }, r.key), ' ' + summary(r.key)),

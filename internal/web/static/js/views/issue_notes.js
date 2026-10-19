@@ -5,6 +5,7 @@ import { css } from '../lib/css.js';
 import { render } from '../lib/md.js';
 import { postComment } from '../lib/comment.js';
 import { T } from '../lib/i18n.js';
+import { keyHint } from '../lib/keys.js';
 
 export function mountNotes(parent, key, { app, el, full }) {
   css('ask');
@@ -30,14 +31,14 @@ export function mountNotes(parent, key, { app, el, full }) {
   function paint() {
     clear(box);
     box.hidden = false;
-    if (!text && !editing) { box.append(h('button.btn.ghost.sm', { title: T('Private notes, on this machine (N)'), onclick: edit }, T('+ Private notes'))); return; }
+    if (!text && !editing) { box.append(h('button.btn.ghost.sm', { title: T('Private notes, on this machine (N)'), onclick: edit }, T('+ Private notes'), keyHint('N'))); return; }
     if (editing) {
       const ta = h('textarea.input', { value: text, placeholder: T('Private notes in markdown. Only on this machine.'), spellcheck: true });
       const done = () => save(ta.value), cancel = () => { editing = false; paint(); };
       const ed = h('div.ed', ta);
       ed._save = done; ed._cancel = cancel; // the panel's esc and ctrl+enter find these
-      box.append(h('div.notes-head', h('b', T('Notes (local)')), h('span.dim', T('ctrl+enter saves, esc cancels'))), ed,
-        h('div.row.end', h('button.btn', { onclick: cancel }, T('Cancel')), h('button.btn.primary', { onclick: done }, T('Save'))));
+      box.append(h('div.notes-head', h('b', T('Notes (local)')), h('span.dim.key-dup', T('ctrl+enter saves, esc cancels'))), ed,
+        h('div.row.end', h('button.btn', { onclick: cancel }, T('Cancel'), keyHint('Escape')), h('button.btn.primary', { onclick: done }, T('Save'), keyHint('ctrl+Enter'))));
       return;
     }
     const long = text.split('\n').length > 4;
@@ -45,7 +46,7 @@ export function mountNotes(parent, key, { app, el, full }) {
     box.append(h('div.notes-head', h('b', T('Notes (local)')), h('span.spacer'),
       long && h('button.btn.ghost.sm', { onclick: () => { open = !open; paint(); } }, open ? T('Fold') : T('Unfold')),
       h('button.btn.ghost.sm', { title: T('Post as a comment'), onclick: post }, T('Post as comment')),
-      h('button.btn.ghost.sm', { title: T('Edit (N)'), onclick: edit }, T('Edit'))), body);
+      h('button.btn.ghost.sm', { title: T('Edit (N)'), onclick: edit }, T('Edit'), keyHint('N'))), body);
   }
   async function post() {
     if (!await ui.confirm({ title: T('Post notes'), text: T('Post your private notes on %s as a comment?', key), ok: T('Post') })) return;

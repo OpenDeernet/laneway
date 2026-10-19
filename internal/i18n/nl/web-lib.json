@@ -393,6 +393,7 @@
   "could not attach": "koppelen mislukt",
   "ctrl+⏎ %s · / formats": "ctrl+⏎ %s · / opmaak",
   "ctrl+⏎ %s · esc cancels · / formats": "ctrl+⏎ %s · esc annuleert · / opmaak",
+  "/ formats": "/ opmaak",
   "current": "huidig",
   "decisions": "besluiten",
   "delete failed (%d)": "verwijderen mislukt (%d)",

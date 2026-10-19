@@ -9,6 +9,7 @@ import { icon } from '../lib/icons.js';
 import { css } from '../lib/css.js';
 import { LABEL } from '../lib/agents.js';
 import { T } from '../lib/i18n.js';
+import { keyHint } from '../lib/keys.js';
 
 const home = p => { const m = p && p.match(/^\/(?:home|Users)\/[^/]+/); return m ? '~' + p.slice(m[0].length) : p || ''; };
 const ICON = { run: 'circle-dashed', ok: 'check', warn: 'triangle-alert', err: 'x' };
@@ -86,7 +87,7 @@ function form(app, key, f, { another, path, notice }) {
   const err = h('div.form-err.sw-err', { role: 'alert' });
   const steps = h('ol.sw-steps', { hidden: true, 'aria-live': 'polite' });
   const go = h('button.btn.primary.sw-go', { type: 'submit', autofocus: true });
-  const cancel = h('button.btn', { type: 'button', onclick: () => m.close() }, T('Cancel'));
+  const cancel = h('button.btn', { type: 'button', onclick: () => m.close() }, T('Cancel'), keyHint('Escape'));
   const hint = h('div.sw-keys');
 
   const row = (id, label, forId, ...kids) => h('div.sw-row', { dataset: { row: id } }, h('label.sw-label', { htmlFor: forId }, label), h('div.sw-field', ...kids));
@@ -116,7 +117,7 @@ function form(app, key, f, { another, path, notice }) {
     rows.also.hidden = !f.Actions.length || w.id !== 'new' && w.id !== 'in';
     paintBranch();
     paintPrompt();
-    go.textContent = w.id === 'focus' ? T('Focus agent') : w.id === 'another' ? T('Start agent') : T('Start work');
+    go.replaceChildren(w.id === 'focus' ? T('Focus agent') : w.id === 'another' ? T('Start agent') : T('Start work'), keyHint('ctrl+Enter'));
     go.disabled = busy || problems.length > 0;
   }
   function paintBranch() {
@@ -220,7 +221,7 @@ function form(app, key, f, { another, path, notice }) {
     busy = on;
     for (const x of [agentBtn, whereBtn, branch, prompt, also]) x.disabled = on;
     go.disabled = on || problems.length > 0;
-    go.textContent = on ? T('Starting…') : go.textContent;
+    if (on) go.textContent = T('Starting…');
     body.classList.toggle('busy', on);
     if (!on) paint();
   }

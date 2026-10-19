@@ -22,6 +22,7 @@ import { buildCard as buildCardEl, fillCard as fillCardEl, catClass } from '../l
 import { layoutOf, lookOf, colour } from '../lib/cardstyle.js';
 import { lastProject, lastBoard, setCtx, openProject, pickBoard as pickBoardOf, recover } from './plan_ctx.js';
 import { T, Tn } from '../lib/i18n.js';
+import { keyHint } from '../lib/keys.js';
 
 css('board');
 
@@ -93,30 +94,31 @@ export default function mount(el, { app, params, query, scope, context, toolbar,
   const sprintBtn = app.chrome.crumb(T('View: sprint, backlog, whole board, your views  (v, [ ])'), () => pickSprint());
   const modeBtn = h('button.btn', { title: T('Lanes / list  (t)'), onclick: () => setMode(S.mode === 'lanes' ? 'list' : 'lanes') });
   const swimBtn = h('button.btn', { title: T('Swimlanes: none, assignee, epic, priority  (O)'), onclick: () => cycleSwim() });
-  const colsBtn = h('button.btn', { title: T('List columns  (C)'), onclick: () => pickCols() }, icon('columns-3'), T('Columns'));
+  const colsBtn = h('button.btn', { title: T('List columns  (C)'), onclick: () => pickCols() }, icon('columns-3'), T('Columns'), keyHint('C'));
   const compactBtn = h('button.btn', { title: T('Compact (one-line) cards  (c)'), 'aria-pressed': 'false', onclick: () => setCompact(!S.compact) });
   const emptyBtn = h('button.btn', { title: T('Hide / show empty lanes  (alt+e)'), 'aria-pressed': 'false', onclick: () => setHideEmpty(!S.hideEmpty) });
   const layoutBtn = h('button.btn', { title: T('Lane layout: the board\'s columns or a ui.lane_layouts entry  (alt+l)'), onclick: () => cycleLayout() });
-  const refreshBtn = h('button.btn.ghost.bd-refresh', { title: T('Refresh  (r)'), 'aria-label': T('Refresh'), onclick: () => refresh(true) }, h('span.ico-spin', { 'aria-hidden': 'true' }, icon('refresh-cw')));
+  const refreshBtn = h('button.btn.ghost.bd-refresh', { title: T('Refresh  (r)'), 'aria-label': T('Refresh'), onclick: () => refresh(true) }, h('span.ico-spin', { 'aria-hidden': 'true' }, icon('refresh-cw')), keyHint('r'));
   if (!embed) context.append(projectBtn, boardBtn, sprintBtn, sprintEl);
   toolbar.append(h('span.spacer'), layoutBtn, swimBtn, colsBtn, emptyBtn, compactBtn, modeBtn, refreshBtn);
 
+  const keyIcon = (b, spec, ...a) => { setIcon(b, ...a); if (!b.querySelector('.btn-key')) b.append(keyHint(spec)); };
   function renderToolbar() {
     app.chrome.label(projectBtn, S.project || '…');
     app.chrome.label(boardBtn, S.board ? S.board.Name : '…');
     const sp = scopeLabel();
     sprintBtn.textContent = sp;
     sprintBtn.hidden = !isScrum() && !viewItems().some(i => i.id.includes(':') && !i.id.startsWith('closed'));
-    if (S.mode === 'lanes') setIcon(modeBtn, 'kanban', T('Lanes')); else setIcon(modeBtn, 'list', T('List'));
+    if (S.mode === 'lanes') keyIcon(modeBtn, 't', 'kanban', T('Lanes')); else keyIcon(modeBtn, 't', 'list', T('List'));
     swimBtn.hidden = S.mode !== 'lanes'; colsBtn.hidden = S.mode !== 'list'; compactBtn.hidden = S.mode !== 'lanes'; emptyBtn.hidden = S.mode !== 'lanes';
-    setIcon(swimBtn, 'rows-3', S.swim === 'none' ? T('Swimlanes') : T('by %s', SWIMNAME[S.swim]));
-    if (S.compact) setIcon(compactBtn, 'fold-vertical', T('Compact')); else setIcon(compactBtn, 'unfold-vertical', T('Full'));
+    keyIcon(swimBtn, 'O', 'rows-3', S.swim === 'none' ? T('Swimlanes') : T('by %s', SWIMNAME[S.swim]));
+    if (S.compact) keyIcon(compactBtn, 'c', 'fold-vertical', T('Compact')); else keyIcon(compactBtn, 'c', 'unfold-vertical', T('Full'));
     compactBtn.setAttribute('aria-pressed', S.compact ? 'true' : 'false');
-    setIcon(emptyBtn, S.hideEmpty ? 'eye-off' : 'eye', S.hideEmpty ? (S.hidden ? T('%d empty hidden', S.hidden) : T('Empty hidden')) : T('Empty shown'));
+    keyIcon(emptyBtn, 'alt+e', S.hideEmpty ? 'eye-off' : 'eye', S.hideEmpty ? (S.hidden ? T('%d empty hidden', S.hidden) : T('Empty hidden')) : T('Empty shown'));
     emptyBtn.setAttribute('aria-pressed', S.hideEmpty ? 'true' : 'false');
     const L = activeLayout();
     layoutBtn.hidden = S.mode !== 'lanes' || !layouts().length;
-    setIcon(layoutBtn, 'layout-panel-left', L ? L.Name + (S.layoutHidden ? ' · ' + T('%d hidden', S.layoutHidden) : '') : T('Columns'));
+    keyIcon(layoutBtn, 'alt+l', 'layout-panel-left', L ? L.Name + (S.layoutHidden ? ' · ' + T('%d hidden', S.layoutHidden) : '') : T('Columns'));
   }
   const isScrum = () => !!S.board && S.board.Type !== 'kanban';
   const sprints = () => (S.bundle && S.bundle.sprints) || [];
@@ -159,7 +161,7 @@ export default function mount(el, { app, params, query, scope, context, toolbar,
     kids.push(h('button.fchip' + (S.who != null ? '.on' : ''), { dataset: { act: 'who' }, title: T('Assignee  (A)') }, h('kbd', 'A'), S.who == null ? T('Assignee') : whoLabel(S.who, whoName)));
     qfs().slice(0, 9).forEach((q, i) => kids.push(h('button.fchip' + (S.qf.has(q.ID) ? '.on' : ''), { dataset: { qf: q.ID }, title: q.JQL }, h('kbd', i + 1), q.Name)));
     cq.words(S.text).forEach((w, i) => kids.push(h('button.fchip.term', { dataset: { term: i }, title: T('Remove %s', w) }, w, icon('x'))));
-    if (anyFilter()) kids.push(h('button.fchip.clear', { dataset: { act: 'clear' }, title: T('Clear filters  (0)') }, icon('x'), T('clear')));
+    if (anyFilter()) kids.push(h('button.fchip.clear', { dataset: { act: 'clear' }, title: T('Clear filters  (0)') }, icon('x'), T('clear'), keyHint('0')));
     clear(chips).append(...kids);
   }
   const whoName = id => {

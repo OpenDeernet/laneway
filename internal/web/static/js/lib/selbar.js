@@ -5,14 +5,15 @@
 import { h } from './dom.js';
 import { icon } from './icons.js';
 import { T } from './i18n.js';
+import { keyHint } from './keys.js';
 
 export const check = () => h('span.chk', { role: 'checkbox', 'aria-checked': 'false', title: T('Select  (x)') }, icon('check'));
 export function setCheck(el, on) { el.classList.toggle('on', on); el.setAttribute('aria-checked', on); }
 
 export function selBar({ edit, clear, label = T('Selected issues'), actions }) {
   const n = h('b');
-  const buttons = actions ? actions.map(([text, k, fn], i) => h('button.btn' + (i ? '' : '.primary'), { onclick: fn }, text, h('kbd', k)))
-    : [h('button.btn.primary', { title: T('Bulk edit the selected issues  (X)'), onclick: edit }, T('Edit…'), h('kbd', 'X'))];
+  const buttons = actions ? actions.map(([text, k, fn], i) => h('button.btn' + (i ? '' : '.primary'), { onclick: fn }, text, keyHint(k)))
+    : [h('button.btn.primary', { title: T('Bulk edit the selected issues  (X)'), onclick: edit }, T('Edit…'), keyHint('X'))];
   const el = h('div.selbar', { role: 'toolbar', 'aria-label': label, hidden: true },
     h('span.selbar-n', n, T(' selected')), ...buttons,
     h('button.btn.ghost', { title: T('Clear the selection  (esc)'), 'aria-label': T('Clear the selection'), onclick: clear }, icon('x')));
