@@ -334,7 +334,18 @@ async function boot() {
     const btnKeys = () => { document.documentElement.dataset.btnKeys = app.prefs.get('btnkeys', 'show'); }; // keyHint's
     btnKeys(); bus.on('prefs', p => { if (p && p.key === 'btnkeys') btnKeys(); });
     keys.configure({ conf: session.ui.Keys || {}, web: session.ui.WebKeys || {} });
-  } catch (e) { $('#top').classList.remove('boot'); $('#viewbar').classList.remove('hold'); clear($('#view')).append(h('div.empty', h('h2', T('Cannot reach the site')), h('pre', e.message))); return; }
+  } catch (e) {
+    $('#top').classList.remove('boot'); $('#viewbar').classList.remove('hold');
+    // No answer at all: laneway web is not running (the service worker served this page). Reload once it is back.
+    if (e instanceof TypeError) {
+      clear($('#view')).append(h('div.empty', h('h2', T('laneway web is not running')), h('p', T('Start it with laneway web; this page reloads when it is back.'))));
+      const back = () => fetch('/api/session', { method: 'HEAD' }).then(() => location.reload(), () => setTimeout(back, 2000));
+      setTimeout(back, 2000);
+      return;
+    }
+    clear($('#view')).append(h('div.empty', h('h2', T('Cannot reach the site')), h('pre', e.message)));
+    return;
+  }
   import('./lib/keybar.js').then(m => m.install(app)).catch(e => console.error('keybar', e));
   import('./lib/timer.js').then(m => m.install(app)).catch(e => console.error('timer', e));
   import('./lib/tools.js').then(m => m.install(app)).catch(e => console.error('tools', e));
