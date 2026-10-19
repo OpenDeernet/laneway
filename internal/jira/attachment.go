@@ -397,7 +397,7 @@ const mediaScheme = "media:"
 // DownloadAttachment saves attachment id as name in dir, never over an
 // existing file ("a (1).png"), and returns the path written.
 func (c *Client) DownloadAttachment(ctx context.Context, id, name, dir string) (string, error) {
-	body, err := c.OpenAttachment(ctx, id)
+	body, err := c.OpenAttachment(ctx, id, "")
 	if err != nil {
 		return "", err
 	}
@@ -421,9 +421,19 @@ func (c *Client) DownloadAttachment(ctx context.Context, id, name, dir string) (
 	return path, nil
 }
 
-// OpenAttachment streams attachment id, of any size. The transfer ends when
-// it stalls; Close releases it.
-func (c *Client) OpenAttachment(ctx context.Context, id string) (io.ReadCloser, error) {
+// AttachmentStream is an attachment's bytes, or the part a Range asked for.
+type AttachmentStream struct {
+	io.ReadCloser
+	// Range is the Content-Range of a partial answer, else empty.
+	Range string
+	// Size is the length of what Read gives, -1 when unknown.
+	Size int64
+}
+
+// OpenAttachment streams attachment id, of any size, or the part rng (a
+// Range header value) asks for when the site honours it. The transfer ends
+// when it stalls; Close releases it.
+func (c *Client) OpenAttachment(ctx context.Context, id, rng string) (*AttachmentStream, error) {
 	if !c.Enabled() {
 		return nil, errNotConfigured
 	}
@@ -437,6 +447,9 @@ func (c *Client) OpenAttachment(ctx context.Context, id string) (io.ReadCloser, 
 		stop()
 		return nil, err
 	}
+	if rng != "" {
+		req.Header.Set("Range", rng)
+	}
 	resp, err := c.transfer.Do(req)
 	if err != nil {
 		stop()
@@ -448,7 +461,11 @@ func (c *Client) OpenAttachment(ctx context.Context, id string) (io.ReadCloser, 
 		stop()
 		return nil, statusError(resp.StatusCode, "attachment "+id, body, resp.Header.Get("Retry-After"))
 	}
-	return &stream{ctx: reqCtx, r: progressReader{resp.Body, moved}, body: resp.Body, stop: stop}, nil
+	out := &AttachmentStream{ReadCloser: &stream{ctx: reqCtx, r: progressReader{resp.Body, moved}, body: resp.Body, stop: stop}, Size: resp.ContentLength}
+	if resp.StatusCode == http.StatusPartialContent {
+		out.Range = resp.Header.Get("Content-Range")
+	}
+	return out, nil
 }
 
 // stream is a response body under stallGuard.

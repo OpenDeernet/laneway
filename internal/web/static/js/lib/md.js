@@ -1,7 +1,7 @@
 // Markdown → DOM for Jira text (the dialect internal/jira/adf.go writes). Builds nodes
 // with createElement/textContent only: nothing from the text is ever parsed as HTML.
 //
-//   render(md, {attachment(id)→url, isKey(str)→bool, onKey(key), site, onTask(n, total, done, input), names:[…]}) → DocumentFragment
+//   render(md, {attachment(id)→url, video(id)→bool, isKey(str)→bool, onKey(key), site, onTask(n, total, done, input), names:[…]}) → DocumentFragment
 //
 // With onKey, a link to an issue on site (the Jira base URL) opens it here: a pill when it shows its URL.
 import { h } from './dom.js';
@@ -110,7 +110,8 @@ export function inline(s, o = {}) {
       const m = linkAt(s, i + 1);
       if (m) {
         i = m.end;
-        if (m.href.startsWith('attachment:') && o.attachment) push(h('img.md-img', { src: o.attachment(m.href.slice(11)), alt: m.text, loading: 'lazy', dataset: { id: m.href.slice(11), ...placed(m.title) }, style: sized(m.title) }));
+        if (m.href.startsWith('attachment:') && o.attachment && o.video && o.video(m.href.slice(11))) push(h('video.md-video', { src: o.attachment(m.href.slice(11)), controls: true, preload: 'metadata', playsInline: true, title: m.text, dataset: { id: m.href.slice(11), ...placed(m.title) }, style: sized(m.title) }));
+        else if (m.href.startsWith('attachment:') && o.attachment) push(h('img.md-img', { src: o.attachment(m.href.slice(11)), alt: m.text, loading: 'lazy', dataset: { id: m.href.slice(11), ...placed(m.title) }, style: sized(m.title) }));
         else if (m.href.startsWith('confluence:') && o.pageImage) push(h('img.md-img', { src: o.pageImage(m.href.slice(11)), alt: m.text, loading: 'lazy' })); // a Confluence page's own
         else push(link(m.href, m.text || m.href));
         continue;

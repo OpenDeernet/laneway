@@ -173,7 +173,7 @@ func TestAttachmentProxy(t *testing.T) {
 	fake := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		id := r.URL.Path[len("/rest/api/3/attachment/content/"):]
 		if b, ok := files[id]; ok && r.Header.Get("Authorization") != "" {
-			_, _ = w.Write(b)
+			http.ServeContent(w, r, "", time.Time{}, bytes.NewReader(b))
 			return
 		}
 		http.NotFound(w, r)
@@ -199,6 +199,22 @@ func TestAttachmentProxy(t *testing.T) {
 	res.Body.Close()
 	if res.StatusCode != 200 || n != int64(len(big)) {
 		t.Errorf("big file: %d, %d bytes", res.StatusCode, n)
+	}
+	req, _ := http.NewRequest("GET", ts.URL+"/api/attachments/3?type=video/quicktime", nil)
+	req.Header.Set("Range", "bytes=100-199")
+	res, err = http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	n, _ = io.Copy(io.Discard, res.Body)
+	res.Body.Close()
+	if res.StatusCode != 206 || n != 100 || res.Header.Get("Content-Type") != "video/mp4" || res.Header.Get("Content-Range") != "bytes 100-199/17825792" {
+		t.Errorf("video range: %d, %d bytes, %q %q", res.StatusCode, n, res.Header.Get("Content-Type"), res.Header.Get("Content-Range"))
+	}
+	res, _ = http.Get(ts.URL + "/api/attachments/2?type=text/html")
+	res.Body.Close()
+	if res.Header.Get("Content-Type") != "application/octet-stream" {
+		t.Errorf("type outside the video list: %q", res.Header.Get("Content-Type"))
 	}
 	if code := issueCall(t, "GET", ts.URL+"/api/attachments/9", nil, nil); code == 200 {
 		t.Error("missing attachment answered 200")

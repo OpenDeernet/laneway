@@ -7,6 +7,7 @@ import (
 	"mime"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -392,20 +393,53 @@ var attachmentID = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
 // script.
 var inlineTypes = map[string]bool{"image/png": true, "image/jpeg": true, "image/gif": true, "image/webp": true, "image/bmp": true}
 
+// videoTypes are the ?type= values that play in a <video>, as served. None
+// runs script, so the query may pick one. QuickTime goes out as mp4, which
+// browsers play when its codec is one they know.
+var videoTypes = map[string]string{"video/mp4": "video/mp4", "video/quicktime": "video/mp4", "video/webm": "video/webm", "video/ogg": "video/ogg"}
+
+// singleRange is a Range header asking for one byte range.
+var singleRange = regexp.MustCompile(`^bytes=\d+-\d*$`)
+
 // attachment streams a Jira attachment with the client's credentials. The
-// type comes from the bytes, not from Jira or the query.
+// type comes from the bytes, not from Jira or the query, except for a video
+// (?type=), which may also ask for a byte range so the player can seek.
 func attachment(s *Server, w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if !attachmentID.MatchString(id) {
 		writeErr(w, badRequest(i18n.T("bad attachment id")))
 		return
 	}
-	body, err := s.Client().OpenAttachment(r.Context(), id)
+	video := videoTypes[Q(r, "type")]
+	if Q(r, "download") != "" {
+		video = ""
+	}
+	rng := ""
+	if video != "" && singleRange.MatchString(r.Header.Get("Range")) {
+		rng = r.Header.Get("Range")
+	}
+	body, err := s.Client().OpenAttachment(r.Context(), id, rng)
 	if err != nil {
 		writeErr(w, err)
 		return
 	}
 	defer body.Close()
+	if video != "" {
+		h := w.Header()
+		h.Set("Content-Security-Policy", "default-src 'none'; sandbox")
+		h.Set("Cache-Control", "private, max-age=86400")
+		h.Set("Content-Type", video)
+		h.Set("Accept-Ranges", "bytes")
+		if body.Size >= 0 {
+			h.Set("Content-Length", strconv.FormatInt(body.Size, 10))
+		}
+		if body.Range != "" {
+			h.Set("Content-Range", body.Range)
+			w.WriteHeader(http.StatusPartialContent)
+		}
+		_, _ = io.Copy(w, body)
+		return
+	}
 	head := make([]byte, 512)
 	n, err := io.ReadFull(body, head)
 	if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
@@ -413,6 +447,9 @@ func attachment(s *Server, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fileHeaders(w, r, head[:n], "attachment-"+id)
+	if body.Size >= 0 {
+		w.Header().Set("Content-Length", strconv.FormatInt(body.Size, 10))
+	}
 	if _, err := w.Write(head[:n]); err == nil {
 		_, _ = io.Copy(w, body)
 	}

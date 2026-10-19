@@ -804,5 +804,6 @@
   "internal note: only agents see it": "interne notitie: alleen agents zien dit",
   "reply to the customer: they read this": "antwoord aan de klant: die leest dit",
   "%s has closed  ·  showing the active sprint": "%s is gesloten  ·  de actieve sprint staat er nu",
-  "That sprint has closed  ·  showing the active sprint": "Die sprint is gesloten  ·  de actieve sprint staat er nu"
+  "That sprint has closed  ·  showing the active sprint": "Die sprint is gesloten  ·  de actieve sprint staat er nu",
+  "This video doesn't play in the browser; download it (d).": "Deze video speelt niet af in de browser; download hem (d)."
 }
