@@ -16,7 +16,7 @@ import { ago, isZero, duration } from '../lib/fmt.js';
 import { render as md } from '../lib/md.js';
 import { stateBadge, issueKeys, pipeline, pipelineMini, approvals, mrHref, glyph, running, signInHelp } from '../lib/mr.js';
 import { T, Tn } from '../lib/i18n.js';
-import { keyHint } from '../lib/keys.js';
+import { isMod, keyHint, modText } from '../lib/keys.js';
 
 const raw = s => { const t = document.createElement('template'); t.innerHTML = s; return t.content; };
 const catOf = c => (c.Done ? 'done' : c.InProgress ? 'indeterminate' : 'new');
@@ -224,7 +224,7 @@ export default function mount(el, { app, scope, query }) {
       if (!ta.value.trim()) return;
       try { await api.put('/gitlab/draft?url=' + encodeURIComponent(url) + '&draft=' + d.ID, { Body: ta.value }); load(false); } catch (e) { ui.errToast(e); }
     };
-    ta.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); save(); } else if (e.key === 'Escape') { e.stopPropagation(); paint(); } });
+    ta.addEventListener('keydown', e => { if (e.key === 'Enter' && isMod(e)) { e.preventDefault(); save(); } else if (e.key === 'Escape') { e.stopPropagation(); paint(); } });
     el.replaceChildren(ta, h('div.df-acts', h('button.btn.sm', { onclick: save }, T('Save')), h('button.btn.ghost.sm', { onclick: () => paint() }, T('Cancel'))));
     ta.focus();
   }
@@ -255,9 +255,9 @@ export default function mount(el, { app, scope, query }) {
       catch (e) { ui.errToast(e); }
     };
     const cancel = () => (form.ReplyTo || form.NewPath || form.OldPath ? box.remove() : renderOverview());
-    ta.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); post(); } else if (e.key === 'Escape') { e.stopPropagation(); cancel(); } });
-    const box = h('div.df-compose', ta, h('div.df-acts', h('button.btn.primary.sm', { onclick: post }, form.ReplyTo ? T('Reply') : T('Add to review'), keyHint('ctrl+Enter')), suggest, h('button.btn.ghost.sm', { onclick: cancel }, T('Cancel'), keyHint('Escape')),
-      h('span.df-when', T('ctrl+enter adds it') + (form.Range || form.ReplyTo || !form.NewPath ? '' : T(' · shift+click another line number: a range')))));
+    ta.addEventListener('keydown', e => { if (e.key === 'Enter' && isMod(e)) { e.preventDefault(); post(); } else if (e.key === 'Escape') { e.stopPropagation(); cancel(); } });
+    const box = h('div.df-compose', ta, h('div.df-acts', h('button.btn.primary.sm', { onclick: post }, form.ReplyTo ? T('Reply') : T('Add to review'), keyHint('mod+Enter')), suggest, h('button.btn.ghost.sm', { onclick: cancel }, T('Cancel'), keyHint('Escape')),
+      h('span.df-when', modText(T('ctrl+enter adds it')) + (form.Range || form.ReplyTo || !form.NewPath ? '' : T(' · shift+click another line number: a range')))));
     setTimeout(() => ta.focus());
     return box;
   }

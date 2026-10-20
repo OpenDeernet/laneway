@@ -238,14 +238,14 @@ async function navigate({ force = false } = {}) {
 function globalKeys() {
   const g = keys.scope('global');
   g.bind(':', () => app.actions.palette(':'), T('command palette'), { group: 'Global', bar: T('commands') });
-  g.bind('ctrl+k', () => app.actions.palette(':'), T('command palette'), { group: 'Global', input: true, hidden: true });
+  g.bind('mod+k', () => app.actions.palette(':'), T('command palette'), { group: 'Global', input: true, hidden: true });
   g.bind('/', () => app.actions.palette('/'), T('search issues'), { group: 'Global', bar: T('search') });
   g.bind('g g', () => app.actions.jump(), T('jump to issue by key'), { group: 'Global' });
   g.bind('?', () => import('./views/help.js').then(m => m.openHelp(app)), T('show keys'), { group: 'Global', bar: T('keys') });
   g.bind('alt+p', () => import('./views/plan_ctx.js').then(m => m.openProject(app)), T('switch project (its last board)'), { group: 'Global' });
   g.bind('n', () => app.actions.create({ project: app.route && app.route.params.project }), T('new issue'), { group: 'Global' });
   g.bind('Q', () => app.actions.palette('#'), T('JQL search'), { group: 'Global' });
-  g.bind('ctrl+e', () => import('./views/refine.js').then(m => m.startRefine(app)), T('refine: the view\'s issues one at a time'), { group: 'Global' });
+  g.bind('mod+e', () => import('./views/refine.js').then(m => m.startRefine(app)), T('refine: the view\'s issues one at a time'), { group: 'Global' });
   g.bind('g t', () => { const t = theme.next(); ui.toast(T('Theme: %s', t)); }, T('next theme'), { group: 'Global' });
   g.bind('Tab', () => { const p = $('#panel'); if (app.panel.focused()) { $('#view').focus(); } else { p.tabIndex = -1; p.focus(); } }, T('focus panel / view'), { group: 'Global', when: () => app.panel.key });
   g.bind('Escape', () => { if (app.panel.key) app.panel.close(); }, T('close panel'), { group: 'Global', hidden: true });
@@ -256,7 +256,7 @@ function globalKeys() {
   g.bind('O', () => app.go('/work?tab=issues'), T('my work, every project'), { group: 'Go' });
   g.bind('I', () => app.go('/inbox'), T('go to inbox'), { group: 'Go' });
   g.bind('U', () => app.go('/standup'), T('go to standup'), { group: 'Go' });
-  if (routes.some(r => r.name === 'agents')) g.bind('ctrl+g', () => app.go('/agents'), T('go to agents'), { group: 'Go' });
+  if (routes.some(r => r.name === 'agents')) g.bind('mod+g', () => app.go('/agents'), T('go to agents'), { group: 'Go' });
   for (const r of routes) commands.register({ id: 'go:' + r.name, title: T('Go to %s', nav.routeTitle(r)), group: 'Go', run: () => app.go('/' + r.name) });
   commands.register({ id: 'theme:next', title: T('Theme: next'), group: 'Theme', run: () => ui.toast(T('Theme: %s', theme.next())) });
   for (const p of theme.presets) commands.register({ id: 'theme:' + p.id, title: T('Theme: %s', p.name), group: 'Theme', run: () => theme.set(p.id) });

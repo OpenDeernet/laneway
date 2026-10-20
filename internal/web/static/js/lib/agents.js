@@ -148,7 +148,7 @@ export function install(app) {
   const k = app.keys.scope('agents-global');
   k.bind('S', need(key => start(key)), T('start work: the form (agent, branch, prompt); focuses its agent if one runs'), { group: 'Agents', when: herdr });
   k.bind('alt+s', need(key => start(key, { another: true })), T('start another agent in the issue\'s worktree'), { group: 'Agents', when: herdr });
-  k.bind('ctrl+y', pick(copyBranch), T('copy branch name'), { group: 'Agents' });
+  k.bind('mod+y', pick(copyBranch), T('copy branch name'), { group: 'Agents' });
   // The issue's agent's terminal in the issue's Terminal tab, typing (ctrl+\ there goes back to the issue, as the TUI's agent_back).
   const typeInto = key => { const s = stateFor(key); if (!s || !s.count) return ui.toast(T('%s has no agent: S starts one', key)); import('../views/issue.js').then(m => m.showTerminal(app, key)).catch(e => ui.errToast(e)); };
   k.bind('ctrl+\\', need(typeInto), T('type into the issue\'s agent (its terminal in the panel)'), { group: 'Agents', when: () => !demo() && snap.Available });
@@ -157,7 +157,7 @@ export function install(app) {
   cmd('agents:another', () => T('Start another agent on %s', target(app)), need(key => start(key, { another: true })), () => herdr() && !!target(app), 'alt+s');
   cmd('agents:terminal', () => T('Type into the agent of %s (its terminal in the panel)', target(app)), need(typeInto), () => !demo() && !!target(app) && !!(stateFor(target(app)) || {}).count, 'ctrl+\\');
   cmd('agents:show', () => T('Show the agent of %s in Agents', target(app)), need(key => app.go('/agents?agent=' + encodeURIComponent(key))), () => !demo() && !!target(app) && !!stateFor(target(app)));
-  cmd('agents:branch', () => T('Copy branch name of %s', target(app)), pick(copyBranch), () => !!target(app), 'ctrl+y');
+  cmd('agents:branch', () => T('Copy branch name of %s', target(app)), pick(copyBranch), () => !!target(app), 'mod+y');
   const hasRepo = key => !!key && ((app.session && app.session.repos) || []).includes(key.slice(0, key.lastIndexOf('-'))); // as the TUI: jira.repos has it
   cmd('agents:pr', () => T('Open draft pull request for %s', target(app)), need(draftPR), () => !demo() && hasRepo(target(app)));
   app.agents.draftPR = demo() ? () => ui.toast(T('Not available in demo')) : draftPR;

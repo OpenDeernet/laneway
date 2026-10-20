@@ -18,7 +18,7 @@ import { ago, dateTime as localDateTime, shortDate, isZero, duration } from '../
 import { goDate } from '../lib/godate.js';
 import { grip } from '../lib/grip.js';
 import { T, Tn } from '../lib/i18n.js';
-import { keyHint } from '../lib/keys.js';
+import { keyHint, modText } from '../lib/keys.js';
 import { player } from '../lib/player.js';
 
 const RECENT = 40;           // comments drawn at first; the rest on demand
@@ -740,9 +740,9 @@ export function mountIssue(el, key, { app, full, card }) {
   const desk = () => !!(st.req && st.req.Desk);
   const visDefault = () => (desk() ? { ...everyone(), Internal: true } : everyone());
   st.vis = everyone();
-  const visBtn = h('button.btn.ghost.sm.vis-chip', { title: T('Who sees it  (ctrl+o)'), onclick: () => cycleVis() });
+  const visBtn = h('button.btn.ghost.sm.vis-chip', { title: modText(T('Who sees it  (ctrl+o)')), onclick: () => cycleVis() });
   const paintVis = () => {
-    visBtn.replaceChildren(icon('eye'), ' ' + (st.vis.Customer ? T('reply to the customer: they read this') : desk() && st.vis.Internal ? T('internal note: only agents see it') : visLabel(st.vis)), keyHint('ctrl+o'));
+    visBtn.replaceChildren(icon('eye'), ' ' + (st.vis.Customer ? T('reply to the customer: they read this') : desk() && st.vis.Internal ? T('internal note: only agents see it') : visLabel(st.vis)), keyHint('mod+o'));
     visBtn.classList.toggle('on', visLimited(st.vis)); visBtn.classList.toggle('customer', !!st.vis.Customer);
   };
   paintVis();
@@ -765,7 +765,7 @@ export function mountIssue(el, key, { app, full, card }) {
     replyChip.hidden = !c;
     clear(replyChip);
     const locked = !!c && threaded() && !desk();
-    visBtn.disabled = locked; visBtn.title = locked ? T('A reply is for whoever its comment is for') : T('Who sees it  (ctrl+o)');
+    visBtn.disabled = locked; visBtn.title = locked ? T('A reply is for whoever its comment is for') : modText(T('Who sees it  (ctrl+o)'));
     if (c) replyChip.append(h('span', T('Replying to'), ' ', h('b', c.Author)), h('button.btn.ghost.sm', { title: T('Not a reply'), onclick: () => { comp.unmention(c.Author); setReply(null); } }, icon('x')));
   }
   function replyTo(c) {
@@ -931,8 +931,8 @@ export function mountIssue(el, key, { app, full, card }) {
     if (document.activeElement && document.activeElement.matches && document.activeElement.matches('input,textarea,select')) return document.activeElement.blur();
     goBack();
   }, full ? T('back') : T('close panel'), { group: G, input: true });
-  scope.bind('ctrl+o', e => { if (comp.contains(e.target)) cycleVis(); }, T('who sees the comment: everyone, an internal note, a role or group'), { group: G, input: true });
-  scope.bind('ctrl+Enter', e => { const ed = e.target.closest && e.target.closest('.ed'); if (ed && ed._save) ed._save(); }, T('save / send'), { group: G, input: true });
+  scope.bind('mod+o', e => { if (comp.contains(e.target)) cycleVis(); }, T('who sees the comment: everyone, an internal note, a role or group'), { group: G, input: true });
+  scope.bind('mod+Enter', e => { const ed = e.target.closest && e.target.closest('.ed'); if (ed && ed._save) ed._save(); }, T('save / send'), { group: G, input: true });
   scope.bind(['j', 'ArrowDown'], () => (st.tab === 'comments' ? moveComment(1) : st.tab === 'terminal' ? term.scroll(3) : scroll.scrollBy({ top: 80 })), T('next comment / scroll down'), { group: G });
   scope.bind(['k', 'ArrowUp'], () => (st.tab === 'comments' ? moveComment(-1) : st.tab === 'terminal' ? term.scroll(-3) : scroll.scrollBy({ top: -80 })), T('previous comment / scroll up'), { group: G });
   scope.bind('ctrl+d', () => scroll.scrollBy({ top: scroll.clientHeight / 2 }), T('half page down'), { group: G, hidden: true });

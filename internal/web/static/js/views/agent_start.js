@@ -9,7 +9,7 @@ import { icon } from '../lib/icons.js';
 import { css } from '../lib/css.js';
 import { LABEL } from '../lib/agents.js';
 import { T } from '../lib/i18n.js';
-import { keyHint } from '../lib/keys.js';
+import { keyHint, modText } from '../lib/keys.js';
 
 const home = p => { const m = p && p.match(/^\/(?:home|Users)\/[^/]+/); return m ? '~' + p.slice(m[0].length) : p || ''; };
 const ICON = { run: 'circle-dashed', ok: 'check', warn: 'triangle-alert', err: 'x' };
@@ -117,7 +117,7 @@ function form(app, key, f, { another, path, notice }) {
     rows.also.hidden = !f.Actions.length || w.id !== 'new' && w.id !== 'in';
     paintBranch();
     paintPrompt();
-    go.replaceChildren(w.id === 'focus' ? T('Focus agent') : w.id === 'another' ? T('Start agent') : T('Start work'), keyHint('ctrl+Enter'));
+    go.replaceChildren(w.id === 'focus' ? T('Focus agent') : w.id === 'another' ? T('Start agent') : T('Start work'), keyHint('mod+Enter'));
     go.disabled = busy || problems.length > 0;
   }
   function paintBranch() {
@@ -190,11 +190,11 @@ function form(app, key, f, { another, path, notice }) {
     if (t === also && e.key === 'Enter') { e.preventDefault(); also.checked = !also.checked; }
   });
   const hints = {
-    agent: T('↵ or type to pick · ←→ cycle · tab/↑↓ field · ctrl+s start · esc cancel'),
-    where: T('↵ or type to pick · ←→ cycle · tab/↑↓ field · ctrl+s start · esc cancel'),
-    branch: T('↵ start · tab/↑↓ field · ctrl+s start · esc cancel'),
-    prompt: T('↵ newline · ctrl+s or ctrl+↵ start · tab field · esc cancel'),
-    also: T('↵ or space toggle · tab/↑↓ field · ctrl+s start · esc cancel'),
+    agent: modText(T('↵ or type to pick · ←→ cycle · tab/↑↓ field · ctrl+s start · esc cancel')),
+    where: modText(T('↵ or type to pick · ←→ cycle · tab/↑↓ field · ctrl+s start · esc cancel')),
+    branch: modText(T('↵ start · tab/↑↓ field · ctrl+s start · esc cancel')),
+    prompt: modText(T('↵ newline · ctrl+s or ctrl+↵ start · tab field · esc cancel')),
+    also: modText(T('↵ or space toggle · tab/↑↓ field · ctrl+s start · esc cancel')),
     go: T('↵ start · tab/↑↓ field · esc cancel'),
   };
   body.addEventListener('focusin', e => {
@@ -205,7 +205,7 @@ function form(app, key, f, { another, path, notice }) {
   // ---- start
   let busy = false, closed = false;
   const m = ui.modal(body, { title: T('Start work on %s', key), wide: true, className: 'sw-modal', onClose: () => { closed = true; openFor = ''; } });
-  m.scope.bind(['ctrl+s', 'ctrl+Enter'], () => submit(), '', { input: true, hidden: true });
+  m.scope.bind(['mod+s', 'mod+Enter'], () => submit(), '', { input: true, hidden: true });
   paint();
   (problems.length ? cancel : go).focus(); // as the TUI: the cursor waits on the button
   hint.textContent = problems.length ? T('esc cancel') : hints.go;

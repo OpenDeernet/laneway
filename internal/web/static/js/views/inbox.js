@@ -155,7 +155,7 @@ export default function mount(el, { app, scope, toolbar }) {
         m.close(); ui.toast(found ? T('Your comment was on %s already: not posted again', t.Key) : T('Commented on %s', t.Key), { kind: 'ok' }); app.bus.emit('issue:changed', { key: t.Key }); load(true);
       } });
     const m = ui.modal(h('div.prompt', ed.el), { title: (reply ? T('Reply on %s', t.Key) : T('Comment on %s', t.Key)) + '  ' + t.Summary, wide: true, onClose: () => ed.dispose() });
-    m.scope.bind('ctrl+Enter', () => ed.el._save(), '', { input: true, hidden: true });
+    m.scope.bind('mod+Enter', () => ed.el._save(), '', { input: true, hidden: true });
     ed.focus();
     // A reply starts with its author mentioned.
     if (last && last.WhoID) ed.ready().then(() => { ed.mention({ AccountID: last.WhoID, DisplayName: last.Who }, true); ed.focus(true); });

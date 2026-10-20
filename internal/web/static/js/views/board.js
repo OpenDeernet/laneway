@@ -1529,7 +1529,7 @@ export default function mount(el, { app, params, query, scope, context, toolbar,
     k.bind('E', need(c => app.actions.menu && app.actions.menu(c.Key)), T('quick edit: status, assignee, priority, points, labels, sprint, pin'), { group: E, bar: T('edit') });
     k.bind('.', repeat, T('repeat the last change on this card'), { group: E });
     k.bind('x', () => { toggleMark(S.sel); move(0, 1); }, T('mark card (multi-select)'), { group: E, bar: T('mark') });
-    k.bind('ctrl+a', markAll, T('mark all in the lane / list'), { group: E });
+    k.bind('mod+a', markAll, T('mark all in the lane / list'), { group: E });
     k.bind('X', bulk, T('bulk edit marked cards'), { group: E });
     k.bind('n', () => app.actions.create(createOpts()), T('new issue (into the sprint shown)'), { group: E });
     app.createHere = () => app.actions.create(createOpts()); // the top bar's Create
@@ -1537,7 +1537,7 @@ export default function mount(el, { app, params, query, scope, context, toolbar,
     k.bind('o', need(c => window.open(app.session.baseURL + '/browse/' + c.Key, '_blank', 'noopener')), T('open in Jira'), { group: G });
     k.bind('y', () => { if (S.marks.size) return copyTable(); const c = curCard(); if (c) copy(c.Key, c.Key); else ui.toast(T('Select a card first')); }, T('copy key (marked cards: as a table)'), { group: G });
     k.bind('Y', need(c => copy(app.session.baseURL + '/browse/' + c.Key, T('link'))), T('copy link'), { group: G });
-    k.bind('ctrl+y', need(copyBranch), T('copy branch name'), { group: G });
+    k.bind('mod+y', need(copyBranch), T('copy branch name'), { group: G });
     k.bind('r', () => refresh(true), T('refresh'), { group: G, bar: T('refresh') });
     k.bind('t', () => setMode(S.mode === 'lanes' ? 'list' : 'lanes'), T('lanes / list'), { group: V, bar: T('lanes / list') });
     k.bind('O', cycleO, T('lanes: cycle swimlanes · list: cycle sort'), { group: V });

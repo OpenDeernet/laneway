@@ -5,7 +5,7 @@ import { css } from './css.js';
 import { render } from './md.js';
 import { target } from './timer.js';
 import { T } from './i18n.js';
-import { keyHint } from './keys.js';
+import { keyHint, modText } from './keys.js';
 
 export function install(app) {
   const ask = () => {
@@ -49,7 +49,7 @@ export async function openAsk(app, key) {
   const status = h('span.dim');
   const free = h('input.input', { type: 'text', placeholder: T('Ask anything about %s…', key), autofocus: true, spellcheck: true });
   const copy = h('button.btn', { disabled: true, onclick: async () => { try { await navigator.clipboard.writeText(text); app.ui.toast(T('Copied')); } catch (e) { app.ui.toast(T('Could not copy'), { kind: 'err' }); } } }, T('Copy'));
-  const post = h('button.btn.primary', { disabled: true, title: T('The answer in the comment composer, to edit and post (ctrl+enter)'), onclick: () => {
+  const post = h('button.btn.primary', { disabled: true, title: modText(T('The answer in the comment composer, to edit and post (ctrl+enter)')), onclick: () => {
     m.close();
     import('../views/issue.js').then(v => v.composeWith(app, key, text)).catch(e => app.ui.errToast(e));
   } }, T('Edit as comment'));

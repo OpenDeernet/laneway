@@ -7,6 +7,7 @@ import { stateOf, latest } from '../lib/inbox.js';
 import { duration, ago } from '../lib/fmt.js';
 import { projectOf, boardOf } from './plan_ctx.js';
 import { T, Tn } from '../lib/i18n.js';
+import { modText } from '../lib/keys.js';
 
 const TITLE = { work: T('My work'), inbox: T('Inbox'), sprint: T('Sprint'), timer: T('Timer'), filters: T('Saved searches') };
 const MAX = 8; // rows a list widget shows; its head says how many more
@@ -71,7 +72,7 @@ export default function mount(el, { app, scope }) {
     async filters() {
       const fs = await api.get('/home/filters', { fresh: true });
       return {
-        note: T('No saved searches. Star a Jira filter, or a search with ctrl+s in Q.'),
+        note: modText(T('No saved searches. Star a Jira filter, or a search with ctrl+s in Q.')),
         rows: fs.map(f => ({ kids: [h('span.hs', { title: f.JQL }, f.Name), f.Err ? h('span.err', { title: f.Err }, '!') : h('span.mono.hn', String(f.Count))], open: () => asView(f.JQL, f.Name) })),
       };
     },

@@ -5,7 +5,7 @@ import { css } from '../lib/css.js';
 import { render } from '../lib/md.js';
 import { postComment } from '../lib/comment.js';
 import { T } from '../lib/i18n.js';
-import { keyHint } from '../lib/keys.js';
+import { keyHint, modText } from '../lib/keys.js';
 
 export function mountNotes(parent, key, { app, el, full }) {
   css('ask');
@@ -37,8 +37,8 @@ export function mountNotes(parent, key, { app, el, full }) {
       const done = () => save(ta.value), cancel = () => { editing = false; paint(); };
       const ed = h('div.ed', ta);
       ed._save = done; ed._cancel = cancel; // the panel's esc and ctrl+enter find these
-      box.append(h('div.notes-head', h('b', T('Notes (local)')), h('span.dim.key-dup', T('ctrl+enter saves, esc cancels'))), ed,
-        h('div.row.end', h('button.btn', { onclick: cancel }, T('Cancel'), keyHint('Escape')), h('button.btn.primary', { onclick: done }, T('Save'), keyHint('ctrl+Enter'))));
+      box.append(h('div.notes-head', h('b', T('Notes (local)')), h('span.dim.key-dup', modText(T('ctrl+enter saves, esc cancels')))), ed,
+        h('div.row.end', h('button.btn', { onclick: cancel }, T('Cancel'), keyHint('Escape')), h('button.btn.primary', { onclick: done }, T('Save'), keyHint('mod+Enter'))));
       return;
     }
     const long = text.split('\n').length > 4;

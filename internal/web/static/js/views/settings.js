@@ -30,7 +30,7 @@ import { fontOptions } from './settings_fonts.js';
 import { siteOptions } from './settings_site.js';
 import { accountOptions } from './settings_account.js';
 import { T } from '../lib/i18n.js';
-import { keyHint } from '../lib/keys.js';
+import { isMod, keyHint, modText } from '../lib/keys.js';
 
 css('settings');
 
@@ -99,7 +99,7 @@ export default function mount(el, { app, scope, toolbar, query }) {
     choice(T('Motion'), T('animations and transitions'), 'Appearance', ['auto', 'reduce'], () => theme.motion, v => { theme.setMotion(v); refresh(); }, v => (v === 'reduce' ? T('reduced') : T('system'))),
     choice(T('Keys on buttons'), T('a button with a shortcut shows it, as Save ⌃⏎'), 'Appearance', ['show', 'hide'], () => pref('btnkeys', 'show'), v => { setPref('btnkeys', v); refresh(); }),
     choice(T('Key bar'), T('the main keys here at the bottom, a click presses one; messages show in it'), 'Appearance', ['show', 'hide'], () => pref('keybar', 'show'), v => { setPref('keybar', v); refresh(); }),
-    { name: T('Custom tokens'), desc: T('CSS variables as JSON, e.g. {"--bg": "#101010", "--radius": "2px"}; ctrl+enter applies'), section: 'Appearance', wide: true, advanced: true, render: customEditor, change: () => editor && editor.focus() },
+    { name: T('Custom tokens'), desc: modText(T('CSS variables as JSON, e.g. {"--bg": "#101010", "--radius": "2px"}; ctrl+enter applies')), section: 'Appearance', wide: true, advanced: true, render: customEditor, change: () => editor && editor.focus() },
 
     { name: T('Browser notifications'), desc: T('inbox news while this tab is in the background; the browser asks when you turn them on'), section: 'Notifications',
       render: () => { const on = notifier.enabled(); return h('span.st-val', h('button.st-switch' + (on ? '.on' : ''), { role: 'switch', 'aria-checked': on, 'aria-label': T('Browser notifications'), tabindex: -1, onclick: () => toggleNotify() }, h('i')), h('span.st-state', notifier.permission() === 'denied' ? T('blocked by the browser') : on ? T('on') : T('off'))); },
@@ -166,7 +166,7 @@ export default function mount(el, { app, scope, toolbar, query }) {
       } catch (e) { err.textContent = e.message; }
     };
     ta.addEventListener('keydown', e => {
-      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); apply(); }
+      if (e.key === 'Enter' && isMod(e)) { e.preventDefault(); apply(); }
     });
     return h('div.st-edit', ta, err, h('div.row', h('button.btn', { tabindex: -1, onclick: apply }, T('Apply')),
       h('button.btn.ghost', { tabindex: -1, onclick: () => { ta.value = ''; apply(); } }, T('Reset'))));
@@ -316,7 +316,7 @@ export default function mount(el, { app, scope, toolbar, query }) {
   scope.bind('Escape', () => { if (q) { filter.value = ''; q = ''; draw(); } else app.back('/board'); }, T('leave settings'), { group: T('Settings'), bar: T('leave') });
   scope.bind('Escape', () => { if (editing) editing.cancel(); else { filter.blur(); el.focus(); } }, '', { input: true, hidden: true });
   scope.bind('Enter', () => { if (editing) editing.commit(); else { filter.blur(); el.focus(); } }, '', { input: true, hidden: true, when: () => !(editing && editing.multi) });
-  scope.bind('ctrl+Enter', () => { if (editing) editing.commit(); }, '', { input: true, hidden: true });
+  scope.bind('mod+Enter', () => { if (editing) editing.commit(); }, '', { input: true, hidden: true });
   scope.bind('ArrowDown', () => { filter.blur(); el.focus(); go(1); }, '', { input: true, hidden: true, when: () => !editing });
 
   draw();

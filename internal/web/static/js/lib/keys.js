@@ -5,15 +5,16 @@
 //   const k = keys.scope('board');            // k.dispose() when the view goes
 //   k.bind('j', fn, 'next card');             // single key, typed character ("J" = shift+j, "?" as is)
 //   k.bind('g b', fn, 'go to board');         // chord: keys in sequence
-//   k.bind('ctrl+Enter', fn, 'save', {input: true});   // also fires inside inputs
+//   k.bind('mod+Enter', fn, 'save', {input: true});    // also fires inside inputs
 //   k.bind(['j','ArrowDown'], fn, 'down');    // aliases
 //   k.bind('Enter', fn, 'open issue', {bar: 'open'});   // also in the key bar at the bottom (lib/keybar.js), as "⏎ open";
 //                                                       // aliases show the first key, binds sharing a label one hint ("H L move")
 //
 // Named keys: Enter Escape Tab ArrowUp ArrowDown ArrowLeft ArrowRight Backspace Delete Home End PageUp PageDown Space.
-// Modifiers: ctrl+ alt+ meta+ (shift is implied by the character).
+// Modifiers: ctrl+ alt+ meta+ (shift is implied by the character); mod+ is meta+ (⌘) on a mac, ctrl+ elsewhere.
 // In inputs/textareas only `input: true` bindings fire (and Escape always reaches modal scopes).
-import { actionFor, specFromTUI } from './keymap.js';
+import { actionFor, specFromTUI, plat } from './keymap.js';
+export { MAC, isMod, modText } from './keymap.js';
 import { T } from './i18n.js';
 import { h } from './dom.js';
 
@@ -70,7 +71,7 @@ export function scope(name, { modal = false, layer, covers } = {}) {
   const s = { name, modal, layer, covers, seq: ++seq, binds: [], disposed: false };
   s.bind = (spec, fn, desc = '', opts = {}) => {
     for (const sp of [].concat(spec)) {
-      const b = { fn, desc, input: !!opts.input, hidden: !!opts.hidden, help: !!opts.help, bar: (sp === [].concat(spec)[0] && opts.bar) || '', group: opts.group || name, def: sp, id: name + ':' + sp, action: actionFor(name, sp), when: opts.when, scope: name };
+      const b = { fn, desc, input: !!opts.input, hidden: !!opts.hidden, help: !!opts.help, bar: (sp === [].concat(spec)[0] && opts.bar) || '', group: opts.group || name, def: plat(sp), id: name + ':' + sp, action: actionFor(name, sp), when: opts.when, scope: name };
       resolve(b); s.binds.push(b); remember(b);
     }
     notify();
@@ -197,8 +198,8 @@ const MOVES = /^(j|k|h|l|ArrowUp|ArrowDown|ArrowLeft|ArrowRight|Home|End|PageUp|
 const GLOBAL = new Set(['global', 'timer', 'undo']);
 // Scopes that exist only while a text field has the focus.
 const FIELD = new Set(['mdedit']);
-export const kbd = spec => spec.split(' ').map(k => k.replace('ArrowUp', '↑').replace('ArrowDown', '↓').replace('ArrowLeft', '←').replace('ArrowRight', '→').replace('Escape', 'esc').replace('Enter', '⏎').replace('Space', '␣').replace('ctrl+', '⌃').replace('alt+', '⌥').replace('meta+', '⌘'));
-// keyHint is a button's shortcut, drawn in the button: h('button.btn', T('Save'), keyHint('ctrl+Enter')).
+export const kbd = spec => plat(spec).split(' ').map(k => k.replace('ArrowUp', '↑').replace('ArrowDown', '↓').replace('ArrowLeft', '←').replace('ArrowRight', '→').replace('Escape', 'esc').replace('Enter', '⏎').replace('Space', '␣').replace('ctrl+', '⌃').replace('alt+', '⌥').replace('meta+', '⌘'));
+// keyHint is a button's shortcut, drawn in the button: h('button.btn', T('Save'), keyHint('mod+Enter')).
 // Every button with a key shows it; Appearance › Keys on buttons hides them all (html[data-btn-keys=hide]).
 export const keyHint = spec => h('kbd.btn-key', { 'aria-hidden': 'true' }, kbd(spec).join(' '));
 export default keys;

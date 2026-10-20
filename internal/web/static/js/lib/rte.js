@@ -29,6 +29,7 @@ import { schema, fromADF, toADF, isEmpty, localId, keptLabel } from './adf.js';
 import { h, clear, debounce } from './dom.js';
 import { icon } from './icons.js';
 import { T } from './i18n.js';
+import { kbd, modText } from './keys.js';
 import { jiraKey, issuePill } from './issuepill.js';
 import { glyph } from './md.js';
 import { rich } from './html2md.js';
@@ -691,7 +692,7 @@ export function rte(o) {
   function menu(anchor, items) {
     const close = pop(anchor, h('div.rte-menu', { role: 'menu' }, items.map(it => it.sep ? h('i.rte-sep')
       : h('button.rte-mi' + (it.on ? '.on' : ''), { type: 'button', role: 'menuitem', onmousedown: e => e.preventDefault(), onclick: () => { close(); it.run(); } },
-        it.icon ? icon(it.icon) : null, it.swatch ? h('span.rte-sw', { style: { '--c': it.swatch } }) : null, h('span', it.label), it.key ? h('span.dim.rte-mk', it.key) : null))));
+        it.icon ? icon(it.icon) : null, it.swatch ? h('span.rte-sw', { style: { '--c': it.swatch } }) : null, h('span', it.label), it.key ? h('span.dim.rte-mk', kbd(it.key).join(' ')) : null))));
     return close;
   }
 
@@ -705,8 +706,8 @@ export function rte(o) {
   const blockLabel = h('span.rte-bt-l', T('Normal text'));
   const blockBtn = h('button.tb.txt.rte-bt', { type: 'button', tabindex: -1, title: T('Text style'), onmousedown: e => e.preventDefault(),
     onclick: () => menu(blockBtn, [
-      { label: T('Normal text'), key: 'ctrl+alt+0', on: blockActive(view.state, N.paragraph), run: run(setBlockType(N.paragraph)) },
-      ...[1, 2, 3, 4, 5, 6].map(l => ({ label: T('Heading %d', l), key: 'ctrl+alt+' + l, on: blockActive(view.state, N.heading, { level: l }), run: run(setBlockType(N.heading, { level: l })) })),
+      { label: T('Normal text'), key: 'mod+alt+0', on: blockActive(view.state, N.paragraph), run: run(setBlockType(N.paragraph)) },
+      ...[1, 2, 3, 4, 5, 6].map(l => ({ label: T('Heading %d', l), key: 'mod+alt+' + l, on: blockActive(view.state, N.heading, { level: l }), run: run(setBlockType(N.heading, { level: l })) })),
     ]) }, blockLabel, icon('chevron-down'));
   const colourBtn = h('button.tb', { type: 'button', tabindex: -1, title: T('Text colour, sub/superscript, clear formatting'), onmousedown: e => e.preventDefault(),
     onclick: () => menu(colourBtn, [
@@ -719,16 +720,16 @@ export function rte(o) {
   const insertBtn = h('button.tb', { type: 'button', tabindex: -1, title: T('Insert… (or type / in the text)'), onmousedown: e => e.preventDefault(),
     onclick: () => menu(insertBtn, slash().map(s => ({ label: s.label, icon: s.icon, run: () => { s.run(); view.focus(); } }))) }, icon('plus'));
   const buttons = [
-    tb('bold', T('Bold (ctrl+b)'), toggleMark(M.strong), s => markActive(s, M.strong)),
-    tb('italic', T('Italic (ctrl+i)'), toggleMark(M.em), s => markActive(s, M.em)),
-    tb('underline', T('Underline (ctrl+u)'), toggleMark(M.underline), s => markActive(s, M.underline)),
-    tb('strikethrough', T('Strikethrough (ctrl+shift+x)'), toggleMark(M.strike), s => markActive(s, M.strike)),
-    tb('code', T('Inline code (ctrl+e)'), toggleMark(M.code), s => markActive(s, M.code)),
-    tb('link', T('Link (ctrl+k)'), null, s => markActive(s, M.link), { click: () => editLink() }),
+    tb('bold', modText(T('Bold (ctrl+b)')), toggleMark(M.strong), s => markActive(s, M.strong)),
+    tb('italic', modText(T('Italic (ctrl+i)')), toggleMark(M.em), s => markActive(s, M.em)),
+    tb('underline', modText(T('Underline (ctrl+u)')), toggleMark(M.underline), s => markActive(s, M.underline)),
+    tb('strikethrough', modText(T('Strikethrough (ctrl+shift+x)')), toggleMark(M.strike), s => markActive(s, M.strike)),
+    tb('code', modText(T('Inline code (ctrl+e)')), toggleMark(M.code), s => markActive(s, M.code)),
+    tb('link', modText(T('Link (ctrl+k)')), null, s => markActive(s, M.link), { click: () => editLink() }),
     h('i.sep'),
-    tb('list', T('Bulleted list (ctrl+shift+8)'), toggleList(N.bulletList), s => !!ancestor(s, N.bulletList, N.orderedList, N.taskList) && ancestor(s, N.bulletList, N.orderedList, N.taskList).node.type === N.bulletList),
-    tb('list-ordered', T('Numbered list (ctrl+shift+7)'), toggleList(N.orderedList), s => !!ancestor(s, N.bulletList, N.orderedList, N.taskList) && ancestor(s, N.bulletList, N.orderedList, N.taskList).node.type === N.orderedList),
-    tb('list-todo', T('Task list (ctrl+shift+9)'), toggleList(N.taskList), s => !!ancestor(s, N.taskList)),
+    tb('list', modText(T('Bulleted list (ctrl+shift+8)')), toggleList(N.bulletList), s => !!ancestor(s, N.bulletList, N.orderedList, N.taskList) && ancestor(s, N.bulletList, N.orderedList, N.taskList).node.type === N.bulletList),
+    tb('list-ordered', modText(T('Numbered list (ctrl+shift+7)')), toggleList(N.orderedList), s => !!ancestor(s, N.bulletList, N.orderedList, N.taskList) && ancestor(s, N.bulletList, N.orderedList, N.taskList).node.type === N.orderedList),
+    tb('list-todo', modText(T('Task list (ctrl+shift+9)')), toggleList(N.taskList), s => !!ancestor(s, N.taskList)),
     tb('quote', T('Quote'), toggleWrap(N.blockquote), s => !!ancestor(s, N.blockquote)),
     tb('square-code', T('Code block'), toggleBlock(N.codeBlock), s => blockActive(s, N.codeBlock)),
     tb('table', T('Table'), insertBlock(table()), null),
@@ -948,7 +949,7 @@ export function rte(o) {
       content = [
         h('a.rte-href', { href: /^(https?:|mailto:)/i.test(href) ? href : null, target: '_blank', rel: 'noopener noreferrer', title: href,
           onclick: e => { const k = o.site && jiraKey(href, o.site); if (k && o.onKey) { e.preventDefault(); o.onKey(k); } } }, href.replace(/^https?:\/\//, '').slice(0, 48) + (href.length > 56 ? '…' : '')),
-        bb('pencil', T('Edit link (ctrl+k)'), () => editLink()),
+        bb('pencil', modText(T('Edit link (ctrl+k)')), () => editLink()),
         bb('unlink', T('Remove link'), () => { const r = markRange(view.state.doc, sel.from, lm); if (r) view.dispatch(view.state.tr.removeMark(r.from, r.to, M.link)); view.focus(); }),
       ];
     } else if (isInTable(state)) {
@@ -1148,9 +1149,9 @@ export function rte(o) {
     if (scope || !o.keys) return;
     scope = o.keys.scope('mdedit');
     const b = (spec, c, desc) => scope.bind(spec, () => { c(view.state, view.dispatch, view); }, desc, { input: true, group: 'Editor' });
-    b('ctrl+b', keys['Mod-b'], T('bold')); b('ctrl+i', keys['Mod-i'], T('italic')); b('ctrl+u', keys['Mod-u'], T('underline'));
-    b('ctrl+k', keys['Mod-k'], T('link')); b('ctrl+e', keys['Mod-e'], T('inline code')); b('ctrl+shift+x', keys['Mod-Shift-x'], T('strikethrough'));
-    b('ctrl+z', undo, T('undo')); b(['ctrl+shift+z', 'ctrl+y'], redo, T('redo'));
+    b('mod+b', keys['Mod-b'], T('bold')); b('mod+i', keys['Mod-i'], T('italic')); b('mod+u', keys['Mod-u'], T('underline'));
+    b('mod+k', keys['Mod-k'], T('link')); b('mod+e', keys['Mod-e'], T('inline code')); b('mod+X', keys['Mod-Shift-x'], T('strikethrough'));
+    b('mod+z', undo, T('undo')); b(['mod+Z', 'mod+y'], redo, T('redo'));
     scope.bind('Escape', () => { closeList(); }, '', { input: true, hidden: true, when: () => !!trig && !list.hidden });
   });
   view.dom.addEventListener('blur', () => { if (scope) { scope.dispose(); scope = null; } });

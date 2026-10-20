@@ -30,7 +30,7 @@ import { mdArea } from './mdarea.js';
 import { lines, enter, indent, toggleTask, pasteLink, tableTab, tableArrow, moveLines, wrapWith, backspace, inFence as fenced } from './mdhl.js';
 import { htmlToMd, rich } from './html2md.js';
 import { T } from './i18n.js';
-import { keyHint } from './keys.js';
+import { keyHint, modText } from './keys.js';
 import { mentionsIn } from './comment.js';
 
 css('mdedit');
@@ -128,7 +128,7 @@ export function mdEdit(app, o) {
   const pop = h('div.mention-pop', { hidden: true, role: 'listbox' });
   const preview = h('div.md.ed-preview', { hidden: true });
   const fileIn = h('input', { type: 'file', multiple: true, hidden: true, onchange: () => { if (fileIn.files.length) files([...fileIn.files]); fileIn.value = ''; } });
-  const go = h('button.btn.primary', { onclick: () => run() }, o.label || T('Save'), keyHint('ctrl+Enter'));
+  const go = h('button.btn.primary', { onclick: () => run() }, o.label || T('Save'), keyHint('mod+Enter'));
 
   // ---- text operations: each one undo step
   const replace = (from, to, text, s0 = text.length, s1 = s0) => {
@@ -280,7 +280,7 @@ export function mdEdit(app, o) {
 
   // ---- the Markdown mode's toolbar
   const btn = (label, title, fn, cls = '') => h('button.tb' + cls, { type: 'button', title, tabindex: -1, onmousedown: e => e.preventDefault(), onclick: fn }, label);
-  const bPrev = btn(T('Preview'), T('Preview (ctrl+p)'), togglePreview, '.txt');
+  const bPrev = btn(T('Preview'), modText(T('Preview (ctrl+p)')), togglePreview, '.txt');
   const bSrc = btn(T('Source'), T('Show the markdown everywhere, not only on the caret’s line'), () => {
     const on = ta.classList.toggle('live');
     bSrc.classList.toggle('on', !on);
@@ -288,9 +288,9 @@ export function mdEdit(app, o) {
     ta.focus({ preventScroll: true });
   }, '.txt' + (source() ? '.on' : ''));
   const mdTools = h('div.ed-tools', { role: 'toolbar' },
-    btn(icon('bold'), T('Bold (ctrl+b)'), () => ctl.wrap('**', '**', 'bold')), btn(icon('italic'), T('Italic (ctrl+i)'), () => ctl.wrap('*', '*', 'italic')),
+    btn(icon('bold'), modText(T('Bold (ctrl+b)')), () => ctl.wrap('**', '**', 'bold')), btn(icon('italic'), modText(T('Italic (ctrl+i)')), () => ctl.wrap('*', '*', 'italic')),
     btn(icon('strikethrough'), T('Strikethrough'), () => ctl.wrap('~~', '~~', 'text')), btn(icon('code'), T('Inline code'), () => ctl.wrap('`', '`', 'code')),
-    btn(icon('link'), T('Link (ctrl+k)'), () => ctl.link()), h('i.sep'),
+    btn(icon('link'), modText(T('Link (ctrl+k)')), () => ctl.link()), h('i.sep'),
     btn(icon('heading'), T('Heading (/h2)'), () => ctl.line('## ')), btn(icon('list'), T('Bulleted list'), () => ctl.line('- ')), btn(icon('list-ordered'), T('Numbered list'), () => ctl.line('1. ')),
     btn(icon('list-todo'), T('Task list'), () => ctl.line('- [ ] ')), btn(icon('quote'), T('Quote'), () => ctl.line('> ')), btn(icon('square-code'), T('Code block'), () => ctl.block('```\n', '\n```', '')), h('i.sep'),
     btn('/', T('Insert… (type / in the text)'), () => { ctl.insert('/'); trigger(); }), btn(icon('at-sign'), T('Mention'), () => { ctl.insert('@'); trigger(); }),
@@ -316,7 +316,7 @@ export function mdEdit(app, o) {
   const body = h('div.ed-body');
   document.body.append(pop); // floats over the page: in the panel, contain would hold position: fixed to it
   const node = h('div.ed', head, body, preview, fileIn,
-    h('div.ed-foot', h('span.dim.hint', o.hint || [h(o.save ? 'span.key-dup' : 'span', o.noCancel ? T('ctrl+⏎ %s · / formats', (o.label || T('Save')).toLowerCase()) : T('ctrl+⏎ %s · esc cancels · / formats', (o.label || T('Save')).toLowerCase())),
+    h('div.ed-foot', h('span.dim.hint', o.hint || [h(o.save ? 'span.key-dup' : 'span', o.noCancel ? modText(T('ctrl+⏎ %s · / formats', (o.label || T('Save')).toLowerCase())) : modText(T('ctrl+⏎ %s · esc cancels · / formats', (o.label || T('Save')).toLowerCase()))),
         o.save && h('span.key-off', T('/ formats'))]), h('span.spacer'),
       !o.noCancel && o.cancel && h('button.btn.ghost', { onclick: () => node._cancel() }, T('Cancel'), keyHint('Escape')), o.save && go));
 
@@ -585,12 +585,12 @@ export function mdEdit(app, o) {
     if (scope) return;
     scope = app.keys.scope('mdedit');
     const b = (spec, fn, desc) => scope.bind(spec, fn, desc, { input: true, group: 'Editor' });
-    b('ctrl+b', () => ctl.wrap('**', '**', 'bold'), T('bold'));
-    b('ctrl+i', () => ctl.wrap('*', '*', 'italic'), T('italic'));
-    b('ctrl+k', () => ctl.link(), T('link'));
-    b('ctrl+shift+x', () => ctl.wrap('~~', '~~', 'text'), T('strikethrough'));
-    b('ctrl+e', () => ctl.wrap('`', '`', 'code'), T('inline code'));
-    b('ctrl+p', togglePreview, T('toggle preview'));
+    b('mod+b', () => ctl.wrap('**', '**', 'bold'), T('bold'));
+    b('mod+i', () => ctl.wrap('*', '*', 'italic'), T('italic'));
+    b('mod+k', () => ctl.link(), T('link'));
+    b('mod+X', () => ctl.wrap('~~', '~~', 'text'), T('strikethrough'));
+    b('mod+e', () => ctl.wrap('`', '`', 'code'), T('inline code'));
+    b('mod+p', togglePreview, T('toggle preview'));
     scope.bind('Escape', closePop, '', { input: true, hidden: true, when: () => !pop.hidden }); // the list, not the dialog the editor is in
   });
   const release = () => { draft.flush(); if (scope) { scope.dispose(); scope = null; } };

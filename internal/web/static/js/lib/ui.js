@@ -139,7 +139,7 @@ export function pick(o) {
     m.scope.bind(['ArrowUp', 'ctrl+p', 'shift+Tab'], () => move(-1), '', { input: true, hidden: true });
     const enter = () => { if (loading) { enterLater = true; return; } if (o.multi && o.enterPicks && !ticked) { if (shown[sel] !== undefined) finish([shown[sel]]); } else if (o.multi) finish(o.create && q && !shown.length ? [...chosen, o.create(q)] : [...chosen]); else choose(sel); };
     m.scope.bind('Enter', enter, '', { input: true, hidden: true });
-    if (o.star) m.scope.bind('ctrl+s', () => star(shown[sel]), '', { input: true, hidden: true });
+    if (o.star) m.scope.bind('mod+s', () => star(shown[sel]), '', { input: true, hidden: true });
     if (o.multi) m.scope.bind('ctrl+Space', () => choose(sel), '', { input: true, hidden: true });
     if (o.multi) input.addEventListener('keydown', e => { if (e.key === ' ' && !q) { e.preventDefault(); choose(sel); } });
     render();
@@ -156,8 +156,8 @@ export function prompt({ title, value = '', placeholder = '', multiline = false,
     const f = multiline ? h('textarea.input', { rows: 6, value, placeholder, autofocus: true }) : h('input.input', { type: 'text', value, placeholder, autofocus: true });
     let v = null;
     const m = modal(h('form.prompt', { onsubmit: e => { e.preventDefault(); v = f.value; m.close(); } }, f,
-      h('div.row.end', h('button.btn', { type: 'button', onclick: () => m.close() }, T('Cancel'), keyHint('Escape')), h('button.btn.primary', { type: 'submit' }, ok, keyHint(multiline ? 'ctrl+Enter' : 'Enter')))), { title, onClose: () => resolve(v) });
-    m.scope.bind('ctrl+Enter', () => { v = f.value; m.close(); }, '', { input: true, hidden: true });
+      h('div.row.end', h('button.btn', { type: 'button', onclick: () => m.close() }, T('Cancel'), keyHint('Escape')), h('button.btn.primary', { type: 'submit' }, ok, keyHint(multiline ? 'mod+Enter' : 'Enter')))), { title, onClose: () => resolve(v) });
+    m.scope.bind('mod+Enter', () => { v = f.value; m.close(); }, '', { input: true, hidden: true });
     f.select && f.select();
   });
 }

@@ -15,6 +15,7 @@
 //                                         paste(v, a, b, text, html) → edit | null, placeholder, rows})
 //   ta.edit({from, to, text, a, b})   replace [from, to) with text, select [a, b), one undo step
 import { h } from './dom.js';
+import { isMod } from './keymap.js';
 
 const BLOCK = /^(DIV|P)$/;
 
@@ -296,9 +297,9 @@ export function mdArea(sel, o) {
   let plain = false;
   el.addEventListener('keydown', e => {
     shift = e.shiftKey;
-    plain = (e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'v';
+    plain = isMod(e) && e.shiftKey && e.key.toLowerCase() === 'v';
     if (!(e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) && !composing && atomKey(e.key)) { e.preventDefault(); return; }
-    if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+    if (!isMod(e) || e.altKey) return;
     const k = e.key.toLowerCase();
     if (k === 'z' || k === 'y') { e.preventDefault(); restore(at + (k === 'z' && !e.shiftKey ? -1 : 1)); }
   });

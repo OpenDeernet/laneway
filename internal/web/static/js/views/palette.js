@@ -4,7 +4,7 @@
 import { h, clear, debounce } from '../lib/dom.js';
 import { css } from '../lib/css.js';
 import { fuzzy } from '../lib/fuzzy.js';
-import { kbd, keys } from '../lib/keys.js';
+import { kbd, keys, modText } from '../lib/keys.js';
 import bus from '../lib/bus.js';
 import api from '../lib/api.js';
 import { jqlComplete, jqlMatches, jqlWordsFor } from '../lib/jql.js';
@@ -184,8 +184,8 @@ export function openPalette(app, mode = '') {
     if (phase === 'results') {
       if (results.err) { items.push({ type: 'msg', text: results.err, err: true }); return; }
       const n = results.cards.length;
-      items.push({ type: 'hdr', text: results.total > n ? T('First %d of %d issues · ctrl+enter lists them as a view', n, results.total)
-        : Tn(n, '%d issue · ctrl+enter lists it as a view', '%d issues · ctrl+enter lists them as a view', n) });
+      items.push({ type: 'hdr', text: modText(results.total > n ? T('First %d of %d issues · ctrl+enter lists them as a view', n, results.total)
+        : Tn(n, '%d issue · ctrl+enter lists it as a view', '%d issues · ctrl+enter lists them as a view', n)) });
       results.cards.forEach(c => items.push(issueItem(c)));
       return;
     }
@@ -371,9 +371,9 @@ export function openPalette(app, mode = '') {
     }
     activate();
   }, '', { input: true, hidden: true });
-  k.bind('ctrl+Enter', () => (cur === 'jql' && q.trim() ? openAsView() : activate(sel, true)), '', { input: true, hidden: true });
-  k.bind('ctrl+s', starQuery, '', { input: true, hidden: true });
-  k.bind('ctrl+f', saveFilter, '', { input: true, hidden: true });
+  k.bind('mod+Enter', () => (cur === 'jql' && q.trim() ? openAsView() : activate(sel, true)), '', { input: true, hidden: true });
+  k.bind('mod+s', starQuery, '', { input: true, hidden: true });
+  k.bind('mod+f', saveFilter, '', { input: true, hidden: true });
 
   active = { setMode };
   setMode(m0);
