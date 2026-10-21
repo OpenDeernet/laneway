@@ -38,11 +38,18 @@ test('a quick hand is no typing: j j l', async ({ page }) => {
 
 test('view keys wait for no one; a burst takes them back: "tea"', async ({ page }) => {
   await page.keyboard.press('t');
-  await expect(page.locator('.bd-lanes')).toHaveCount(0);
+  expect(await page.locator('.bd-lanes').count(), 'no wait: the list at once').toBe(0);
   await page.keyboard.press('t');
   await expect(page.locator('.bd-lanes')).toBeVisible();
   await page.waitForTimeout(1200);
   await page.keyboard.type('tea');
   await expect(page.getByText('Typing outside a field: shortcuts paused')).toBeVisible();
   await expect(page.locator('.bd-lanes')).toBeVisible();
+});
+
+test('a burst that changed no view keeps the lanes as they are', async ({ page }) => {
+  await page.locator('.bd-lane').first().evaluate(el => { el.lwKept = true; });
+  await page.keyboard.type('later');
+  await expect(page.getByText('Typing outside a field: shortcuts paused')).toBeVisible();
+  expect(await page.locator('.bd-lane').first().evaluate(el => !!el.lwKept), 'not rebuilt').toBe(true);
 });

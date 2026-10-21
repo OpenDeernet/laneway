@@ -1606,20 +1606,25 @@ export default function mount(el, { app, params, query, scope, context, toolbar,
   }
 
   // Typing that missed its field takes back the view keys (t c O Z m 0-9): they wait for no one.
+  const same = (a, b) => a === b || (!!a && !!b && a.size === b.size && [...a].every(x => b.has(x)));
   offs.push(app.keys.keep({
     save: () => ({ mode: S.mode, compact: S.compact, swim: S.swim, sort: S.sort, dir: S.dir, mine: S.mine, who: S.who && new Set(S.who), qf: new Set(S.qf), text: S.text, textFn: S.textFn, fold: new Set(S.fold), secFold: new Set(S.secFold) }),
     restore: v => {
       if (S.dead || !S.board) return;
-      const reload = [...v.qf].join() !== [...S.qf].join();
-      Object.assign(S, { swim: v.swim, sort: v.sort, dir: v.dir, mine: v.mine, who: v.who, qf: v.qf, text: v.text, textFn: v.textFn, fold: v.fold, secFold: v.secFold, built: '' });
-      app.prefs.set('board.swim.' + S.board.ID, v.swim);
-      app.prefs.set('board.sort.' + S.board.ID, v.sort + ':' + v.dir);
-      app.prefs.set('board.secfold.' + S.board.ID, [...v.secFold].join('\n'));
-      filterIn.value = v.text; saveFilters();
-      if (v.compact !== S.compact) setCompact(v.compact);
-      if (v.mode !== S.mode) setMode(v.mode); else { renderToolbar(); layout(); }
-      renderBar(); whoChanged();
-      if (reload) loadCards();
+      let changed = false;
+      const reload = !same(v.qf, S.qf);
+      if (reload || v.mine !== S.mine || !same(v.who, S.who) || v.text !== S.text) {
+        Object.assign(S, { mine: v.mine, who: v.who, qf: v.qf, text: v.text, textFn: v.textFn });
+        filterIn.value = v.text; saveFilters(); renderBar(); whoChanged(); changed = true;
+        if (reload) loadCards();
+      }
+      if (v.swim !== S.swim) { S.swim = v.swim; S.built = ''; app.prefs.set('board.swim.' + S.board.ID, v.swim); changed = true; }
+      if (v.sort !== S.sort || v.dir !== S.dir) { S.sort = v.sort; S.dir = v.dir; S.built = ''; app.prefs.set('board.sort.' + S.board.ID, v.sort + ':' + v.dir); changed = true; }
+      if (!same(v.fold, S.fold)) { S.fold = v.fold; changed = true; }
+      if (!same(v.secFold, S.secFold)) { S.secFold = v.secFold; app.prefs.set('board.secfold.' + S.board.ID, [...v.secFold].join('\n')); changed = true; }
+      if (v.compact !== S.compact) { S.compact = v.compact; app.prefs.set('board.compact', v.compact ? '1' : '0'); changed = true; }
+      if (v.mode !== S.mode) setMode(v.mode);
+      else if (changed) { renderToolbar(); layout(); }
     },
   }));
 
