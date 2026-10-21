@@ -48,6 +48,35 @@ test('a burst of distinct keys outside a field takes back its first keys and pau
   off(); offKeep(); s.dispose();
 });
 
+test('keys typed into a picker the run opened count: "later" on the board', () => {
+  const fired = [], s = keys.scope('typing-test');
+  let picker = null;
+  const input = { tagName: 'INPUT' };
+  s.bind('l', () => fired.push('l'), 'l');
+  s.bind('a', () => { fired.push('a'); picker = keys.scope('modal', { modal: true }); picker.bind('Escape', () => { picker.dispose(); picker = null; }, ''); }, 'a');
+  const bursts = []; const off = keys.onTyping(b => bursts.push(b));
+  press('l', 2000); press('a');
+  on.focusin({ target: input, timeStamp: t + 5 });
+  t += 50;
+  const e = { key: 't', timeStamp: t, target: input, prevented: false, preventDefault() { this.prevented = true; }, stopPropagation() {} };
+  on.keydown(e);
+  assert.equal(bursts.length, 1, 'l a t is typing');
+  assert.ok(e.prevented, 'the t never reaches the picker');
+  assert.equal(picker, null, 'the picker is closed');
+  off(); s.dispose();
+});
+
+test('typing in a field you chose never pauses', () => {
+  const s = keys.scope('typing-test');
+  const bursts = []; const off = keys.onTyping(b => bursts.push(b));
+  const input = { tagName: 'INPUT' };
+  on.focusin({ target: input, timeStamp: t + 5000 });
+  t += 6000;
+  for (const key of 'hello') { t += 50; on.keydown({ key, timeStamp: t, target: input, preventDefault() {}, stopPropagation() {} }); }
+  assert.equal(bursts.length, 0);
+  off(); s.dispose();
+});
+
 test('the burst can go to the field last used', () => {
   const s = keys.scope('typing-test');
   for (const k of 'hi') s.bind(k, () => {}, k);

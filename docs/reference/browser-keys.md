@@ -9,7 +9,8 @@ Where a key differs from the terminal's for the same action, the
 terminal's is in the last column.
 
 Typing while no field has the focus doesn't run a string of shortcuts.
-Three different keys in quick succession read as typing: laneway takes
+Three keys in quick succession, not all the same, read as typing (also
+when the first ones opened a picker the rest landed in): laneway takes
 back what the first keys did (a dialog, a panel, a view they opened),
 pauses the single keys until you stop typing (or press `esc`), and offers
 to type the text into the field you used last. Keys that change

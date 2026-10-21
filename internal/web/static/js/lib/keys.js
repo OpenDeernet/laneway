@@ -30,14 +30,14 @@ try { for (const r of JSON.parse(localStorage.getItem('lw:keyreg') || '[]')) reg
 let regTimer = 0;
 const listeners = new Set();
 const CHORD_MS = 2500; // long enough to read the chord hint (lib/chrome.js)
-// Typing that missed its field: TYPE_RUN different plain keys, each within TYPE_GAP of the last. Nobody presses
-// distinct shortcuts that fast; typists do. The burst takes back what its first keys did (the state from before
+// Typing that missed its field: TYPE_RUN plain keys, not all the same, each within TYPE_GAP of the last. Nobody
+// presses shortcuts that fast; typists do. Keys typed into a field the run itself opened (a picker) count too. The burst takes back what its first keys did (the state from before
 // them: modals they opened, keep() hooks, the focus), pauses plain keys until TYPE_QUIET passes without one (or
 // Escape), and offers what was typed to the field last used. A bind with {writes: true} (a change no hook takes
 // back) waits TYPE_GAP on its plain key, and a different plain key in that time drops it.
 const TYPE_RUN = 3, TYPE_GAP = 200, TYPE_QUIET = 1000;
 const LATE_MS = 1500; // a modal a burst's key opens later (it awaited something) closes too, until this after its last key
-let run = [], lastPlain = 0, paused = false, lateUntil = 0, before = null, burst = null, held = null, lastField = null;
+let run = [], runAt = 0, fieldAt = 0, lastPlain = 0, paused = false, lateUntil = 0, before = null, burst = null, held = null, lastField = null;
 const typingListeners = new Set(), keepers = new Set();
 // Single-key shortcuts (WCAG 2.1.4): off leaves plain characters to the browser; named keys and mod+ stay.
 let single = true;
@@ -121,8 +121,9 @@ function onKey(e) {
   // Tab walks the bars like normal; only the page (view, panel) gives it a meaning.
   if (k === 'Tab' && e.target.closest && e.target.closest('#top, #viewbar')) return;
   const field = inField(e.target);
-  if (!field) {
-    if (!single && !pending.length && k.length === 1) return;
+  const opened = field && run.length && fieldAt >= runAt && (e.timeStamp || Date.now()) - lastPlain < TYPE_GAP;
+  if (!field || opened) {
+    if (!field && !single && !pending.length && k.length === 1) return;
     settle(k);
     if (typing(e, k)) { e.preventDefault(); e.stopPropagation(); return; }
   }
@@ -154,9 +155,9 @@ function typing(e, k) {
   lastPlain = now;
   if (paused && gap < TYPE_QUIET) { burst.text += ch; lateUntil = Date.now() + LATE_MS; return true; }
   paused = false;
-  if (run.length && gap < TYPE_GAP) run.push(k); else { run = [k]; before = save(); burst = { text: '' }; }
+  if (run.length && gap < TYPE_GAP) run.push(k); else { run = [k]; runAt = now; before = save(); burst = { text: '' }; }
   burst.text += ch;
-  if (run.length < TYPE_RUN || new Set(run).size < TYPE_RUN) return false;
+  if (run.length < TYPE_RUN || new Set(run).size < 2) return false;
   paused = true; run = []; clearPending(); takeBack(before); lateUntil = Date.now() + LATE_MS;
   const b = burst, f = typable(lastField) ? lastField : null;
   for (const fn of typingListeners) fn({ field: f && (f.lwName || f.getAttribute('aria-label') || f.placeholder || f.title || f.name || T('the field')), put: f && (() => put(f, b.text)) });
@@ -191,7 +192,12 @@ function clearPending() { pending = []; clearTimeout(timer); notify(); }
 function notify() { for (const fn of listeners) fn(); }
 
 document.addEventListener('keydown', onKey, true);
-document.addEventListener('focusin', e => { if (inField(e.target)) lastField = e.target; }, true);
+// A field focused during a run (the run opened it) is no field the user chose.
+document.addEventListener('focusin', e => {
+  if (!inField(e.target)) return;
+  fieldAt = e.timeStamp || Date.now();
+  if (!(run.length && fieldAt - lastPlain < TYPE_GAP)) lastField = e.target;
+}, true);
 
 export const keys = {
   scope,
