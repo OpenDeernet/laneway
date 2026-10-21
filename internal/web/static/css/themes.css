@@ -245,6 +245,9 @@
   --cat-new: #888; --cat-indeterminate: #ccc; --cat-done: #b5e8b0;
   --shadow: 0 8px 30px rgba(0,0,0,.8);
 }
+/* A pressed toggle button: the accent unless the theme says otherwise. */
+:root { --on-fg: var(--accent); --on-border: var(--accent); }
+:root[data-theme="emico"] { --on-fg: var(--fg); --on-border: #0a5a9e; }
 /* Density and font size: html font-size is --fs and every length is rem/em, so one number scales the UI.
    --pad gaps, --row list row height (both rem). */
 :root { --pad: .571rem; --row: 2.286rem; --fs: 14px; --radius: 6px; }

@@ -188,7 +188,7 @@ body.panel-focus .lrow.sel { background: var(--bg-3); box-shadow: inset 3px 0 va
 .bd.compact .c3 > :not(.cav):not(.cdue):not(.cpr) { display: none; }
 .bd.compact .bcw { padding-bottom: .214rem; }
 .fchip.term { padding-left: .643rem; font-family: var(--font-mono); font-size: .786rem; }
-.btn.ghost.on, .btn[aria-pressed=true] { color: var(--accent); background: var(--accent-bg); border-color: var(--accent); }
+.btn.ghost.on, .btn[aria-pressed=true] { color: var(--on-fg); background: var(--accent-bg); border-color: var(--on-fg); }
 
 /* drop zones: a multi-status lane splits per status while dragging */
 .bd-zones { display: flex; flex-direction: column; gap: .429rem; padding: .429rem; border-bottom: 1px solid var(--border); }

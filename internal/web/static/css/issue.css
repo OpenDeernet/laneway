@@ -144,7 +144,7 @@ a.issue-ref { font-family: var(--font-mono); font-size: .95em; }
 .chg-line { display: flex; gap: .571rem; align-items: baseline; padding: 1px 0 1px 1.857rem; flex-wrap: wrap; }
 .chg-line .fname { color: var(--fg-3); font-size: .85em; min-width: 5rem; } .chg-line .from { color: var(--fg-2); text-decoration: line-through; } .chg-line .arrow { color: var(--fg-3); }
 .hist-bar { display: flex; gap: .571rem; align-items: center; flex-wrap: wrap; margin: .857rem 0 .286rem; }
-.hist-bar .seg { display: inline-flex; gap: .143rem; } .hist-bar .seg .btn.on { background: var(--accent-bg); color: var(--accent); border-color: var(--accent); }
+.hist-bar .seg { display: inline-flex; gap: .143rem; } .hist-bar .seg .btn.on { background: var(--accent-bg); color: var(--on-fg); border-color: var(--on-fg); }
 .hist-q { flex: 1; min-width: 8rem; max-width: 18rem; }
 .chg-diff { padding: .143rem 0 .143rem 1.857rem; font-family: var(--font-mono); font-size: .85em; white-space: pre-wrap; overflow-wrap: anywhere; }
 .chg-diff .del { color: var(--err); } .chg-diff .add { color: var(--ok); } .chg-diff .more { color: var(--fg-3); }
