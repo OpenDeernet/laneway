@@ -28,6 +28,7 @@ export const presets = [
   { id: 'onedark', group: 'One', name: 'One Dark' },
   { id: 'onelight', group: 'One', name: 'One Light' },
   { id: 'emico', group: 'Emico', name: 'Emico' },
+  { id: 'emico-light', group: 'Emico', name: 'Emico Light' },
 ];
 export const accents = ['#5b8def', '#e5484d', '#f76b15', '#e0a100', '#30a46c', '#12a594', '#8e4ec6', '#d6409f'];
 import { changed } from './metrics.js';

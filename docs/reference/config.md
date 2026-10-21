@@ -301,7 +301,7 @@ ui:
   solarized-dark, onedark, rosepine, rosepine-moon, kanagawa,
   kanagawa-dragon, monokai, emico.
 - Light presets: tokyonight-day, catppuccin-latte, gruvbox-light,
-  solarized-light, rosepine-dawn, kanagawa-lotus, onelight.
+  solarized-light, rosepine-dawn, kanagawa-lotus, onelight, emico-light.
 - `mono` (or `NO_COLOR` set) draws no colour at all: the cursor and a drop
   in reverse, the accent bold, the dim faint, code blocks plain.
 

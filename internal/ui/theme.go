@@ -335,6 +335,18 @@ var themePresets = map[string]theme{
 		"roadmap_done": "#8fd19e", "roadmap_todo": "#82caff", "shade": "auto",
 		"status_todo": "#75777b", "status_progress": "#82caff", "status_done": "#8fd19e",
 	},
+	"emico-light": { // emico.nl's light sections: the brand blue leads
+		"accent": "#003c6d", "dim": "#75777b", "selection_fg": "#1e221f",
+		"selection_bg": "#d3e0ec", "selection_idle": "#e9edf1",
+		"error": "#c8364a", "mention": "#c8364a", "link": "#1f7fb0", "code": "#035a8d",
+		"attachment": "#1f7fb0", "over_limit": "#c8364a", "drop_fg": "#f3f6f9",
+		"priority_highest": "#c8364a", "priority_high": "#9a5c00",
+		"priority_low": "#1f7fb0", "priority_lowest": "#75777b",
+		"type_bug": "#c8364a", "type_story": "#2f7d46", "type_epic": "#6b4fbf",
+		"type_subtask": "#75777b", "type_other": "#1f7fb0", "type_alert": "#9a5c00", "highlight": "#8a6d00",
+		"roadmap_done": "#2f7d46", "roadmap_todo": "#1f7fb0", "shade": "auto",
+		"status_todo": "#75777b", "status_progress": "#1f7fb0", "status_done": "#2f7d46",
+	},
 }
 
 // curTheme is the theme applyTheme last set, for the priority marks and type icons.

@@ -229,12 +229,21 @@
 }
 :root[data-theme="emico"] {
   color-scheme: dark;
-  --bg: #171a18; --bg-2: #1e221f; --bg-3: #292c2b; --bg-4: #424447;
+  --bg: #1e221f; --bg-2: #292c2b; --bg-3: #333735; --bg-4: #424447;
   --fg: #f3f6f9; --fg-2: #bcbfc4; --fg-3: #9ea0a4;
-  --border: #2f3331; --accent: #f3ef7b; --accent-fg: #171a18; --accent-bg: #003c6d;
+  --border: #383c3a; --accent: #f3ef7b; --accent-fg: #1e221f; --accent-bg: color-mix(in srgb, #003c6d 70%, var(--bg-2));
   --ok: #8fd19e; --warn: #f0a35e; --err: #ff8a96; --info: #82caff;
   --cat-new: #9ea0a4; --cat-indeterminate: #82caff; --cat-done: #8fd19e;
   --shadow: 0 8px 30px rgba(0,0,0,.5);
+}
+:root[data-theme="emico-light"] {
+  color-scheme: light;
+  --bg: #ffffff; --bg-2: #f3f6f9; --bg-3: #e9edf1; --bg-4: #dce1e7;
+  --fg: #1e221f; --fg-2: #424447; --fg-3: #616366;
+  --border: #dce1e7; --accent: #003c6d; --accent-fg: #ffffff; --accent-bg: color-mix(in srgb, #003c6d 14%, var(--bg-2));
+  --ok: #2f7d46; --warn: #9a5c00; --err: #c8364a; --info: #1f7fb0;
+  --cat-new: #75777b; --cat-indeterminate: #1f7fb0; --cat-done: #2f7d46;
+  --shadow: 0 8px 30px rgba(0,0,0,.12);
 }
 :root[data-theme="mono"] {
   color-scheme: dark;
@@ -247,7 +256,7 @@
 }
 /* A pressed toggle button: the accent unless the theme says otherwise. */
 :root { --on-fg: var(--accent); --on-border: var(--accent); }
-:root[data-theme="emico"] { --on-fg: var(--fg); --on-border: #0a5a9e; }
+:root[data-theme="emico"] { --on-fg: var(--fg); --on-border: #1a5a91; }
 /* Density and font size: html font-size is --fs and every length is rem/em, so one number scales the UI.
    --pad gaps, --row list row height (both rem). */
 :root { --pad: .571rem; --row: 2.286rem; --fs: 14px; --radius: 6px; }
