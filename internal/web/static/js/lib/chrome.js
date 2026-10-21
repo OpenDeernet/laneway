@@ -142,6 +142,7 @@ export function install(app) {
   }
 
   // ---- keys
+  keys.onTyping(() => app.ui.toast(T('Typing outside a field: shortcuts paused')));
   const g = keys.scope('chrome');
   g.bind('M', menu, T('all views (More)'), { group: 'Go' });
   g.bind('g c', () => {

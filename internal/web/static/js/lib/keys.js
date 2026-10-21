@@ -29,6 +29,11 @@ try { for (const r of JSON.parse(localStorage.getItem('lw:keyreg') || '[]')) reg
 let regTimer = 0;
 const listeners = new Set();
 const CHORD_MS = 2500; // long enough to read the chord hint (lib/chrome.js)
+// Typing outside a field: TYPE_RUN different plain keys, each within TYPE_GAP of the last, pause plain keys
+// until TYPE_QUIET passes without one (or Escape). Nobody presses distinct shortcuts that fast; typists do.
+const TYPE_RUN = 3, TYPE_GAP = 200, TYPE_QUIET = 1000;
+let run = [], lastPlain = 0, paused = false;
+const typingListeners = new Set();
 
 function norm(e) {
   let k = e.key;
@@ -107,6 +112,7 @@ function onKey(e) {
   // Tab walks the bars like normal; only the page (view, panel) gives it a meaning.
   if (k === 'Tab' && e.target.closest && e.target.closest('#top, #viewbar')) return;
   const field = inField(e.target);
+  if (!field && typing(e, k)) { e.preventDefault(); e.stopPropagation(); return; }
   const buf = pending.concat(k);
   const vis = visible();
   let exact = null, prefix = false;
@@ -126,6 +132,21 @@ function onKey(e) {
   if (prefix) { e.preventDefault(); pending = buf; clearTimeout(timer); timer = setTimeout(clearPending, CHORD_MS); notify(); return; }
   if (pending.length) { clearPending(); if (!field) e.preventDefault(); }
 }
+// Whether e is a key typed into nothing, to swallow: true while paused, starting a pause on a burst.
+function typing(e, k) {
+  const plain = (k.length === 1 || k === 'Space') && !e.ctrlKey && !e.altKey && !e.metaKey;
+  const now = e.timeStamp || Date.now(), gap = now - lastPlain;
+  if (!plain) { if (k === 'Escape') paused = false; run = []; return false; }
+  if (e.repeat) return paused;
+  lastPlain = now;
+  if (paused && gap < TYPE_QUIET) return true;
+  paused = false;
+  run = gap < TYPE_GAP ? run.concat(k) : [k];
+  if (run.length < TYPE_RUN || new Set(run).size < TYPE_RUN) return false;
+  paused = true; run = []; clearPending();
+  for (const fn of typingListeners) fn();
+  return true;
+}
 function clearPending() { pending = []; clearTimeout(timer); notify(); }
 function notify() { for (const fn of listeners) fn(); }
 
@@ -135,6 +156,8 @@ export const keys = {
   scope,
   pending: () => pending.join(' '),
   onChange: fn => { listeners.add(fn); return () => listeners.delete(fn); },
+  // fn() when a burst of typing outside any field pauses the plain keys.
+  onTyping: fn => { typingListeners.add(fn); return () => typingListeners.delete(fn); },
   // Remapping. configure({web, conf}) re-resolves every bind; web = ui.web_keys, conf = ui.keys of the config.
   configure(o) {
     if (o.web) web = o.web;
