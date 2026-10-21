@@ -7,7 +7,7 @@
 .bd-chips > * { flex: none; }
 .fchip { font: inherit; font-size: .857rem; color: var(--fg-2); background: var(--bg-3); border: 1px solid transparent; border-radius: 12px; padding: 1px .643rem 1px .286rem; cursor: pointer; display: inline-flex; gap: .357rem; align-items: center; line-height: 1.429rem; }
 .fchip:hover { background: var(--bg-4); }
-.fchip.on { background: var(--accent-bg); color: var(--accent); border-color: var(--accent); }
+.fchip.on { background: var(--on-bg); color: var(--on-fg); border-color: var(--on-border); }
 .fchip.clear { padding-left: .643rem; color: var(--fg-3); background: transparent; }
 .fchip kbd { font-size: .714rem; padding: 0 .286rem; line-height: 1rem; }
 .bd-filter { flex: 0 1 15.714rem; min-width: 7rem; max-width: 40vw; }
@@ -188,7 +188,7 @@ body.panel-focus .lrow.sel { background: var(--bg-3); box-shadow: inset 3px 0 va
 .bd.compact .c3 > :not(.cav):not(.cdue):not(.cpr) { display: none; }
 .bd.compact .bcw { padding-bottom: .214rem; }
 .fchip.term { padding-left: .643rem; font-family: var(--font-mono); font-size: .786rem; }
-.btn.ghost.on, .btn[aria-pressed=true] { color: var(--on-fg); background: var(--accent-bg); border-color: var(--on-fg); }
+.btn.ghost.on, .btn[aria-pressed=true] { color: var(--on-fg); background: var(--on-bg); border-color: var(--on-border); }
 
 /* drop zones: a multi-status lane splits per status while dragging */
 .bd-zones { display: flex; flex-direction: column; gap: .429rem; padding: .429rem; border-bottom: 1px solid var(--border); }

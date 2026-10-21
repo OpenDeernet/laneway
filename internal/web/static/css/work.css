@@ -7,7 +7,7 @@
 .work-body { flex: 1; overflow: auto; padding: var(--pad) calc(var(--pad) * 2); }
 .work-filter { flex: 0 1 14.286rem; min-width: 5.714rem; } .work-group { width: auto; flex: none; } #toolbar .btn { white-space: nowrap; flex: none; }
 .seg { display: inline-flex; } .seg .btn { border-radius: 0; margin-left: -1px; } .seg .btn:first-child { border-radius: var(--radius) 0 0 var(--radius); margin-left: 0; } .seg .btn:last-child { border-radius: 0 var(--radius) var(--radius) 0; }
-.seg .btn.on, .btn.ghost.on { background: var(--accent-bg); color: var(--on-fg); border-color: var(--on-fg); }
+.seg .btn.on, .btn.ghost.on { background: var(--on-bg); color: var(--on-fg); border-color: var(--on-border); }
 
 .wrow { display: flex; align-items: center; gap: var(--pad); padding: 0 calc(var(--pad) * 2); border-bottom: 1px solid var(--bg-3); cursor: pointer; white-space: nowrap; }
 .wrow:hover { background: var(--bg-3); } .wrow.sel { background: var(--accent-bg); box-shadow: inset 2px 0 0 var(--accent); }
