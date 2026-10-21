@@ -6,6 +6,7 @@
 //   k.bind('j', fn, 'next card');             // single key, typed character ("J" = shift+j, "?" as is)
 //   k.bind('g b', fn, 'go to board');         // chord: keys in sequence
 //   k.bind('mod+Enter', fn, 'save', {input: true});    // also fires inside inputs
+//   k.bind('H', fn, 'move left', {writes: true});      // a change typing that missed its field must not make (see TYPE_RUN)
 //   k.bind(['j','ArrowDown'], fn, 'down');    // aliases
 //   k.bind('Enter', fn, 'open issue', {bar: 'open'});   // also in the key bar at the bottom (lib/keybar.js), as "⏎ open";
 //                                                       // aliases show the first key, binds sharing a label one hint ("H L move")
@@ -29,11 +30,18 @@ try { for (const r of JSON.parse(localStorage.getItem('lw:keyreg') || '[]')) reg
 let regTimer = 0;
 const listeners = new Set();
 const CHORD_MS = 2500; // long enough to read the chord hint (lib/chrome.js)
-// Typing outside a field: TYPE_RUN different plain keys, each within TYPE_GAP of the last, pause plain keys
-// until TYPE_QUIET passes without one (or Escape). Nobody presses distinct shortcuts that fast; typists do.
+// Typing that missed its field: TYPE_RUN different plain keys, each within TYPE_GAP of the last. Nobody presses
+// distinct shortcuts that fast; typists do. The burst takes back what its first keys did (the state from before
+// them: modals they opened, keep() hooks, the focus), pauses plain keys until TYPE_QUIET passes without one (or
+// Escape), and offers what was typed to the field last used. A bind with {writes: true} (a change no hook takes
+// back) waits TYPE_GAP on its plain key, and a different plain key in that time drops it.
 const TYPE_RUN = 3, TYPE_GAP = 200, TYPE_QUIET = 1000;
-let run = [], lastPlain = 0, paused = false;
-const typingListeners = new Set();
+const LATE_MS = 1500; // a modal a burst's key opens later (it awaited something) closes too, until this after its last key
+let run = [], lastPlain = 0, paused = false, lateUntil = 0, before = null, burst = null, held = null, lastField = null;
+const typingListeners = new Set(), keepers = new Set();
+// Single-key shortcuts (WCAG 2.1.4): off leaves plain characters to the browser; named keys and mod+ stay.
+let single = true;
+const isPlain = k => k.length === 1 || k === 'Space';
 
 function norm(e) {
   let k = e.key;
@@ -76,7 +84,7 @@ export function scope(name, { modal = false, layer, covers } = {}) {
   const s = { name, modal, layer, covers, seq: ++seq, binds: [], disposed: false };
   s.bind = (spec, fn, desc = '', opts = {}) => {
     for (const sp of [].concat(spec)) {
-      const b = { fn, desc, input: !!opts.input, hidden: !!opts.hidden, help: !!opts.help, bar: (sp === [].concat(spec)[0] && opts.bar) || '', group: opts.group || name, def: plat(sp), id: name + ':' + sp, action: actionFor(name, sp), when: opts.when, scope: name };
+      const b = { fn, desc, input: !!opts.input, writes: !!opts.writes, hidden: !!opts.hidden, help: !!opts.help, bar: (sp === [].concat(spec)[0] && opts.bar) || '', group: opts.group || name, def: plat(sp), id: name + ':' + sp, action: actionFor(name, sp), when: opts.when, scope: name };
       resolve(b); s.binds.push(b); remember(b);
     }
     notify();
@@ -84,6 +92,7 @@ export function scope(name, { modal = false, layer, covers } = {}) {
   };
   s.dispose = () => { const i = scopes.indexOf(s); if (i >= 0) scopes.splice(i, 1); s.disposed = true; notify(); };
   scopes.push(s); notify();
+  if (modal && Date.now() < lateUntil) setTimeout(() => takeBack({ seq: s.seq - 1, kept: [] }));
   return s;
 }
 
@@ -112,7 +121,11 @@ function onKey(e) {
   // Tab walks the bars like normal; only the page (view, panel) gives it a meaning.
   if (k === 'Tab' && e.target.closest && e.target.closest('#top, #viewbar')) return;
   const field = inField(e.target);
-  if (!field && typing(e, k)) { e.preventDefault(); e.stopPropagation(); return; }
+  if (!field) {
+    if (!single && !pending.length && k.length === 1) return;
+    settle(k);
+    if (typing(e, k)) { e.preventDefault(); e.stopPropagation(); return; }
+  }
   const buf = pending.concat(k);
   const vis = visible();
   let exact = null, prefix = false;
@@ -127,39 +140,72 @@ function onKey(e) {
   }
   if (exact) {
     clearPending(); e.preventDefault(); e.stopPropagation();
+    if (exact.writes && !field && buf.length === 1 && isPlain(k)) { const fn = exact.fn; held = { k, fn: () => fn(e), t: setTimeout(() => settle(''), TYPE_GAP) }; return; }
     exact.fn(e); return;
   }
   if (prefix) { e.preventDefault(); pending = buf; clearTimeout(timer); timer = setTimeout(clearPending, CHORD_MS); notify(); return; }
   if (pending.length) { clearPending(); if (!field) e.preventDefault(); }
 }
-// Whether e is a key typed into nothing, to swallow: true while paused, starting a pause on a burst.
+// Whether e is a key typed into nothing, to swallow: true while paused, and on the key that shows a burst.
 function typing(e, k) {
-  const plain = (k.length === 1 || k === 'Space') && !e.ctrlKey && !e.altKey && !e.metaKey;
-  const now = e.timeStamp || Date.now(), gap = now - lastPlain;
-  if (!plain) { if (k === 'Escape') paused = false; run = []; return false; }
+  if (!isPlain(k)) { if (k === 'Escape') paused = false, lateUntil = 0; run = []; return false; }
   if (e.repeat) return paused;
+  const now = e.timeStamp || Date.now(), gap = now - lastPlain, ch = k === 'Space' ? ' ' : k;
   lastPlain = now;
-  if (paused && gap < TYPE_QUIET) return true;
+  if (paused && gap < TYPE_QUIET) { burst.text += ch; lateUntil = Date.now() + LATE_MS; return true; }
   paused = false;
-  run = gap < TYPE_GAP ? run.concat(k) : [k];
+  if (run.length && gap < TYPE_GAP) run.push(k); else { run = [k]; before = save(); burst = { text: '' }; }
+  burst.text += ch;
   if (run.length < TYPE_RUN || new Set(run).size < TYPE_RUN) return false;
-  paused = true; run = []; clearPending();
-  for (const fn of typingListeners) fn();
+  paused = true; run = []; clearPending(); takeBack(before); lateUntil = Date.now() + LATE_MS;
+  const b = burst, f = typable(lastField) ? lastField : null;
+  for (const fn of typingListeners) fn({ field: f && (f.lwName || f.getAttribute('aria-label') || f.placeholder || f.title || f.name || T('the field')), put: f && (() => put(f, b.text)) });
   return true;
+}
+// A held write runs when its time is up or another key than a different plain one comes; that one drops it.
+function settle(k) {
+  if (!held) return;
+  const h0 = held; held = null; clearTimeout(h0.t);
+  if (!isPlain(k) || k === h0.k) h0.fn();
+}
+const save = () => ({ seq, focus: document.activeElement, kept: [...keepers].map(k => [k, k.save()]) });
+function takeBack(s) {
+  for (const sc of byRank()) {
+    if (!sc.modal || sc.seq <= s.seq) continue;
+    const esc = sc.binds.find(b => b.def === 'Escape');
+    if (esc) esc.fn(new KeyboardEvent('keydown', { key: 'Escape' }));
+  }
+  for (const [k, v] of s.kept) k.restore(v);
+  if (s.focus && s.focus.isConnected && s.focus.focus) s.focus.focus();
+}
+const typable = f => !!f && f.isConnected && f.getClientRects().length > 0 && (f.lwType || f.isContentEditable || f.tagName === 'TEXTAREA' || (f.tagName === 'INPUT' && typeof f.selectionStart === 'number'));
+// put types text into f as if it had the focus: the browser's insertText keeps the field's undo.
+function put(f, text) {
+  f.focus();
+  if (f.lwType) return f.lwType(text);
+  if (document.execCommand('insertText', false, text)) return;
+  f.setRangeText(text, f.selectionStart, f.selectionEnd, 'end');
+  f.dispatchEvent(new Event('input', { bubbles: true }));
 }
 function clearPending() { pending = []; clearTimeout(timer); notify(); }
 function notify() { for (const fn of listeners) fn(); }
 
 document.addEventListener('keydown', onKey, true);
+document.addEventListener('focusin', e => { if (inField(e.target)) lastField = e.target; }, true);
 
 export const keys = {
   scope,
   pending: () => pending.join(' '),
   onChange: fn => { listeners.add(fn); return () => listeners.delete(fn); },
-  // fn() when a burst of typing outside any field pauses the plain keys.
+  // fn({field, put}) when a burst of typing outside any field pauses the plain keys: field names the field last
+  // used, put() types the burst into it; both null without one.
   onTyping: fn => { typingListeners.add(fn); return () => typingListeners.delete(fn); },
+  // keep({save, restore}): state a burst of typing takes back; save() before its first key, restore(saved) after.
+  keep: k => { keepers.add(k); return () => keepers.delete(k); },
   // Remapping. configure({web, conf}) re-resolves every bind; web = ui.web_keys, conf = ui.keys of the config.
+  // {single: false} turns the single-character keys off.
   configure(o) {
+    if (o.single != null) single = o.single;
     if (o.web) web = o.web;
     if (o.conf) conf = o.conf;
     for (const s of scopes) for (const b of s.binds) resolve(b);
@@ -191,7 +237,7 @@ export const keys = {
   active() {
     const out = [], seen = new Set();
     for (const s of visible()) for (const b of s.binds) {
-      if (b.hidden || !b.desc || !b.spec) continue;
+      if (b.hidden || !b.desc || !b.spec || (!single && b.spec.split(' ')[0].length === 1)) continue;
       const on = !b.when || b.when();
       if (!on && !b.help) continue;
       const id = b.spec + (on ? '' : '~'); if (seen.has(id)) continue; seen.add(id);

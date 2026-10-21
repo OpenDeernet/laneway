@@ -191,20 +191,20 @@ export default function mount(el, { app, scope, toolbar }) {
   scope.bind('PageDown', () => to(sel + page()), T('page down'), { ...G, hidden: true });
   scope.bind('PageUp', () => to(sel - page()), T('page up'), { ...G, hidden: true });
   scope.bind('Enter', open, T('open issue'), { ...G, bar: T('open') });
-  scope.bind('e', done, T('done until news / back to inbox'), { ...G, bar: T('done') });
-  scope.bind('E', doneRead, T('all read threads done'), G);
-  scope.bind('s', snooze, T('snooze / unsnooze'), { ...G, bar: T('snooze') });
-  scope.bind('u', unread, T('mark unread'), G);
-  scope.bind('a', toggleRead, T('toggle read'), G);
+  scope.bind('e', done, T('done until news / back to inbox'), { ...G, bar: T('done'), writes: true });
+  scope.bind('E', doneRead, T('all read threads done'), { ...G, writes: true });
+  scope.bind('s', snooze, T('snooze / unsnooze'), { ...G, bar: T('snooze'), writes: true });
+  scope.bind('u', unread, T('mark unread'), { ...G, writes: true });
+  scope.bind('a', toggleRead, T('toggle read'), { ...G, writes: true });
   scope.bind('r', () => { load(true); ui.toast(T('Refreshing')); }, T('refresh'), G);
   const cycle = d => setTab(TABS[(TABS.findIndex(x => x[0] === tab) + d + TABS.length) % TABS.length][0]);
   scope.bind('Tab', () => cycle(1), T('next tab: inbox, mentions, all'), { ...G, when: () => !app.panel.key });
-  scope.bind('A', () => cycle(1), T('next tab: inbox, mentions, all'), { ...G, bar: T('tab') });
-  scope.bind(['1', '2', '3'], e => setTab(TABS[+e.key - 1][0]), T('inbox / mentions / all'), G);
+  scope.bind('A', () => cycle(1), T('next tab: inbox, mentions, all'), { ...G, bar: T('tab'), writes: true });
+  scope.bind(['1', '2', '3'], e => setTab(TABS[+e.key - 1][0]), T('inbox / mentions / all'), { ...G, writes: true });
   scope.bind('c', () => compose(false), T('comment on the issue'), { ...G, bar: T('comment') });
   scope.bind('R', () => compose(true), T('reply to the latest comment'), { ...G, bar: T('reply') });
-  scope.bind('y', () => { const t = cur(); if (t) navigator.clipboard.writeText(t.Key).then(() => ui.toast(T('%s copied', t.Key))).catch(() => {}); }, T('copy key'), G);
-  scope.bind('o', () => { const t = cur(); if (t && (away(t) || app.session.baseURL)) browse(t); }, T('open in Jira'), G);
+  scope.bind('y', () => { const t = cur(); if (t) navigator.clipboard.writeText(t.Key).then(() => ui.toast(T('%s copied', t.Key))).catch(() => {}); }, T('copy key'), { ...G, writes: true });
+  scope.bind('o', () => { const t = cur(); if (t && (away(t) || app.session.baseURL)) browse(t); }, T('open in Jira'), { ...G, writes: true });
 
   const off = [app.bus.on('focus', reload), onMetrics(() => list.setRowHeight(Math.max(px14(34), rowPx())))];
   buildRows(); // the tabs and Loading… now, so the view bar does not wait for the data

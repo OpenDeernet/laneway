@@ -113,7 +113,7 @@ export function install(app) {
   }
 
   const k = app.keys.scope('timer');
-  k.bind('T', () => { const key = target(app); if (!key && !timer) return app.ui.toast(T('Select an issue first')); toggle(key); }, T('start / stop timer'), { group: 'Time' });
+  k.bind('T', () => { const key = target(app); if (!key && !timer) return app.ui.toast(T('Select an issue first')); toggle(key); }, T('start / stop timer'), { group: 'Time', writes: true });
   k.bind('w', () => { const key = target(app); if (key) logDialog(app, { key }); else app.ui.toast(T('Select an issue first')); }, T('log work'), { group: 'Time' });
 
   const cmd = (id, title, run, when) => app.commands.register({ id, group: 'Time', get title() { return title(); }, run, when });

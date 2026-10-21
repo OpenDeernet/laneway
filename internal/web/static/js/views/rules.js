@@ -137,7 +137,7 @@ export default function mount(el, { app, scope, toolbar }) {
   scope.bind(['k', 'ArrowUp'], () => move(-1), T('previous rule'), { group: T('Rules') });
   scope.bind('t', () => { const f = F.Key; f && f.focus(); }, T('try a change (form)'), { group: T('Rules'), bar: T('try') });
   scope.bind('R', () => load(), T('reload'), { group: T('Rules') });
-  scope.bind('N', async () => { paintNotify(); await setEnabled(!enabled()); paintNotify(); }, T('toggle browser notifications'), { group: T('Rules'), bar: T('notifications') });
+  scope.bind('N', async () => { paintNotify(); await setEnabled(!enabled()); paintNotify(); }, T('toggle browser notifications'), { group: T('Rules'), bar: T('notifications'), writes: true });
   scope.bind('Escape', () => { if (document.activeElement && root.contains(document.activeElement)) document.activeElement.blur(); }, '', { input: true, hidden: true });
   load();
   return () => { dead = true; off(); clearTimeout(logTimer); };

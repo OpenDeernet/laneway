@@ -16,7 +16,7 @@ let scope = null;
 export function installUndo(app) {
   if (scope) return;
   scope = keys.scope('undo');
-  scope.bind('u', () => undo(app), T('undo last edit'), { group: T('Edit'), when: () => stack.length > 0 });
+  scope.bind('u', () => undo(app), T('undo last edit'), { group: T('Edit'), when: () => stack.length > 0, writes: true });
 }
 
 // pushUndo(app, what, run): run() is an async function that takes the change back.

@@ -374,11 +374,11 @@ export default function mount(el, { app, scope, context, toolbar }) {
   scope.bind('s', shuffle, T("a random order / the board's"), G);
   scope.bind('Enter', open, T('open issue (or show Off the board)'), { ...G, bar: T('open') });
   scope.bind('z', unfold, T('show Off the board'), G);
-  scope.bind('P', park, T('park the card for after the standup'), { ...G, bar: T('park') });
+  scope.bind('P', park, T('park the card for after the standup'), { ...G, bar: T('park'), writes: true });
   scope.bind('[', () => step(-1), T('a workday further back'), { ...G, bar: T('day') });
   scope.bind(']', () => step(1), T('a workday forward'), { ...G, bar: T('day') });
   sw = switcher(app, { scope, context, project, board: null, scrum: false, group: T('Standup'), onPick: r => { project = r.project; board = r.board; sprint = null; view = null; reset(); load(); } });
-  scope.bind('y', copy, T('copy the stop as markdown, parking lot included'), { ...G, bar: T('copy') });
+  scope.bind('y', copy, T('copy the stop as markdown, parking lot included'), { ...G, bar: T('copy'), writes: true });
   scope.bind('r', load, T('refresh'), G);
 
   clear(toolbar);

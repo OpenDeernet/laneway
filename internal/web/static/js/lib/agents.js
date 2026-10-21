@@ -146,7 +146,7 @@ export function install(app) {
     app.go('/agents?agent=' + encodeURIComponent(key));
   }, true);
   const k = app.keys.scope('agents-global');
-  k.bind('S', need(key => start(key)), T('start work: the form (agent, branch, prompt); focuses its agent if one runs'), { group: 'Agents', when: herdr });
+  k.bind('S', need(key => start(key)), T('start work: the form (agent, branch, prompt); focuses its agent if one runs'), { group: 'Agents', when: herdr, writes: true });
   k.bind('alt+s', need(key => start(key, { another: true })), T('start another agent in the issue\'s worktree'), { group: 'Agents', when: herdr });
   k.bind('mod+y', pick(copyBranch), T('copy branch name'), { group: 'Agents' });
   // The issue's agent's terminal in the issue's Terminal tab, typing (ctrl+\ there goes back to the issue, as the TUI's agent_back).

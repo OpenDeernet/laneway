@@ -113,11 +113,11 @@ export function designCards(app, host, options) {
       const g = { group: T('Card designer') };
       k.bind(['h', 'ArrowLeft'], () => choose(-1), T('previous field'), { ...g, bar: T('h l pick') });
       k.bind(['l', 'ArrowRight'], () => choose(1), T('next field'), g);
-      k.bind('H', () => step(-1), T('move the field left'), { ...g, bar: T('H L move') });
-      k.bind('L', () => step(1), T('move the field right'), g);
-      k.bind('J', () => jump(1), T('move the field a line down'), { ...g, bar: T('J K line') });
-      k.bind('K', () => jump(-1), T('move the field a line up'), g);
-      k.bind(['x', 'Delete', 'Backspace'], toggle, T('take the field off the card, or put it back'), { ...g, bar: T('x off/on') });
+      k.bind('H', () => step(-1), T('move the field left'), { ...g, bar: T('H L move'), writes: true });
+      k.bind('L', () => step(1), T('move the field right'), { ...g, writes: true });
+      k.bind('J', () => jump(1), T('move the field a line down'), { ...g, bar: T('J K line'), writes: true });
+      k.bind('K', () => jump(-1), T('move the field a line up'), { ...g, writes: true });
+      k.bind(['x', 'Delete', 'Backspace'], toggle, T('take the field off the card, or put it back'), { ...g, bar: T('x off/on'), writes: true });
       k.bind(['Enter', 'Space'], () => { leave(); host.redraw(L); }, T('done'), g);
     });
     host.redraw(L);

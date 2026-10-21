@@ -44,7 +44,7 @@ const GROUPS = [
 // A section's name is its id (options carry it, the sidebar and anchors key on it); this is what shows.
 const SECTIONS = { Appearance: T('Appearance'), Fonts: T('Fonts'), Board: T('Board'), Notifications: T('Notifications'), Account: T('Account'), 'Jira site': T('Site'), Server: T('Server'), GitLab: 'GitLab', Data: T('Data'), Keyboard: T('Keyboard') };
 const secName = sec => SECTIONS[sec] || T(sec);
-const VAL = { compact: T('compact'), normal: T('normal'), roomy: T('roomy'), show: T('show'), hide: T('hide'), lanes: T('lanes'), list: T('list') };
+const VAL = { compact: T('compact'), normal: T('normal'), roomy: T('roomy'), show: T('show'), hide: T('hide'), lanes: T('lanes'), list: T('list'), on: T('on'), off: T('off') };
 const CONFIG = GROUPS.findIndex(g => !g.sections);
 // A hosted app has no terminal and no file of one's own to open: the groups say what they are there.
 const HOSTED = { 0: { desc: T('every browser you sign in with') }, [CONFIG]: { title: T('More options'), desc: T('yours, in every browser') } };
@@ -99,6 +99,7 @@ export default function mount(el, { app, scope, toolbar, query }) {
     choice(T('Motion'), T('animations and transitions'), 'Appearance', ['auto', 'reduce'], () => theme.motion, v => { theme.setMotion(v); refresh(); }, v => (v === 'reduce' ? T('reduced') : T('system'))),
     choice(T('Keys on buttons'), T('a button with a shortcut shows it, as Save ⌃⏎'), 'Appearance', ['show', 'hide'], () => pref('btnkeys', 'show'), v => { setPref('btnkeys', v); refresh(); }),
     choice(T('Key bar'), T('the main keys here at the bottom, a click presses one; messages show in it'), 'Appearance', ['show', 'hide'], () => pref('keybar', 'show'), v => { setPref('keybar', v); refresh(); }),
+    choice(T('Single-key shortcuts'), modText(T('keys without a modifier, such as j or ?; off for speech input. The command palette (ctrl+k) still runs them')), 'Keyboard', ['on', 'off'], () => pref('charkeys', 'on'), v => { setPref('charkeys', v); refresh(); }),
     { name: T('Custom tokens'), desc: modText(T('CSS variables as JSON, e.g. {"--bg": "#101010", "--radius": "2px"}; ctrl+enter applies')), section: 'Appearance', wide: true, advanced: true, render: customEditor, change: () => editor && editor.focus() },
 
     { name: T('Browser notifications'), desc: T('inbox news while this tab is in the background; the browser asks when you turn them on'), section: 'Notifications',
@@ -308,8 +309,8 @@ export default function mount(el, { app, scope, toolbar, query }) {
   scope.bind(['j', 'ArrowDown'], () => go(1), T('next option'), { group: T('Settings') });
   scope.bind(['k', 'ArrowUp'], () => go(-1), T('previous option'), { group: T('Settings') });
   scope.bind(['Enter', 'Space'], activate, T('change option'), { group: T('Settings'), bar: T('change') });
-  scope.bind(['ArrowRight', 'l'], () => change(1), T('next value'), { group: T('Settings') });
-  scope.bind(['ArrowLeft', 'h'], () => change(-1), T('previous value'), { group: T('Settings') });
+  scope.bind(['ArrowRight', 'l'], () => change(1), T('next value'), { group: T('Settings'), writes: true });
+  scope.bind(['ArrowLeft', 'h'], () => change(-1), T('previous value'), { group: T('Settings'), writes: true });
   scope.bind(['Delete', 'Backspace'], () => { const o = rows[sel]; if (o && o.reset) o.reset(); }, T('reset to the default'), { group: T('Settings'), bar: T('reset') });
   scope.bind('a', () => setAdv(!adv), T('show or hide the advanced options'), { group: T('Settings') });
   scope.bind('/', () => { filter.focus(); filter.select(); }, T('filter settings'), { group: T('Settings'), bar: T('filter') });

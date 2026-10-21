@@ -1406,5 +1406,7 @@
   "every browser you sign in with": "elke browser waarmee je inlogt",
   "yours, in every browser": "van jou, in elke browser",
   "This gadget isn’t set up yet.": "Deze gadget is nog niet ingesteld.",
-  "Create issue (n)": "Issue aanmaken (n)"
+  "Create issue (n)": "Issue aanmaken (n)",
+  "Single-key shortcuts": "Sneltoetsen van één toets",
+  "keys without a modifier, such as j or ?; off for speech input. The command palette (ctrl+k) still runs them": "toetsen zonder ctrl, alt of ⌘, zoals j of ?; uit voor spraakinvoer. Het commandopalet (ctrl+k) voert ze nog uit"
 }

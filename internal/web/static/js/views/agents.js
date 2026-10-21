@@ -222,16 +222,16 @@ export default async function mount(el, { app, scope, query }) {
   scope.bind('Enter', () => type(), T("type into the agent's terminal (%s back to the list; a worktree: open the issue)", LEAVE), { group: G, bar: T('type') });
   scope.bind(LEAVE, () => type(), T('type into the terminal / back to the list'), { group: G });
   scope.bind('z', () => { setFull(!full); if (full) type(); }, T('terminal full screen'), { group: G, bar: T('full screen') });
-  scope.bind('t', () => type({ takeover: true }), T("take over the agent's input from another herdr attach"), { group: G });
+  scope.bind('t', () => type({ takeover: true }), T("take over the agent's input from another herdr attach"), { group: G, writes: true });
   scope.bind('Escape', () => setFull(false), T('leave full screen'), { group: G, when: () => full });
   scope.bind('v', () => { const r = cur(); if (r) openIssue(r.key); }, T("open issue (another site's in Jira)"), { group: G, bar: T('issue') });
-  scope.bind('o', () => { const r = cur(); if (r) openURL(away(r.key) ? issues.get(r.key).URL : app.session.baseURL + '/browse/' + r.key); }, T('open in Jira'), { group: G });
-  scope.bind('f', () => act('focus'), T('focus the agent in herdr'), { group: G });
+  scope.bind('o', () => { const r = cur(); if (r) openURL(away(r.key) ? issues.get(r.key).URL : app.session.baseURL + '/browse/' + r.key); }, T('open in Jira'), { group: G, writes: true });
+  scope.bind('f', () => act('focus'), T('focus the agent in herdr'), { group: G, writes: true });
   scope.bind('p', () => act('prompt'), T('send the agent a prompt'), { group: G, bar: T('prompt') });
   scope.bind('N', () => act('new'), T('new agent in its directory (the start form)'), { group: G, bar: T('new agent') });
   scope.bind('S', () => { const r = cur(); if (r) app.agents.start(r.key, { another: !!r.agent, path: r.agent ? r.agent.CWD : '' }); }, T('start work on the issue (the start form; with an agent: another one beside it)'), { group: G, bar: T('start work') });
   scope.bind('d', () => act('stop'), T('stop the agent (twice)'), { group: G, bar: T('stop') });
-  scope.bind('y', () => { const r = cur(); if (r && navigator.clipboard) navigator.clipboard.writeText(r.key).then(() => ui.toast(T('Copied %s', r.key))); }, T('copy key'), { group: G });
+  scope.bind('y', () => { const r = cur(); if (r && navigator.clipboard) navigator.clipboard.writeText(r.key).then(() => ui.toast(T('Copied %s', r.key))); }, T('copy key'), { group: G, writes: true });
   scope.bind('r', () => { app.agents.refresh(); ui.toast(T('Refreshed')); }, T('refresh'), { group: G });
 
   delegate(list, 'click', '.ag-row', (e, t) => { sel = +t.dataset.i; mark(); });

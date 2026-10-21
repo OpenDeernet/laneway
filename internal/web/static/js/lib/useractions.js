@@ -39,6 +39,6 @@ export async function install(app) {
     if (!a.Key) continue;
     if (taken.has(a.Key)) { console.warn('ui.actions.' + a.Name + ': ' + a.Key + ' is taken here; the action stays in the palette'); continue; }
     taken.add(a.Key);
-    scope.bind(a.Key, () => { if (applies(a)) run(a); }, a.Name, { group: 'Actions' });
+    scope.bind(a.Key, () => { if (applies(a)) run(a); }, a.Name, { group: 'Actions', writes: true });
   }
 }

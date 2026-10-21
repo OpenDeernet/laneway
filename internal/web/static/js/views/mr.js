@@ -459,11 +459,11 @@ export default function mount(el, { app, scope, query }) {
   scope.bind('1', () => setTab('overview'), T('overview'), { group: G, bar: T('tabs') });
   scope.bind('2', () => setTab('changes'), T('changes'), { group: G, bar: T('tabs') });
   scope.bind('i', () => { const k = keys()[0]; if (k) app.panel.open(k); else ui.toast(T('It names no Jira issue')); }, T('the Jira issue it names, beside'), { group: G });
-  scope.bind('C', agentReview, T('an agent reviews it'), { group: G, bar: T('agent review') });
+  scope.bind('C', agentReview, T('an agent reviews it'), { group: G, bar: T('agent review'), writes: true });
   scope.bind('S', () => review(false), T('submit your review'), { group: G, bar: T('review') });
-  scope.bind('A', () => review(true), T('approve'), { group: G, bar: T('approve') });
+  scope.bind('A', () => review(true), T('approve'), { group: G, bar: T('approve'), writes: true });
   scope.bind('M', merge, T("merge: GitLab's defaults first"), { group: G, bar: T('merge') });
-  scope.bind('o', () => openURL(url), T('open in GitLab'), { group: G });
+  scope.bind('o', () => openURL(url), T('open in GitLab'), { group: G, writes: true });
   scope.bind('r', () => load(true), T('reload'), { group: G });
   scope.bind('Escape', () => (jobId ? closeJob() : back()), T('close the job log, else back'), { group: G, bar: T('back') });
   scope.bind(['j', ']'], () => go(cur + 1), T('next file'), { group: D });

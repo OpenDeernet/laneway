@@ -249,10 +249,10 @@ export function mountDev(key, { app, el, full, card, details }) {
   scope.bind(['k', 'ArrowUp'], () => step(-1), T('previous row'), { group: G, when: onRow });
   const openLink = r => { if (r && r.dataset.url) openURL(r.dataset.url); else ui.toast(T('No link')); };
   scope.bind('Enter', () => { const r = rowOf(document.activeElement); if (r && 'mr' in r.dataset) toggleMR(r.dataset.url); else openLink(r); }, T('open in the browser; a GitLab merge request unfolds'), { group: G, when: onRow });
-  scope.bind('o', () => openLink(rowOf(document.activeElement)), T('open in the browser'), { group: G, when: onRow });
+  scope.bind('o', () => openLink(rowOf(document.activeElement)), T('open in the browser'), { group: G, when: onRow, writes: true });
   scope.bind('d', () => { const r = rowOf(document.activeElement); if (r && 'mr' in r.dataset) app.go(diffHref(r.dataset.url)); else ui.toast(T('Not a GitLab merge request')); }, T('a merge request\'s diff'), { group: G, when: onRow });
   scope.bind('r', () => { const r = rowOf(document.activeElement); if (r && 'mr' in r.dataset && openMR.has(r.dataset.url)) toggleMR(r.dataset.url, true); else load(true); }, T('reload'), { group: G, when: onRow });
-  scope.bind('y', () => { const r = rowOf(document.activeElement); if (r && r.dataset.copy) copy(r.dataset.copy, r.dataset.what); else ui.toast(T('Nothing to copy')); }, T('copy branch or hash'), { group: G, when: onRow });
+  scope.bind('y', () => { const r = rowOf(document.activeElement); if (r && r.dataset.copy) copy(r.dataset.copy, r.dataset.what); else ui.toast(T('Nothing to copy')); }, T('copy branch or hash'), { group: G, when: onRow, writes: true });
   scope.bind('Escape', () => { const s = el.querySelector('.iss-scroll'); if (s) s.focus({ preventScroll: true }); else document.activeElement.blur(); }, T('leave development'), { group: G, when: onRow });
 
   // Mouse: a click on a row (not on its own link) does what enter does.

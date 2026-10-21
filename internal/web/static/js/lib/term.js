@@ -93,6 +93,7 @@ export async function terminal(host, { app, onState = () => {}, onLeave = () => 
   // ---- keys: the terminal scope exists while it has focus
   let scope = null, typing = false;
   const ta = term.textarea;
+  ta.lwType = s => term.input(s); ta.lwName = T('the terminal'); // typing that missed it lands here (lib/keys.js)
   ta.addEventListener('focus', () => {
     typing = true;
     if (!scope) {

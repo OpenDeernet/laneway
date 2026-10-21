@@ -482,7 +482,7 @@ export default async function mount(el, { app, params, query, scope, context, to
   scope.bind('y', () => {
     if (!table || !table.rows.length) return app.ui.toast(T('Nothing to copy here'));
     navigator.clipboard.writeText(markdownTable(table.head, table.rows)).then(() => app.ui.toast(T('Copied the numbers as a markdown table'), { kind: 'ok' }), e => app.ui.errToast(e));
-  }, T('copy the numbers as a markdown table'), { group: T('Reports') });
+  }, T('copy the numbers as a markdown table'), { group: T('Reports'), writes: true });
   const move = d => { if (curItems.length) { cur = Math.min(Math.max(cur + d, 0), curItems.length - 1); mark(); } };
   scope.bind(['j', 'ArrowDown'], () => move(1), T('next item'), { group: T('Reports') });
   scope.bind(['k', 'ArrowUp'], () => move(-1), T('previous item'), { group: T('Reports') });

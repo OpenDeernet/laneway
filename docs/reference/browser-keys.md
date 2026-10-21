@@ -8,6 +8,15 @@ ones, and a click presses one. Keys for the terminal:
 Where a key differs from the terminal's for the same action, the
 terminal's is in the last column.
 
+Typing while no field has the focus doesn't run a string of shortcuts.
+Three different keys in quick succession read as typing: laneway takes
+back what the first keys did (a dialog, a panel, a view they opened),
+pauses the single keys until you stop typing (or press `esc`), and offers
+to type the text into the field you used last. Keys that change
+something (move a card, copy, open in Jira) wait a fifth of a second for
+this. Settings › Keyboard › Single-key shortcuts turns every key without
+a modifier off, for speech input; the palette (`ctrl+k`) still runs them.
+
 ## Everywhere
 
 | Key | Does | Terminal |

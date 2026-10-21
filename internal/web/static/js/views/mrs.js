@@ -54,7 +54,7 @@ export default function mount(el, { app, scope }) {
   scope.bind('Enter', () => { if (cur()) app.go(mrHref(cur().WebURL)); }, T('open it: overview, pipeline, discussions'), { group: G, bar: T('open') });
   scope.bind('d', () => { if (cur()) app.go(diffHref(cur().WebURL)); }, T('its changes'), { group: G, bar: T('changes') });
   scope.bind('i', () => { const k = cur() && keysOf(cur())[0]; if (k) app.panel.open(k); else ui.toast(T('It names no Jira issue')); }, T('the Jira issue it names, beside'), { group: G, bar: T('issue') });
-  scope.bind('o', () => cur() && openURL(cur().WebURL), T('open in GitLab'), { group: G, bar: 'GitLab' });
+  scope.bind('o', () => cur() && openURL(cur().WebURL), T('open in GitLab'), { group: G, bar: 'GitLab', writes: true });
   scope.bind('r', load, T('refresh'), { group: G });
   delegate(list, 'click', '.mr-key', (e, t) => { e.stopPropagation(); app.panel.open(t.dataset.key); });
   delegate(list, 'click', '.mr-row', (e, t) => { if (e.target.closest('a,button')) return; sel = +t.dataset.i; app.go(mrHref(rows[sel].MR.WebURL)); });

@@ -963,11 +963,11 @@ export function mountIssue(el, key, { app, full, card }) {
   scope.bind('4', () => openTerm(false), T('terminal tab: the issue\'s agent (again: the next agent)'), { group: G, when: () => (term.has() || st.tab === 'terminal') && (full || app.panel.focused()) });
   scope.bind('ctrl+\\', () => openTerm(true), T('type into the issue\'s agent (its terminal here; ctrl+\\ there back to the issue)'), { group: G });
   scope.bind('Enter', () => term.type(), T('type into the terminal'), { group: G, when: () => st.tab === 'terminal' && (full || app.panel.focused()) });
-  scope.bind('t', () => term.type({ takeover: true }), T('take over the agent\'s input from another herdr attach'), { group: G, when: () => st.tab === 'terminal' && (full || app.panel.focused()) });
-  scope.bind('y', () => copy(key, key), T('copy key'), { group: G });
-  scope.bind('*', () => pins.toggle(app, key, st.issue && st.issue.Summary), T('pin / unpin issue (first in the palette)'), { group: G });
-  scope.bind('Y', () => copy(browseURL(), 'Link'), T('copy link'), { group: G });
-  if (elsewhere) scope.bind('o', () => window.open(browseURL(), '_blank', 'noopener'), T('open in Jira'), { group: G, bar: 'Jira' });
+  scope.bind('t', () => term.type({ takeover: true }), T('take over the agent\'s input from another herdr attach'), { group: G, when: () => st.tab === 'terminal' && (full || app.panel.focused()), writes: true });
+  scope.bind('y', () => copy(key, key), T('copy key'), { group: G, writes: true });
+  scope.bind('*', () => pins.toggle(app, key, st.issue && st.issue.Summary), T('pin / unpin issue (first in the palette)'), { group: G, writes: true });
+  scope.bind('Y', () => copy(browseURL(), 'Link'), T('copy link'), { group: G, writes: true });
+  if (elsewhere) scope.bind('o', () => window.open(browseURL(), '_blank', 'noopener'), T('open in Jira'), { group: G, bar: 'Jira', writes: true });
   scope.bind('s', () => edit('status'), T('change status'), { group: G, bar: T('status') });
 
   // ---- resize (panel only): ui.panel_width (50%) until a drag or < > picks another, 20–80%; near
@@ -989,8 +989,8 @@ export function mountIssue(el, key, { app, full, card }) {
       keep(next);
       ui.toast(next === def ? T('Panel %d%% (ui.panel_width)', next) : T('Panel %d%%', next));
     };
-    scope.bind('<', () => stepWidth(1), T('widen the panel'), { group: G });
-    scope.bind('>', () => stepWidth(-1), T('narrow the panel'), { group: G });
+    scope.bind('<', () => stepWidth(1), T('widen the panel'), { group: G, writes: true });
+    scope.bind('>', () => stepWidth(-1), T('narrow the panel'), { group: G, writes: true });
   }
   // A dialog opened while the panel loaded keeps the focus.
   if (!document.querySelector('[aria-modal="true"]')) scroll.focus({ preventScroll: true });

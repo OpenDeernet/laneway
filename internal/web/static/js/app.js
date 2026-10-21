@@ -59,6 +59,11 @@ function onURL() {
   navigate();
 }
 const nameOf = path => { const r = table.find(r => r.re.test(path)); return r ? r.name : ''; };
+// Typing that missed its field goes back to the URL from before it: steps it made are walked back.
+keys.keep({
+  save: () => ({ url: here(), depth }),
+  restore: s => { if (depth > s.depth) history.go(s.depth - depth); else if (here() !== s.url) { record(s.url); navigate(); } },
+});
 
 export const app = {
   api, bus, keys, ui, theme, commands, routes,
@@ -333,6 +338,8 @@ async function boot() {
     theme.attach(app.prefs); theme.fonts.attach(app.prefs); theme.fonts.refreshFiles(api).catch(() => {});
     const btnKeys = () => { document.documentElement.dataset.btnKeys = app.prefs.get('btnkeys', 'show'); }; // keyHint's
     btnKeys(); bus.on('prefs', p => { if (p && p.key === 'btnkeys') btnKeys(); });
+    const single = () => keys.configure({ single: app.prefs.get('charkeys', 'on') !== 'off' });
+    single(); bus.on('prefs', p => { if (p && p.key === 'charkeys') single(); });
     keys.configure({ conf: session.ui.Keys || {}, web: session.ui.WebKeys || {} });
   } catch (e) {
     $('#top').classList.remove('boot'); $('#viewbar').classList.remove('hold');
