@@ -229,11 +229,11 @@
 }
 :root[data-theme="emico"] {
   color-scheme: dark;
-  --bg: #171a18; --bg-2: #003c6d; --bg-3: #0b4a7f; --bg-4: #1a5a91;
-  --fg: #f3f6f9; --fg-2: #c9d6e3; --fg-3: #a3bbd1;
-  --border: #1a5a91; --accent: #f3ef7b; --accent-fg: #171a18; --accent-bg: #145c99;
+  --bg: #171a18; --bg-2: #1e221f; --bg-3: #292c2b; --bg-4: #424447;
+  --fg: #f3f6f9; --fg-2: #bcbfc4; --fg-3: #9ea0a4;
+  --border: #2f3331; --accent: #f3ef7b; --accent-fg: #171a18; --accent-bg: #003c6d;
   --ok: #8fd19e; --warn: #f0a35e; --err: #ff8a96; --info: #82caff;
-  --cat-new: #a3bbd1; --cat-indeterminate: #82caff; --cat-done: #8fd19e;
+  --cat-new: #9ea0a4; --cat-indeterminate: #82caff; --cat-done: #8fd19e;
   --shadow: 0 8px 30px rgba(0,0,0,.5);
 }
 :root[data-theme="mono"] {
