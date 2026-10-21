@@ -299,7 +299,7 @@ ui:
 - Dark presets: tokyonight, tokyonight-storm, catppuccin,
   catppuccin-macchiato, catppuccin-frappe, gruvbox, dracula, nord,
   solarized-dark, onedark, rosepine, rosepine-moon, kanagawa,
-  kanagawa-dragon, monokai.
+  kanagawa-dragon, monokai, emico.
 - Light presets: tokyonight-day, catppuccin-latte, gruvbox-light,
   solarized-light, rosepine-dawn, kanagawa-lotus, onelight.
 - `mono` (or `NO_COLOR` set) draws no colour at all: the cursor and a drop

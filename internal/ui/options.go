@@ -104,7 +104,7 @@ var presetCodeTheme = map[string]string{
 	"tokyonight": "tokyonight-night", "catppuccin": "catppuccin-mocha", "gruvbox": "gruvbox",
 	"dracula": "dracula", "nord": "nord", "onedark": "onedark",
 	"rosepine": "rose-pine", "kanagawa": "kanagawa-wave", "monokai": "monokai",
-	"catppuccin-latte": "catppuccin-latte", "catppuccin-frappe": "catppuccin-frappe", "catppuccin-macchiato": "catppuccin-macchiato", "rosepine-moon": "rose-pine-moon", "rosepine-dawn": "rose-pine-dawn", "tokyonight-storm": "tokyonight-storm", "tokyonight-day": "tokyonight-day", "gruvbox-light": "gruvbox-light", "solarized-dark": "solarized-dark", "solarized-light": "solarized-light", "kanagawa-dragon": "kanagawa-dragon", "kanagawa-lotus": "kanagawa-lotus", "onelight": "github",
+	"catppuccin-latte": "catppuccin-latte", "catppuccin-frappe": "catppuccin-frappe", "catppuccin-macchiato": "catppuccin-macchiato", "rosepine-moon": "rose-pine-moon", "rosepine-dawn": "rose-pine-dawn", "tokyonight-storm": "tokyonight-storm", "tokyonight-day": "tokyonight-day", "gruvbox-light": "gruvbox-light", "solarized-dark": "solarized-dark", "solarized-light": "solarized-light", "kanagawa-dragon": "kanagawa-dragon", "kanagawa-lotus": "kanagawa-lotus", "onelight": "github", "emico": "github-dark",
 }
 
 // optionsFrom resolves c over the defaults. A bad value is reported and

@@ -323,6 +323,18 @@ var themePresets = map[string]theme{
 		"roadmap_done": "#50a14f", "roadmap_todo": "#4078f2", "shade": "auto",
 		"status_todo": "#8a8c94", "status_progress": "#4078f2", "status_done": "#50a14f",
 	},
+	"emico": { // emico.nl: yellow on near-black, the brand blue for selections
+		"accent": "#f3ef7b", "dim": "#75777b", "selection_fg": "#f3f6f9",
+		"selection_bg": "#003c6d", "selection_idle": "#292c2b",
+		"error": "#ef5a6b", "mention": "#ef5a6b", "link": "#82caff", "code": "#2594c3",
+		"attachment": "#82caff", "over_limit": "#ef5a6b", "drop_fg": "#171a18",
+		"priority_highest": "#ef5a6b", "priority_high": "#f0a35e",
+		"priority_low": "#82caff", "priority_lowest": "#75777b",
+		"type_bug": "#ef5a6b", "type_story": "#8fd19e", "type_epic": "#b8a4f0",
+		"type_subtask": "#75777b", "type_other": "#82caff", "type_alert": "#f0a35e", "highlight": "#f3ef7b",
+		"roadmap_done": "#8fd19e", "roadmap_todo": "#82caff", "shade": "auto",
+		"status_todo": "#75777b", "status_progress": "#82caff", "status_done": "#8fd19e",
+	},
 }
 
 // curTheme is the theme applyTheme last set, for the priority marks and type icons.
