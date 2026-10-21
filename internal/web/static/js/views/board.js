@@ -1539,13 +1539,13 @@ export default function mount(el, { app, params, query, scope, context, toolbar,
     k.bind('Y', need(c => copy(app.session.baseURL + '/browse/' + c.Key, T('link'))), T('copy link'), { group: G, writes: true });
     k.bind('mod+y', need(copyBranch), T('copy branch name'), { group: G });
     k.bind('r', () => refresh(true), T('refresh'), { group: G, bar: T('refresh') });
-    k.bind('t', () => setMode(S.mode === 'lanes' ? 'list' : 'lanes'), T('lanes / list'), { group: V, bar: T('lanes / list'), writes: true });
-    k.bind('O', cycleO, T('lanes: cycle swimlanes · list: cycle sort'), { group: V, writes: true });
+    k.bind('t', () => setMode(S.mode === 'lanes' ? 'list' : 'lanes'), T('lanes / list'), { group: V, bar: T('lanes / list') });
+    k.bind('O', cycleO, T('lanes: cycle swimlanes · list: cycle sort'), { group: V });
     k.bind('z', () => foldBand(), T('fold the swimlane, or the stacked lane\'s section'), { group: V });
-    k.bind('Z', unfoldAll, T('unfold all swimlanes and sections'), { group: V, writes: true });
+    k.bind('Z', unfoldAll, T('unfold all swimlanes and sections'), { group: V });
     k.bind('}', () => jumpBand(1), T('next swimlane, or the list\'s group'), { group: G });
     k.bind('{', () => jumpBand(-1), T('previous swimlane, or the list\'s group'), { group: G });
-    k.bind('c', () => setCompact(!S.compact), T('one-line cards'), { group: V, writes: true });
+    k.bind('c', () => setCompact(!S.compact), T('one-line cards'), { group: V });
     k.bind('alt+e', () => { if (S.mode === 'lanes') setHideEmpty(!S.hideEmpty); }, T('hide / show empty lanes'), { group: V });
     k.bind('alt+l', cycleLayout, T('next lane layout: the board\'s columns or a ui.lane_layouts entry'), { group: V });
     k.bind('C', pickCols, T('list columns'), { group: V });
@@ -1558,10 +1558,10 @@ export default function mount(el, { app, params, query, scope, context, toolbar,
     k.bind(']', () => cycleScope(1), T('next view'), { group: V });
     k.bind('f', () => { filterIn.focus(); filterIn.select(); }, T('filter cards'), { group: F, bar: T('filter') });
     k.bind('F', openBuilder, T('filter builder'), { group: F, bar: T('filter builder') });
-    k.bind('m', () => toggleMine(), T('only my cards'), { group: F, bar: T('mine'), writes: true });
+    k.bind('m', () => toggleMine(), T('only my cards'), { group: F, bar: T('mine') });
     k.bind('A', () => pickWho(), T('filter by assignee'), { group: F });
-    k.bind('0', () => clearFilters(), T('clear filters'), { group: F, writes: true });
-    for (let i = 1; i <= 9; i++) k.bind(String(i), () => { const q = qfs()[i - 1]; if (q) toggleQF(q.ID); }, i === 1 ? T('toggle quick filter 1-9') : '', { group: F, hidden: i > 1, writes: true });
+    k.bind('0', () => clearFilters(), T('clear filters'), { group: F });
+    for (let i = 1; i <= 9; i++) k.bind(String(i), () => { const q = qfs()[i - 1]; if (q) toggleQF(q.ID); }, i === 1 ? T('toggle quick filter 1-9') : '', { group: F, hidden: i > 1 });
   }
 
   let qfCmds = [];
@@ -1604,6 +1604,24 @@ export default function mount(el, { app, params, query, scope, context, toolbar,
     unreg.push(() => filterCmds.forEach(u => u()));
     unreg.push(() => qfCmds.forEach(u => u()));
   }
+
+  // Typing that missed its field takes back the view keys (t c O Z m 0-9): they wait for no one.
+  offs.push(app.keys.keep({
+    save: () => ({ mode: S.mode, compact: S.compact, swim: S.swim, sort: S.sort, dir: S.dir, mine: S.mine, who: S.who && new Set(S.who), qf: new Set(S.qf), text: S.text, textFn: S.textFn, fold: new Set(S.fold), secFold: new Set(S.secFold) }),
+    restore: v => {
+      if (S.dead || !S.board) return;
+      const reload = [...v.qf].join() !== [...S.qf].join();
+      Object.assign(S, { swim: v.swim, sort: v.sort, dir: v.dir, mine: v.mine, who: v.who, qf: v.qf, text: v.text, textFn: v.textFn, fold: v.fold, secFold: v.secFold, built: '' });
+      app.prefs.set('board.swim.' + S.board.ID, v.swim);
+      app.prefs.set('board.sort.' + S.board.ID, v.sort + ':' + v.dir);
+      app.prefs.set('board.secfold.' + S.board.ID, [...v.secFold].join('\n'));
+      filterIn.value = v.text; saveFilters();
+      if (v.compact !== S.compact) setCompact(v.compact);
+      if (v.mode !== S.mode) setMode(v.mode); else { renderToolbar(); layout(); }
+      renderBar(); whoChanged();
+      if (reload) loadCards();
+    },
+  }));
 
   // ---- lifecycle
   function touch() { lastInput = Date.now(); }

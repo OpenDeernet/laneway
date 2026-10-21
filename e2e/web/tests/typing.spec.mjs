@@ -35,3 +35,14 @@ test('a quick hand is no typing: j j l', async ({ page }) => {
   await expect(sel).toHaveText('DEMO-6');
   await expect(page.getByText('Typing outside a field')).toHaveCount(0);
 });
+
+test('view keys wait for no one; a burst takes them back: "tea"', async ({ page }) => {
+  await page.keyboard.press('t');
+  await expect(page.locator('.bd-lanes')).toHaveCount(0);
+  await page.keyboard.press('t');
+  await expect(page.locator('.bd-lanes')).toBeVisible();
+  await page.waitForTimeout(1200);
+  await page.keyboard.type('tea');
+  await expect(page.getByText('Typing outside a field: shortcuts paused')).toBeVisible();
+  await expect(page.locator('.bd-lanes')).toBeVisible();
+});
