@@ -24,9 +24,16 @@ func (d *desktop) offerMove() {
 		return
 	}
 	log.Printf("running from a temporary copy of %s", orig)
-	dlg := d.app.Dialog.Question().SetTitle("Move Laneway to Applications?").
-		SetMessage("Until it is there, macOS runs a temporary copy of it, and starting at login would not find it.")
-	move := dlg.AddButton("Move to Applications")
+	title, msg, button := "Move Laneway to Applications?",
+		"Until it is there, macOS runs a temporary copy of it, and starting at login would not find it.",
+		"Move to Applications"
+	if orig == filepath.Join("/Applications", filepath.Base(orig)) {
+		title, msg, button = "Run Laneway from Applications?",
+			"macOS runs a temporary copy of it, as it was downloaded, and starting at login would not find it. Laneway restarts from Applications.",
+			"Restart"
+	}
+	dlg := d.app.Dialog.Question().SetTitle(title).SetMessage(msg)
+	move := dlg.AddButton(button)
 	move.OnClick(func() { go d.moveToApplications(orig) })
 	later := dlg.AddButton("Not Now")
 	dlg.SetDefaultButton(move).SetCancelButton(later).Show()
