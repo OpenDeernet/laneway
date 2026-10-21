@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { plat, fromTUI, toTUI, MAC } from '../static/js/lib/keymap.js';
+// Node has a navigator of its own (MacIntel on a mac): these tests are off one.
+Object.defineProperty(globalThis, 'navigator', { value: { platform: 'Linux x86_64' }, configurable: true });
+const { plat, fromTUI, toTUI, MAC } = await import('../static/js/lib/keymap.js');
 
 test('mod+ is ctrl+ off a mac', () => {
   assert.equal(MAC, false);
