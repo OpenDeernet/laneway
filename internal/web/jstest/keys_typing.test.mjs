@@ -66,6 +66,32 @@ test('keys typed into a picker the run opened count: "later" on the board', () =
   off(); s.dispose();
 });
 
+test('a quick hand is no typing: j j l, x x X, g b g p', () => {
+  const fired = [], s = keys.scope('typing-test');
+  for (const k of 'jlxXbp') s.bind(k, () => fired.push(k), k);
+  s.bind('g b', () => fired.push('gb'), 'gb'); s.bind('g p', () => fired.push('gp'), 'gp');
+  const bursts = []; const off = keys.onTyping(b => bursts.push(b));
+  press('j', 2000); press('j'); press('l');
+  press('x', 2000); press('x'); press('X');
+  press('g', 2000); press('b'); press('g'); press('p');
+  assert.equal(bursts.length, 0);
+  assert.deepEqual(fired, ['j', 'j', 'l', 'x', 'x', 'X', 'gb', 'gp']);
+  off(); s.dispose();
+});
+
+test('"laa": two keys, then one into the picker they opened', () => {
+  const s = keys.scope('typing-test');
+  s.bind('l', () => {}, 'l'); s.bind('a', () => {}, 'a');
+  const bursts = []; const off = keys.onTyping(b => bursts.push(b));
+  const input = { tagName: 'INPUT' };
+  press('l', 2000); press('a');
+  on.focusin({ target: input, timeStamp: t + 5 });
+  t += 50;
+  on.keydown({ key: 'a', timeStamp: t, target: input, preventDefault() {}, stopPropagation() {} });
+  assert.equal(bursts.length, 1);
+  off(); s.dispose();
+});
+
 test('typing in a field you chose never pauses', () => {
   const s = keys.scope('typing-test');
   const bursts = []; const off = keys.onTyping(b => bursts.push(b));

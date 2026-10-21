@@ -30,15 +30,19 @@ try { for (const r of JSON.parse(localStorage.getItem('lw:keyreg') || '[]')) reg
 let regTimer = 0;
 const listeners = new Set();
 const CHORD_MS = 2500; // long enough to read the chord hint (lib/chrome.js)
-// Typing that missed its field: TYPE_RUN plain keys, not all the same, each within TYPE_GAP of the last. Nobody
-// presses shortcuts that fast; typists do. Keys typed into a field the run itself opened (a picker) count too. The burst takes back what its first keys did (the state from before
-// them: modals they opened, keep() hooks, the focus), pauses plain keys until TYPE_QUIET passes without one (or
+// Typing that missed its field: TYPE_RUN different plain keys, each within TYPE_GAP of the last (j j l and x x X
+// are a quick hand), or two and then one into a field they opened (l a opens the assignee picker, the rest of
+// "laa" lands in it). Nobody presses shortcuts that fast; typists do. A chord (g b) starts afresh. The burst
+// takes back what its first keys did (the state from before them: modals they opened, keep() hooks, the focus), pauses plain keys until TYPE_QUIET passes without one (or
 // Escape), and offers what was typed to the field last used. A bind with {writes: true} (a change no hook takes
 // back) waits TYPE_GAP on its plain key, and a different plain key in that time drops it.
 const TYPE_RUN = 3, TYPE_GAP = 200, TYPE_QUIET = 1000;
 const LATE_MS = 1500; // a modal a burst's key opens later (it awaited something) closes too, until this after its last key
-let run = [], runAt = 0, fieldAt = 0, lastPlain = 0, paused = false, lateUntil = 0, before = null, burst = null, held = null, lastField = null;
+let run = [], outside = 0, runAt = 0, fieldAt = 0, lastPlain = 0, paused = false, lateUntil = 0, before = null, burst = null, held = null, lastField = null;
 const typingListeners = new Set(), keepers = new Set();
+// The e2e tests press keys faster than anyone types: localStorage lw:typing = off spares them the above.
+let guard = true;
+try { guard = localStorage.getItem('lw:typing') !== 'off'; } catch (e) { /* ignore */ }
 // Single-key shortcuts (WCAG 2.1.4): off leaves plain characters to the browser; named keys and mod+ stay.
 let single = true;
 const isPlain = k => k.length === 1 || k === 'Space';
@@ -121,11 +125,11 @@ function onKey(e) {
   // Tab walks the bars like normal; only the page (view, panel) gives it a meaning.
   if (k === 'Tab' && e.target.closest && e.target.closest('#top, #viewbar')) return;
   const field = inField(e.target);
-  const opened = field && run.length && fieldAt >= runAt && (e.timeStamp || Date.now()) - lastPlain < TYPE_GAP;
+  const opened = guard && field && run.length && fieldAt >= runAt && (e.timeStamp || Date.now()) - lastPlain < TYPE_GAP;
   if (!field || opened) {
     if (!field && !single && !pending.length && k.length === 1) return;
     settle(k);
-    if (typing(e, k)) { e.preventDefault(); e.stopPropagation(); return; }
+    if (guard && typing(e, k, opened)) { e.preventDefault(); e.stopPropagation(); return; }
   }
   const buf = pending.concat(k);
   const vis = visible();
@@ -141,23 +145,25 @@ function onKey(e) {
   }
   if (exact) {
     clearPending(); e.preventDefault(); e.stopPropagation();
-    if (exact.writes && !field && buf.length === 1 && isPlain(k)) { const fn = exact.fn; held = { k, fn: () => fn(e), t: setTimeout(() => settle(''), TYPE_GAP) }; return; }
+    if (buf.length > 1) run = [];
+    if (guard && exact.writes && !field && buf.length === 1 && isPlain(k)) { const fn = exact.fn; held = { k, fn: () => fn(e), t: setTimeout(() => settle(''), TYPE_GAP) }; return; }
     exact.fn(e); return;
   }
   if (prefix) { e.preventDefault(); pending = buf; clearTimeout(timer); timer = setTimeout(clearPending, CHORD_MS); notify(); return; }
   if (pending.length) { clearPending(); if (!field) e.preventDefault(); }
 }
 // Whether e is a key typed into nothing, to swallow: true while paused, and on the key that shows a burst.
-function typing(e, k) {
+function typing(e, k, picked) {
   if (!isPlain(k)) { if (k === 'Escape') paused = false, lateUntil = 0; run = []; return false; }
   if (e.repeat) return paused;
   const now = e.timeStamp || Date.now(), gap = now - lastPlain, ch = k === 'Space' ? ' ' : k;
   lastPlain = now;
   if (paused && gap < TYPE_QUIET) { burst.text += ch; lateUntil = Date.now() + LATE_MS; return true; }
   paused = false;
-  if (run.length && gap < TYPE_GAP) run.push(k); else { run = [k]; runAt = now; before = save(); burst = { text: '' }; }
+  if (run.length && gap < TYPE_GAP) run.push(k); else { run = [k]; outside = 0; runAt = now; before = save(); burst = { text: '' }; }
   burst.text += ch;
-  if (run.length < TYPE_RUN || new Set(run).size < 2) return false;
+  if (!picked) outside++;
+  if (picked ? outside < 2 : new Set(run).size < TYPE_RUN) return false;
   paused = true; run = []; clearPending(); takeBack(before); lateUntil = Date.now() + LATE_MS;
   const b = burst, f = typable(lastField) ? lastField : null;
   for (const fn of typingListeners) fn({ field: f && (f.lwName || f.getAttribute('aria-label') || f.placeholder || f.title || f.name || T('the field')), put: f && (() => put(f, b.text)) });

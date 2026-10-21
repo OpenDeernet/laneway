@@ -63,18 +63,22 @@ async function watchVitals(page, vitals) {
 // test.use({ bulk: n }) gives the demo n issues more, { flavour: 'laneway' }
 // makes it laneway-server; { inp: ms } is the test's INP budget, failed on
 // with INP_BUDGETS=1 (a serial run: parallel workers' contention is no
-// app's); { cls: n } its CLS budget, always.
+// app's); { cls: n } its CLS budget, always. Playwright presses keys faster
+// than anyone types: { typing: true } keeps the guard against typing that
+// missed its field (lib/keys.js), off for the rest.
 export const test = base.extend({
   bulk: [0, { option: true }],
   flavour: ['', { option: true }],
   inp: [0, { option: true }],
   cls: [0, { option: true }],
-  app: async ({ page, bulk, flavour, inp, cls }, use, info) => {
+  typing: [false, { option: true }],
+  app: async ({ page, bulk, flavour, inp, cls, typing }, use, info) => {
     const unhandled = info.outputPath('unhandled.txt');
     const server = start(unhandled, bulk, flavour);
     const errors = [];
     const vitals = {};
     await watchVitals(page, vitals);
+    if (!typing) await page.addInitScript(() => localStorage.setItem('lw:typing', 'off'));
     // CPU_SLOWDOWN=4: a slower machine's INP (Chromium only).
     if (process.env.CPU_SLOWDOWN) await (await page.context().newCDPSession(page)).send('Emulation.setCPUThrottlingRate', { rate: +process.env.CPU_SLOWDOWN });
     page.on('pageerror', e => errors.push(`pageerror: ${e.message}`));
