@@ -35,7 +35,7 @@ a modifier off, for speech input; the palette (`ctrl+k`) still runs them.
 | `esc` | close the panel | |
 | `@` | switch or add a Jira site | |
 | `T`, `w` | timer, log work | |
-| `u` | undo the last edit | |
+| `ctrl+z` `u` | undo the last edit (⌘z on a mac; in a text field the field's own undo) | `u` |
 | `S`, `alt+s` | start work; another agent in the worktree | |
 | `ctrl+y` | copy a branch name | |
 | `ctrl+\` | type into the issue's agent | |

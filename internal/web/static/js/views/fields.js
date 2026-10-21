@@ -9,14 +9,15 @@ import { mdEdit } from '../lib/mdedit.js';
 
 css('forms');
 
-// ---- undo: a session stack of {what, run}; `u` takes the latest back.
+// ---- undo: a session stack of {what, run}; mod+z (or `u`, as the TUI) takes the latest back, outside text fields.
 const stack = [];
 let scope = null;
 
 export function installUndo(app) {
   if (scope) return;
   scope = keys.scope('undo');
-  scope.bind('u', () => undo(app), T('undo last edit'), { group: T('Edit'), when: () => stack.length > 0, writes: true });
+  scope.bind(['mod+z', 'u'], () => undo(app), T('undo last edit'), { group: T('Edit'), when: () => stack.length > 0, writes: true });
+  app.commands.register({ id: 'undo', group: 'Edit', get title() { return T('Undo: %s', stack.length ? stack[stack.length - 1].what : ''); }, keys: 'mod+z', when: () => stack.length > 0, run: () => undo(app) });
 }
 
 // pushUndo(app, what, run): run() is an async function that takes the change back.
