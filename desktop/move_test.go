@@ -41,3 +41,32 @@ func TestMoveApp(t *testing.T) {
 		t.Errorf("xattr ran with %q", b)
 	}
 }
+
+// TestMoveAppInPlace: an app already in Applications, moved there without
+// the Finder, stays; only its quarantine is cleared.
+func TestMoveAppInPlace(t *testing.T) {
+	dir := t.TempDir()
+	bin := filepath.Join(dir, "bin")
+	home := filepath.Join(dir, "home")
+	app := filepath.Join(dir, "Applications", "Laneway.app")
+	for _, d := range []string{bin, filepath.Join(home, ".Trash"), app} {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	os.WriteFile(filepath.Join(app, "it"), nil, 0o644)
+	cleared := filepath.Join(dir, "xattr-args")
+	os.WriteFile(filepath.Join(bin, "xattr"), []byte("#!/bin/sh\necho \"$@\" > "+cleared+"\n"), 0o755)
+	t.Setenv("PATH", bin)
+	t.Setenv("HOME", home)
+
+	if err := moveApp(app, app); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(app, "it")); err != nil {
+		t.Error("the app left Applications")
+	}
+	if b, _ := os.ReadFile(cleared); string(b) != "-dr com.apple.quarantine "+app+"\n" {
+		t.Errorf("xattr ran with %q", b)
+	}
+}

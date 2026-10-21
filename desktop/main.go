@@ -9,9 +9,11 @@ import (
 	"fmt"
 	"log"
 	"net/url"
+	"os"
 	"runtime"
 	"strconv"
 	"sync/atomic"
+	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
@@ -42,6 +44,18 @@ type desktop struct {
 }
 
 func main() {
+	if f, err := appendLog("desktop-app.log"); err == nil {
+		log.SetOutput(f) // started from the Finder, stderr goes nowhere
+	}
+	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
+	exe, _ := os.Executable()
+	log.Printf("--- laneway desktop %s, pid %d, %s", version, os.Getpid(), exe)
+	// A start that hangs leaves where it hangs in the log.
+	watchdog := time.AfterFunc(15*time.Second, func() {
+		buf := make([]byte, 1<<20)
+		log.Printf("not started after 15s:\n%s", buf[:runtime.Stack(buf, true)])
+	})
+
 	d := &desktop{ns: notifications.New(), dock: dock.New()}
 	origin := "http://" + addr
 	mac := runtime.GOOS == "darwin"
@@ -64,10 +78,7 @@ func main() {
 		},
 	})
 
-	// After New: a second instance exits there, before it would empty the log.
-	if f, err := logFile("desktop-app.log"); err == nil {
-		log.SetOutput(f) // started from the Finder, stderr goes nowhere
-	}
+	log.Print("app made")
 
 	p := loadPlace()
 	opts := application.WebviewWindowOptions{
@@ -118,9 +129,12 @@ func main() {
 		}
 	})
 
+	log.Print("window made")
 	srv := &server{addr: addr}
 	d.app.OnShutdown(srv.stop)
 	d.app.Event.OnApplicationEvent(events.Common.ApplicationStarted, func(*application.ApplicationEvent) {
+		watchdog.Stop()
+		log.Print("started")
 		restore(d.app, d.win, p)
 		d.win.Show()
 		if mac {

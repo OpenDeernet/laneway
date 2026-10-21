@@ -86,15 +86,38 @@ func (s *server) version() string {
 
 // logFile creates name in laneway's cache directory.
 func logFile(name string) (*os.File, error) {
+	path, err := logPath(name)
+	if err != nil {
+		return nil, err
+	}
+	return os.Create(path)
+}
+
+// logPath is name in laneway's cache directory, made if missing.
+func logPath(name string) (string, error) {
 	dir, err := os.UserCacheDir()
 	if err != nil {
 		dir = os.TempDir()
 	}
 	dir = filepath.Join(dir, "laneway")
 	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, name), nil
+}
+
+// appendLog opens name in laneway's cache directory to add to, emptied
+// first when over 1 MB: what earlier starts logged stays, a hang included.
+func appendLog(name string) (*os.File, error) {
+	path, err := logPath(name)
+	if err != nil {
 		return nil, err
 	}
-	return os.Create(filepath.Join(dir, name))
+	flag := os.O_WRONLY | os.O_CREATE | os.O_APPEND
+	if fi, err := os.Stat(path); err == nil && fi.Size() > 1<<20 {
+		flag |= os.O_TRUNC
+	}
+	return os.OpenFile(path, flag, 0o600)
 }
 
 // lanewayPath is the laneway binary in the app bundle, else on PATH.

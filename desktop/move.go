@@ -53,15 +53,18 @@ func (d *desktop) moveToApplications(orig string) {
 // moveApp puts the bundle at orig at dst, an older one there in the Trash,
 // and clears the quarantine that makes macOS run a temporary copy.
 func moveApp(orig, dst string) error {
-	if _, err := os.Stat(dst); err == nil {
-		if err := trash(dst); err != nil {
-			return fmt.Errorf("the Laneway in Applications did not go to the Trash: %w", err)
+	// orig is dst when it was moved there without the Finder: only the quarantine to clear.
+	if orig != dst {
+		if _, err := os.Stat(dst); err == nil {
+			if err := trash(dst); err != nil {
+				return fmt.Errorf("the Laneway in Applications did not go to the Trash: %w", err)
+			}
 		}
-	}
-	if err := os.Rename(orig, dst); err != nil {
-		// Another volume (a disk image, say): copy it, the original stays.
-		if out, err := exec.Command("ditto", orig, dst).CombinedOutput(); err != nil {
-			return fmt.Errorf("copying to Applications: %s", strings.TrimSpace(string(out)))
+		if err := os.Rename(orig, dst); err != nil {
+			// Another volume (a disk image, say): copy it, the original stays.
+			if out, err := exec.Command("ditto", orig, dst).CombinedOutput(); err != nil {
+				return fmt.Errorf("copying to Applications: %s", strings.TrimSpace(string(out)))
+			}
 		}
 	}
 	if out, err := exec.Command("xattr", "-dr", "com.apple.quarantine", dst).CombinedOutput(); err != nil {
