@@ -51,9 +51,9 @@ func main() {
 	exe, _ := os.Executable()
 	log.Printf("--- laneway desktop %s, pid %d, %s", version, os.Getpid(), exe)
 	// A start that hangs leaves where it hangs in the log.
-	watchdog := time.AfterFunc(15*time.Second, func() {
+	watchdog := time.AfterFunc(30*time.Second, func() {
 		buf := make([]byte, 1<<20)
-		log.Printf("not started after 15s:\n%s", buf[:runtime.Stack(buf, true)])
+		log.Printf("laneway web not shown after 30s:\n%s", buf[:runtime.Stack(buf, true)])
 	})
 
 	d := &desktop{ns: notifications.New(), dock: dock.New()}
@@ -133,7 +133,6 @@ func main() {
 	srv := &server{addr: addr}
 	d.app.OnShutdown(srv.stop)
 	d.app.Event.OnApplicationEvent(events.Common.ApplicationStarted, func(*application.ApplicationEvent) {
-		watchdog.Stop()
 		log.Print("started")
 		restore(d.app, d.win, p)
 		d.win.Show()
@@ -142,7 +141,9 @@ func main() {
 		}
 		d.initUpdates()
 		go func() {
-			if err := srv.start(); err != nil {
+			err := srv.start()
+			watchdog.Stop()
+			if err != nil {
 				log.Print(err)
 				d.app.Dialog.Error().SetTitle("Laneway did not start").SetMessage(err.Error()).Show()
 				d.app.Quit()

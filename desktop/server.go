@@ -143,7 +143,13 @@ func loginPath() string {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	out, err := exec.CommandContext(ctx, sh, "-l", "-i", "-c", `printf '\n@@%s@@' "$PATH"`).Output()
+	cmd := exec.CommandContext(ctx, sh, "-l", "-i", "-c", `printf '\n@@%s@@' "$PATH"`)
+	// A daemon the shell's profile starts keeps stdout open: stop reading it soon after.
+	cmd.WaitDelay = time.Second
+	out, err := cmd.Output()
+	if errors.Is(err, exec.ErrWaitDelay) {
+		err = nil
+	}
 	if _, rest, ok := bytes.Cut(out, []byte("\n@@")); err == nil && ok {
 		if p, _, ok := bytes.Cut(rest, []byte("@@")); ok && len(p) > 0 {
 			return string(p)
