@@ -6,6 +6,7 @@ import { css } from '../lib/css.js';
 import { keys, keyHint, modText } from '../lib/keys.js';
 import { T } from '../lib/i18n.js';
 import { mdEdit } from '../lib/mdedit.js';
+import { issueInput } from '../lib/issueinput.js';
 
 css('forms');
 
@@ -358,9 +359,10 @@ export function formDialog(app, { title, intro, rows, ok = T('Save'), submit, wi
 
 const HINT = { number: '5', date: '2026-10-01, today, +3d, fri', time: 'fri 14:00', issue: 'ABC-123' };
 
-// fieldInput(app, fieldMeta, {project, issue, value, required}) → {el, get() → Value, empty(), touched()}.
+// fieldInput(app, fieldMeta, {project, issue, type, value, required}) → {el, get() → Value, empty(), touched()}.
+// type is a new issue's (no issue yet), for the parents it can have.
 // The Value has the shape the API encodes for fm.Kind (see jira.EncodeValue).
-export function fieldInput(app, fm, { project, issue, value, required, onChange } = {}) {
+export function fieldInput(app, fm, { project, issue, type, value, required, onChange } = {}) {
   const v = value || {};
   let dirty = false;
   const touch = () => { dirty = true; if (onChange) onChange(); };
@@ -374,17 +376,11 @@ export function fieldInput(app, fm, { project, issue, value, required, onChange 
   };
   switch (fm.Kind) {
     case 'issue': {
-      // The key typed, or found by its words (the same /find the link dialog uses).
-      const i = h('input.input', { type: 'text', value: v.Text || '', placeholder: HINT.issue, oninput: touch, spellcheck: false, autocomplete: 'off', autocapitalize: 'off' });
-      const find = async () => {
-        const c = await app.ui.pick({ title: fm.Name, items: [], label: c => c.Key + ' ' + c.Summary, placeholder: T('Find an issue or type its key…'), empty: T('Type to search'),
-          create: q => ({ Key: q.trim().toUpperCase(), Summary: '' }),
-          search: async q => (q.trim().length > 1 ? (await app.api.get('/find?q=' + encodeURIComponent(q.trim()))).cards.filter(c => c.Key !== issue) : []) });
-        if (c) { i.value = c.Key; touch(); }
-        i.focus();
-      };
-      w.el = h('div.field-btn', i, h('button.btn', { type: 'button', onclick: find }, T('Find…')));
-      w.get = () => ({ Text: i.value.trim().toUpperCase() }); w.empty = () => !i.value.trim();
+      // The parent: only the issues that can be (one level up); any other issue field: any issue.
+      const parent = fm.ID === 'parent';
+      const ii = issueInput({ value: v.Text || '', label: fm.Name, project: project || (issue ? projectOf(issue) : ''),
+        parentOf: parent ? issue : '', type: parent && !issue ? type : '', oninput: touch });
+      w.el = ii.el; w.get = () => ({ Text: ii.get() }); w.empty = () => !ii.get();
       break;
     }
     case 'text': case 'number': case 'date': case 'time': {

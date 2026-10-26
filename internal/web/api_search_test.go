@@ -88,6 +88,50 @@ func TestSearchRoutes(t *testing.T) {
 	if code := searchGet(t, ts.URL+"/api/find?q="+url.QueryEscape(word), nil); code != 200 {
 		t.Errorf("find: %d", code)
 	}
+	find := func(query string) []jira.Card {
+		t.Helper()
+		var f struct{ Cards []jira.Card }
+		if code := searchGet(t, ts.URL+"/api/find?"+query, &f); code != 200 {
+			t.Fatalf("find %s: %d", query, code)
+		}
+		return f.Cards
+	}
+	key := out.Cards[0].Key
+	if got := find("q=" + strings.ToLower(key)); len(got) != 1 || got[0].Key != key {
+		t.Errorf("find by key %s: %+v", key, got)
+	}
+	if got := find("project=DEMO&q=" + key[strings.LastIndex(key, "-")+1:]); len(got) != 1 || got[0].Key != key {
+		t.Errorf("find by number of %s: %+v", key, got)
+	}
+	typed := func(typ string) jira.Card {
+		t.Helper()
+		var o struct{ Cards []jira.Card }
+		searchGet(t, ts.URL+"/api/search?jql="+url.QueryEscape("issuetype = "+typ), &o)
+		if len(o.Cards) == 0 {
+			t.Fatalf("no %s in the demo", typ)
+		}
+		return o.Cards[0]
+	}
+	story, sub, epic := typed("Story"), typed("Sub-task"), typed("Epic")
+	// a story's parent is an epic; a typed key of another type finds nothing
+	for _, c := range find("parentOf=" + story.Key + "&q=" + url.QueryEscape(strings.Fields(epic.Summary)[0])) {
+		if c.Type != "Epic" {
+			t.Errorf("story's parent candidate %s is a %s", c.Key, c.Type)
+		}
+	}
+	if got := find("parentOf=" + story.Key + "&q=" + sub.Key); len(got) != 0 {
+		t.Errorf("a subtask offered as a story's parent: %+v", got)
+	}
+	if got := find("project=DEMO&type=Story&q=" + epic.Key); len(got) != 1 {
+		t.Errorf("new story's parent %s: %+v", epic.Key, got)
+	}
+	// a subtask's is a standard issue, not an epic nor itself
+	if got := find("parentOf=" + sub.Key + "&q=" + epic.Key); len(got) != 0 {
+		t.Errorf("an epic offered as a subtask's parent: %+v", got)
+	}
+	if got := find("parentOf=" + sub.Key + "&q=" + story.Key); len(got) != 1 {
+		t.Errorf("subtask's parent %s: %+v", story.Key, got)
+	}
 	var words jira.JQLWords
 	if code := searchGet(t, ts.URL+"/api/jql/words", &words); code != 200 || len(words.Fields) == 0 {
 		t.Errorf("words: %d %v", code, words)

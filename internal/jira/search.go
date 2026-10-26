@@ -165,6 +165,13 @@ func (c *Client) Count(ctx context.Context, jql string) (int, error) {
 // description and comments, words as typed prefixes; one page of n,
 // recently updated first.
 func (c *Client) FindIssues(ctx context.Context, text string, n int) ([]Card, error) {
+	return c.FindIssuesIn(ctx, text, "", "", n)
+}
+
+// FindIssuesIn is FindIssues among the issues JQL within finds ("" for all),
+// its open ones when text is empty. A typed key (or a bare number, in
+// project) finds that issue alone when it exists and is within.
+func (c *Client) FindIssuesIn(ctx context.Context, text, within, project string, n int) ([]Card, error) {
 	if !c.Enabled() {
 		return nil, errNotConfigured
 	}
@@ -174,15 +181,39 @@ func (c *Client) FindIssues(ctx context.Context, text string, n int) ([]Card, er
 		}
 		return r
 	}, strings.TrimSpace(text))
+	scope := func(jql string) string {
+		if within == "" {
+			return jql
+		}
+		return "(" + within + ") AND " + jql
+	}
 	if clean == "" {
-		return nil, nil
+		if within == "" {
+			return nil, nil
+		}
+		return c.findPage(ctx, scope("statusCategory != Done"), n) // nothing typed: the open ones
+	}
+	k := strings.ToUpper(clean)
+	number := project != "" && strings.Trim(k, "0123456789") == ""
+	if number {
+		k = project + "-" + k
+	}
+	if ValidKey(k) {
+		cards, err := c.findPage(ctx, scope("key = "+k), 1)
+		if err == nil && len(cards) > 0 || !number {
+			return cards, nil // a key that doesn't exist is Jira's 400: nothing found
+		}
 	}
 	var words []string
 	for _, w := range strings.Fields(clean) {
 		words = append(words, w+"*")
 	}
-	body := map[string]any{"jql": `text ~ "` + strings.Join(words, " ") + `" ORDER BY updated DESC`,
-		"fields": strings.Split(cardFields, ","), "maxResults": n}
+	return c.findPage(ctx, scope(`text ~ "`+strings.Join(words, " ")+`"`), n)
+}
+
+// findPage is the first n cards jql finds, recently updated first.
+func (c *Client) findPage(ctx context.Context, jql string, n int) ([]Card, error) {
+	body := map[string]any{"jql": jql + " ORDER BY updated DESC", "fields": strings.Split(cardFields, ","), "maxResults": n}
 	var resp struct {
 		Issues []rawIssue `json:"issues"`
 	}

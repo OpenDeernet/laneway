@@ -343,8 +343,9 @@ func (s *Server) read(p string, q map[string][]string) (any, bool) {
 		return out, true
 	case "/rest/api/3/issue/createmeta/" + project + "/issuetypes":
 		var out []any
+		level := map[string]int{"Epic": 1, "Sub-task": -1}
 		for _, name := range []string{"Story", "Task", "Bug", "Epic", "Sub-task"} {
-			out = append(out, map[string]any{"id": types[name], "name": name, "subtask": name == "Sub-task"})
+			out = append(out, map[string]any{"id": types[name], "name": name, "subtask": name == "Sub-task", "hierarchyLevel": level[name]})
 		}
 		return map[string]any{"issueTypes": out, "maxResults": len(out), "startAt": 0, "total": len(out)}, true
 	case "/rest/api/3/jql/autocompletedata":
@@ -363,11 +364,15 @@ func (s *Server) read(p string, q map[string][]string) (any, bool) {
 	case "/rest/agile/1.0/board":
 		return map[string]any{"isLast": true, "total": 1, "values": []any{map[string]any{"id": boardID, "name": "DEMO board", "type": "scrum"}}}, true
 	}
-	if strings.HasPrefix(p, "/rest/api/3/issue/createmeta/"+project+"/issuetypes/") {
-		return map[string]any{"fields": []any{
+	if id, ok := strings.CutPrefix(p, "/rest/api/3/issue/createmeta/"+project+"/issuetypes/"); ok {
+		fields := []any{
 			map[string]any{"fieldId": "summary", "name": "Summary", "required": true, "schema": map[string]any{"type": "string"}},
 			map[string]any{"fieldId": "description", "name": "Description", "required": false, "schema": map[string]any{"type": "string"}},
-		}, "maxResults": 2, "startAt": 0, "total": 2}, true
+		}
+		if id != types["Epic"] { // an epic has no parent
+			fields = append(fields, map[string]any{"fieldId": "parent", "name": "Parent", "required": id == types["Sub-task"], "schema": map[string]any{"type": "issuelink", "system": "parent"}})
+		}
+		return map[string]any{"fields": fields, "maxResults": len(fields), "startAt": 0, "total": len(fields)}, true
 	}
 	b := "/rest/agile/1.0/board/" + strconv.Itoa(boardID)
 	switch p {

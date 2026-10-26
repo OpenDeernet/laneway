@@ -24,6 +24,9 @@ const PART = {
   avatar: () => h('span.cav'), assignee: () => h('span.cav.cwho'),
 };
 
+// typeBadge is c's type icon on its own (the issue input's suggestions).
+export function typeBadge(c) { const el = h('span'); fillType(el, c); return el; }
+
 // fillType draws c's type: our icon for Jira's stock ones (TypeKind), else the type's own icon from Jira, else by name.
 function fillType(el, c) {
   const own = c.TypeAvatar && !brokenTypeIcons.has(c.TypeAvatar);

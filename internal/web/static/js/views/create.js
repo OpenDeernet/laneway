@@ -156,7 +156,7 @@ export async function openCreate(app, opts = {}) {
       const req = [], common = [], rest = [];
       for (const f of fields) {
         const value = kept.get(f.ID) || (f.ID === 'parent' && opts.parent ? { Text: opts.parent } : undefined);
-        const w = fieldInput(app, f, { project, value, required: f.Required, onChange: () => reask() });
+        const w = fieldInput(app, f, { project, type, value, required: f.Required, onChange: () => reask() });
         if (kept.has(f.ID)) w.touch();
         widgets.set(f.ID, w);
         const row = formRow(f.Name, w.el, f.Required);

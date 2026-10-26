@@ -258,8 +258,9 @@ export default function mount(el, { app, scope, toolbar, query }) {
   }
 
   async function pickIssue(title = T('Log work on')) {
-    const c = await ui.pick({ title, items: cards, label: c => c.Key + ' ' + c.Summary, placeholder: T('Issue key, or filter your work'),
+    const c = await ui.pick({ title, items: cards, label: c => c.Key + ' ' + c.Summary, placeholder: T('Find an issue or type its key…'),
       create: q => ({ Key: q.trim().toUpperCase(), Summary: '' }), empty: T('Type an issue key'),
+      search: async q => (q.trim().length > 1 ? (await app.api.get('/find?q=' + encodeURIComponent(q.trim()))).cards.filter(c => !cards.some(x => x.Key === c.Key)) : []),
       first: q => { const k = q.trim().toUpperCase(); return KEY_RE.test(k) ? cards.find(c => c.Key === k) || { Key: k, Summary: '' } : null; } });
     if (!c) return null;
     if (!KEY_RE.test(c.Key)) { ui.toast(T('Not an issue key: %s', c.Key), { kind: 'err' }); return null; }

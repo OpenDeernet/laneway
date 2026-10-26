@@ -306,6 +306,7 @@ func editMetaJSON() map[string]any {
 		return out
 	}
 	return map[string]any{"fields": map[string]any{
+		"parent":     map[string]any{"name": "Parent", "required": false, "schema": map[string]any{"type": "issuelink", "system": "parent"}},
 		"components": map[string]any{"name": "Components", "required": false, "schema": map[string]any{"type": "array", "items": "component", "system": "components"}, "allowedValues": opts(components, "name")},
 		testField:    map[string]any{"name": "Test notes", "required": false, "schema": map[string]any{"type": "string", "custom": "com.atlassian.jira.plugin.system.customfieldtypes:textarea"}},
 		legacyField:  map[string]any{"name": "Legacy ref", "required": false, "schema": map[string]any{"type": "string", "custom": "com.atlassian.jira.plugin.system.customfieldtypes:textfield"}},

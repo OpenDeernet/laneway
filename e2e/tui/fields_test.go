@@ -74,13 +74,13 @@ func TestDescription(t *testing.T) {
 // ones; Team is a select.
 func TestCustomField(t *testing.T) {
 	s := panelOn(t)
-	s.wait("More fields: ▸ 4")
+	s.wait("More fields: ▸ 5")
 	for range 10 { // Summary … Labels, Updated, Created, then More
 		s.keys("Tab")
 	}
 	s.keys("Enter")
 	s.wait("Team *:      —")
-	s.keys("Tab", "Tab", "Tab", "Enter") // Components, Legacy ref, Team
+	s.keys("Tab", "Tab", "Tab", "Tab", "Enter") // Components, Legacy ref, Parent, Team
 	s.wait("Platform")
 	s.typ("Plat")
 	s.gone("Web")

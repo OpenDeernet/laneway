@@ -24,12 +24,34 @@ func init() {
 		return map[string]any{"cards": cards, "total": total}, err
 	})
 	// GET /find?q=&n= is the text search over every visible issue; {cards}.
+	// A typed key finds that issue, a bare number one in project. With
+	// parentOf (an issue key), or type (a new issue's, in project), only the
+	// issues that can be its parent.
 	get("/find", func(ctx context.Context, s *Server, r *http.Request) (any, error) {
 		n, _ := strconv.Atoi(Q(r, "n"))
 		if n <= 0 || n > 50 {
 			n = 20
 		}
-		cards, err := s.Client().FindIssues(ctx, Q(r, "q"), n)
+		c, project, typ, self := s.Client(), strings.ToUpper(Q(r, "project")), Q(r, "type"), strings.ToUpper(Q(r, "parentOf"))
+		if self != "" {
+			if !jira.ValidKey(self) {
+				return nil, badRequest(i18n.T("bad issue key"))
+			}
+			iss, err := c.Get(ctx, self)
+			if err != nil {
+				return nil, err
+			}
+			project, typ = self[:strings.LastIndex(self, "-")], iss.Type
+		}
+		var within string
+		if typ != "" && project != "" {
+			var err error
+			if within, err = c.ParentJQL(ctx, project, typ); err != nil {
+				return nil, err
+			}
+		}
+		cards, err := c.FindIssuesIn(ctx, Q(r, "q"), within, project, n)
+		cards = slices.DeleteFunc(cards, func(x jira.Card) bool { return x.Key == self })
 		if cards == nil {
 			cards = []jira.Card{}
 		}

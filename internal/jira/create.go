@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"strconv"
 	"strings"
 )
 
@@ -112,10 +113,13 @@ func (c *Client) SetIssueType(ctx context.Context, key, typeID string) error {
 	return nil
 }
 
-// issueType is an issue type creatable in a project.
+// issueType is an issue type creatable in a project. Level is its
+// hierarchy level (-1 subtask, 0 standard, 1 epic, above that higher);
+// nil when Jira does not say (Data Center).
 type issueType struct {
 	Option
 	Subtask bool
+	Level   *int
 }
 
 // allIssueTypes lists the issue types creatable in project, subtasks too.
@@ -128,6 +132,7 @@ func (c *Client) allIssueTypes(ctx context.Context, project string) ([]issueType
 		Name    string `json:"name"`
 		Subtask bool   `json:"subtask"`
 		IconURL string `json:"iconUrl"`
+		Level   *int   `json:"hierarchyLevel"`
 	}
 	var resp struct {
 		IssueTypes []rawType `json:"issueTypes"`
@@ -139,9 +144,44 @@ func (c *Client) allIssueTypes(ctx context.Context, project string) ([]issueType
 	}
 	var out []issueType
 	for _, t := range append(resp.IssueTypes, resp.Values...) {
-		out = append(out, issueType{Option: Option{ID: t.ID, Name: t.Name, TypeKind: TypeKind(t.IconURL)}, Subtask: t.Subtask})
+		out = append(out, issueType{Option: Option{ID: t.ID, Name: t.Name, TypeKind: TypeKind(t.IconURL)}, Subtask: t.Subtask, Level: t.Level})
 	}
 	return out, nil
+}
+
+// ParentJQL is the JQL of the issues an issue of type typ in project can
+// have as its parent: the types one hierarchy level up, in project itself
+// for a subtask. "" when the levels are unknown: any issue may be offered.
+func (c *Client) ParentJQL(ctx context.Context, project, typ string) (string, error) {
+	types, err := c.allIssueTypes(ctx, project)
+	if err != nil {
+		return "", err
+	}
+	i := slices.IndexFunc(types, func(t issueType) bool { return strings.EqualFold(t.Name, typ) })
+	if i < 0 {
+		return "", nil
+	}
+	own := types[i]
+	if own.Level == nil {
+		if own.Subtask {
+			return "project = " + strconv.Quote(project) + " AND issuetype not in subTaskIssueTypes()", nil
+		}
+		return "", nil
+	}
+	var names []string
+	for _, t := range types {
+		if t.Level != nil && *t.Level == *own.Level+1 {
+			names = append(names, strconv.Quote(t.Name))
+		}
+	}
+	if len(names) == 0 {
+		return "", nil
+	}
+	jql := "issuetype in (" + strings.Join(names, ", ") + ")"
+	if own.Subtask {
+		jql = "project = " + strconv.Quote(project) + " AND " + jql
+	}
+	return jql, nil
 }
 
 // CreateField is a field on a create screen and whether Jira insists on it

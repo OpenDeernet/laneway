@@ -576,5 +576,10 @@
   "Typing outside a field: shortcuts paused": "Typen buiten een veld: sneltoetsen gepauzeerd",
   "Type it in %s": "Typ het in %s",
   "the field": "het veld",
-  "the terminal": "de terminal"
+  "the terminal": "de terminal",
+  "%s can’t be the parent, or doesn’t exist": "%s kan geen parent zijn, of bestaat niet",
+  "Key or words of its summary": "Key of woorden uit de samenvatting",
+  "No issue matches “%s”": "Geen issue past bij “%s”",
+  "Not an issue key": "Geen issue-key",
+  "Nothing open to choose": "Niets open om te kiezen"
 }
