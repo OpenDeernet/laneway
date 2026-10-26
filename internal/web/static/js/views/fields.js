@@ -373,7 +373,21 @@ export function fieldInput(app, fm, { project, issue, value, required, onChange 
     return box;
   };
   switch (fm.Kind) {
-    case 'text': case 'number': case 'date': case 'time': case 'issue': {
+    case 'issue': {
+      // The key typed, or found by its words (the same /find the link dialog uses).
+      const i = h('input.input', { type: 'text', value: v.Text || '', placeholder: HINT.issue, oninput: touch, spellcheck: false, autocomplete: 'off', autocapitalize: 'off' });
+      const find = async () => {
+        const c = await app.ui.pick({ title: fm.Name, items: [], label: c => c.Key + ' ' + c.Summary, placeholder: T('Find an issue or type its key…'), empty: T('Type to search'),
+          create: q => ({ Key: q.trim().toUpperCase(), Summary: '' }),
+          search: async q => (q.trim().length > 1 ? (await app.api.get('/find?q=' + encodeURIComponent(q.trim()))).cards.filter(c => c.Key !== issue) : []) });
+        if (c) { i.value = c.Key; touch(); }
+        i.focus();
+      };
+      w.el = h('div.field-btn', i, h('button.btn', { type: 'button', onclick: find }, T('Find…')));
+      w.get = () => ({ Text: i.value.trim().toUpperCase() }); w.empty = () => !i.value.trim();
+      break;
+    }
+    case 'text': case 'number': case 'date': case 'time': {
       const i = h('input.input', { type: 'text', value: v.Text || '', placeholder: HINT[fm.Kind] || '', oninput: touch });
       if (fm.Kind === 'number') i.setAttribute('inputmode', 'decimal');
       w.el = i; w.get = () => ({ Text: i.value }); w.empty = () => !i.value.trim();
