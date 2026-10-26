@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"math"
 	"net/http"
+	"slices"
+	"strconv"
 	"strings"
 )
 
@@ -208,7 +210,47 @@ func (c *Client) FindIssuesIn(ctx context.Context, text, within, project string,
 	for _, w := range strings.Fields(clean) {
 		words = append(words, w+"*")
 	}
-	return c.findPage(ctx, scope(`text ~ "`+strings.Join(words, " ")+`"`), n)
+	match := `text ~ "` + strings.Join(words, " ") + `"`
+	if project == "" {
+		return c.findPage(ctx, scope(match), n)
+	}
+	// project's own first: a page of its matches beside one of all, each
+	// open before done.
+	var own []Card
+	var ownErr error
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		own, ownErr = c.findPage(ctx, scope("project = "+strconv.Quote(project)+" AND "+match), n)
+	}()
+	all, err := c.findPage(ctx, scope(match), n)
+	<-done
+	if ownErr != nil && err != nil {
+		return nil, err
+	}
+	openFirst := func(cs []Card) {
+		slices.SortStableFunc(cs, func(a, b Card) int {
+			switch {
+			case a.Done == b.Done:
+				return 0
+			case b.Done:
+				return -1
+			}
+			return 1
+		})
+	}
+	openFirst(own)
+	openFirst(all)
+	out := own
+	for _, c := range all {
+		if len(out) >= n {
+			break
+		}
+		if !slices.ContainsFunc(out, func(x Card) bool { return x.Key == c.Key }) {
+			out = append(out, c)
+		}
+	}
+	return out, nil
 }
 
 // findPage is the first n cards jql finds, recently updated first.

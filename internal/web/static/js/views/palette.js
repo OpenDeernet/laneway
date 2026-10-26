@@ -129,7 +129,7 @@ export function openPalette(app, mode = '') {
   const searchRemote = debounce(() => {
     const v = q.trim();
     if (cur !== 'search' || v.length < 2) { stopFetch(); return; }
-    fetchJSON('/find?n=25&q=' + encodeURIComponent(v), (d, e) => {
+    fetchJSON('/find?n=25&q=' + encodeURIComponent(v) + '&project=' + encodeURIComponent(defaultProject() || ''), (d, e) => {
       if (e) { items.push({ type: 'msg', text: e.message, err: true }); draw(); return; }
       found = d.cards || []; foundFor = v; build();
     });

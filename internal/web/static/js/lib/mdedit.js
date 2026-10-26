@@ -166,7 +166,10 @@ export function mdEdit(app, o) {
     },
     async issueRef() {
       const c = await ui.pick({ title: T('Issue'), items: [], label: x => x.Key + ' ' + x.Summary, placeholder: T('Find an issue…'), empty: T('Type to search'),
-        search: async q => (q.length > 1 ? (await api.get('/find?q=' + encodeURIComponent(q))).cards : []) });
+        search: async q => {
+          const p = (o.issueKey ? o.issueKey.slice(0, o.issueKey.lastIndexOf('-')) : typeof o.project === 'function' ? o.project() : o.project) || ''; // its own ranked first
+          return q.length > 1 ? (await api.get('/find?q=' + encodeURIComponent(q) + '&project=' + encodeURIComponent(p))).cards : [];
+        } });
       ta.focus();
       if (c) ctl.insert(c.Key + ' ');
     },

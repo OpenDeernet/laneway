@@ -171,7 +171,7 @@ export async function issueActions(app, st, hk, only) {
     if (!t) return;
     const other = await ui.pick({ title: key + ' ' + t.label + ' …', items: [], label: c => c.Key + ' ' + c.Summary, placeholder: T('Find an issue or type its key…'), empty: T('Type to search'),
       create: q => ({ Key: q.trim().toUpperCase(), Summary: '' }),
-      search: async q => (q.trim().length > 1 ? (await api.get('/find?q=' + enc(q.trim()))).cards.filter(c => c.Key !== key) : []) });
+      search: async q => (q.trim().length > 1 ? (await api.get('/find?q=' + enc(q.trim()) + '&project=' + enc(project))).cards.filter(c => c.Key !== key) : []) });
     if (!other) return;
     await api.post('/issues/' + key + '/links', { Type: t.Type, Other: other.Key, Outward: t.Outward });
     hk.changed();

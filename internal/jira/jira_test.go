@@ -4,11 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -775,6 +777,42 @@ func TestFindIssues(t *testing.T) {
 	}
 	if jql != `text ~ "log* in*" ORDER BY updated DESC` {
 		t.Errorf("jql = %q", jql)
+	}
+}
+
+// TestFindIssuesProjectFirst: with a project, its matches come before the
+// others', open before done, each issue once.
+func TestFindIssuesProjectFirst(t *testing.T) {
+	var mu sync.Mutex
+	var jqls []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			JQL string `json:"jql"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		mu.Lock()
+		jqls = append(jqls, body.JQL)
+		mu.Unlock()
+		done := `{"status":{"name":"Done","statusCategory":{"key":"done"}}}`
+		open := `{"status":{"name":"To Do","statusCategory":{"key":"new"}}}`
+		if strings.HasPrefix(body.JQL, "(issuetype in (\"Epic\")) AND project = ") {
+			fmt.Fprintf(w, `{"issues":[{"key":"EM-9","fields":%s},{"key":"EM-23","fields":%s}]}`, done, open)
+			return
+		}
+		fmt.Fprintf(w, `{"issues":[{"key":"XX-1","fields":%s},{"key":"EM-9","fields":%s},{"key":"YY-2","fields":%s}]}`, done, done, open)
+	}))
+	defer srv.Close()
+	c := New(Config{BaseURL: srv.URL, Email: "me@x.test", APIToken: "tok"})
+	got, err := c.FindIssuesIn(context.Background(), "checkout", `issuetype in ("Epic")`, "EM", 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var keys []string
+	for _, g := range got {
+		keys = append(keys, g.Key)
+	}
+	if want := []string{"EM-23", "EM-9", "YY-2", "XX-1"}; !slices.Equal(keys, want) {
+		t.Errorf("keys = %v, want %v (jql %q)", keys, want, jqls)
 	}
 }
 
