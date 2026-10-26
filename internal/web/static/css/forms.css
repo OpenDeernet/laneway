@@ -31,7 +31,7 @@ label.check { display: inline-flex; align-items: center; gap: .286rem; cursor: p
 /* an issue key input that searches as you type (lib/issueinput.js) */
 .iin-box { position: relative; }
 .iin-in { width: 100%; }
-.iin .iin-pop { top: 100%; bottom: auto; margin-top: 2px; width: 100%; max-width: 100%; }
+.iin .iin-pop { position: fixed; z-index: 101; min-width: 0; max-height: none; } /* placed by issueinput.js, over the dialog (.overlay is 100) */
 .iin-row, .iin-sum { display: flex; align-items: center; gap: .571rem; min-width: 0; }
 .iin-sum { min-height: 1.6em; margin-top: .286rem; font-size: .929rem; } .iin-sum:empty { display: none; }
 .iin-key { font-family: var(--font-mono); font-weight: 600; flex: none; }

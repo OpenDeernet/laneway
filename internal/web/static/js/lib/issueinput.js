@@ -50,16 +50,32 @@ export function issueInput(o = {}) {
     });
   };
 
-  const close = () => { seq++; pop.hidden = true; items = []; input.setAttribute('aria-expanded', 'false'); };
+  const close = () => {
+    seq++; pop.hidden = true; items = []; input.setAttribute('aria-expanded', 'false');
+    removeEventListener('scroll', place, true); removeEventListener('resize', place);
+  };
   const paint = () => {
     if (document.activeElement !== input) return close();
     const q = input.value.trim();
     clear(pop).append(...(items.length ? items.map((c, i) => h('div.mp.iin-row' + (i === sel ? '.sel' : ''), { role: 'option', 'aria-selected': String(i === sel),
       onmousedown: e => { e.preventDefault(); accept(i); } }, ...row(c)))
       : [h('div.iin-none.faint', q ? T('No issue matches “%s”', q) : T('Nothing open to choose'))]));
+    const was = pop.hidden;
     pop.hidden = false; input.setAttribute('aria-expanded', 'true');
+    place();
+    if (was) { addEventListener('scroll', place, true); addEventListener('resize', place); }
     const s = pop.querySelector('.sel'); if (s) s.scrollIntoView({ block: 'nearest' });
   };
+  // Fixed to the viewport, so the dialog's own scrolling box doesn't cut it off: under the input, or over it
+  // when there is more room there.
+  const GAP = 2, EDGE = 8;
+  function place() {
+    if (pop.hidden) return;
+    const r = input.getBoundingClientRect(), below = innerHeight - r.bottom - GAP - EDGE, above = r.top - GAP - EDGE;
+    const up = below < Math.min(pop.scrollHeight, 240) && above > below;
+    Object.assign(pop.style, { left: r.left + 'px', width: r.width + 'px', maxHeight: Math.max(up ? above : below, 80) + 'px',
+      top: up ? 'auto' : r.bottom + GAP + 'px', bottom: up ? innerHeight - r.top + GAP + 'px' : 'auto' });
+  }
   const search = debounce(n => {
     const q = input.value.trim();
     if (!q && !scoped) return close();
