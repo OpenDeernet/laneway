@@ -95,6 +95,13 @@ func TestEditRoutes(t *testing.T) {
 	if code, r = put("parent", *r.Undo); code != 200 || r.Undo == nil || r.Undo.Text != "DEMO-1" {
 		t.Fatalf("parent undo: %d %+v", code, r.Undo)
 	}
+	// the panel's generic editor sends Kind and Value
+	if code, r = put("parent", edit{Kind: "issue", Value: jira.Value{Text: "DEMO-2"}}); code != 200 || r.Undo == nil || r.Undo.Text != "DEMO-1" {
+		t.Fatalf("parent by Value: %d %+v", code, r.Undo)
+	}
+	if code, r = put("parent", edit{Text: "DEMO-1"}); code != 200 || r.Undo == nil || r.Undo.Text != "DEMO-2" {
+		t.Fatalf("parent after Value: %d %+v", code, r.Undo)
+	}
 	if code, _ := put("parent", edit{Text: "not a key"}); code != 400 {
 		t.Errorf("bad parent: %d", code)
 	}

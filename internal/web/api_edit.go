@@ -289,11 +289,15 @@ func editOther(ctx context.Context, c *jira.Client, key string, e edit) (*edit, 
 	case "parent":
 		var prev struct{ Key string }
 		_ = json.Unmarshal(ic.Values["parent"], &prev)
-		if err := required(ctx, c, key, "parent", jira.Value{Text: e.Text}); err != nil {
+		text := e.Text
+		if text == "" && e.Kind != "" { // the panel's generic field editor sends Value
+			text = e.Value.Text
+		}
+		if err := required(ctx, c, key, "parent", jira.Value{Text: text}); err != nil {
 			return nil, err
 		}
 		var v any // no parent: cleared
-		if k := strings.TrimSpace(e.Text); k != "" {
+		if k := strings.TrimSpace(text); k != "" {
 			if !jira.ValidKey(k) {
 				return nil, badRequest(i18n.T("bad parent key"))
 			}
