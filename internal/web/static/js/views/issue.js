@@ -625,7 +625,7 @@ export function mountIssue(el, key, { app, full, card }) {
       ref && h('div.cm-ref', { dataset: { parent: ref.id }, title: T('Go to the comment it replies to') }, '↪ ', h('b', ref.who), ': ' + ref.text),
       h('header', ui.avatar(c.Author, null, 22), h('b', c.Author), h('time', { title: dateTime(c.Created) }, c.pending ? T('sending…') : ago(c.Created)),
         lock && h('span.cm-lock', { title: T('Visible to %s', lockWho) }, icon('lock'), ' ' + lockWho),
-        h('span.spacer'), !c.pending && h('span.acts', act('reply', T('Reply'), T('Reply (R)')), mine && act('edit', T('Edit'), T('Edit (e)')), mine && act('del', T('Delete'), T('Delete (d)')))),
+        h('span.spacer'), !c.pending && h('span.acts', act('reply', T('Reply'), T('Reply (R)')), act('link', T('Copy link'), T('Copy link to this comment')), mine && act('edit', T('Edit'), T('Edit (e)')), mine && act('del', T('Delete'), T('Delete (d)')))),
       body);
     cmEls.set(c.ID, { el: node, sig });
     return node;
@@ -674,7 +674,7 @@ export function mountIssue(el, key, { app, full, card }) {
     const b = e.target.closest('button[data-act]'); if (!b) return;
     const c = (st.issue.Comments || []).find(x => x.ID === art.dataset.id);
     if (!c) return;
-    ({ reply: () => replyTo(c), edit: () => editComment(c), del: () => deleteComment(c) })[b.dataset.act]();
+    ({ reply: () => replyTo(c), link: () => copy(browseURL() + '?focusedCommentId=' + encodeURIComponent(c.ID), T('Link')), edit: () => editComment(c), del: () => deleteComment(c) })[b.dataset.act]();
   });
 
   async function editComment(c) {

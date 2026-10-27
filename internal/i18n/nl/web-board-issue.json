@@ -214,6 +214,7 @@
   "Copy key (y)": "Key kopiëren (y)",
   "Copy link": "Link kopiëren",
   "Copy link (Y)": "Link kopiëren (Y)",
+  "Copy link to this comment": "Link naar deze reactie kopiëren",
   "Could not attach %s to %s": "%s bijvoegen aan %s mislukt",
   "Could not copy: %s": "Kopiëren mislukt: %s",
   "Could not load %s": "%s laden mislukt",
