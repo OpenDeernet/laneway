@@ -9,6 +9,7 @@ Options: the laneway URL (default `http://127.0.0.1:8484`) and the Jira hosts, o
 | Jira | laneway |
 | --- | --- |
 | `/browse/ABC-1`, `/issues/ABC-1`, `…/projects/ABC/issues/ABC-1` | `#/issue/ABC-1` |
+| `/browse/ABC-1?focusedCommentId=10001` (a comment's link) | `#/issue/ABC-1?comment=10001`: Comments tab, scrolled to it, highlighted |
 | `/browse/ABC`, `…/projects/ABC` (summary, board, list) | `#/board/ABC` |
 | `…/projects/ABC/boards/12?selectedIssue=ABC-1` | `#/board/ABC/12?issue=ABC-1` |
 | `…/boards/12/backlog`, `RapidBoard.jspa?view=planning` | `#/planning/ABC/12` |

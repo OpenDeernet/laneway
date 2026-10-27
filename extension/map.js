@@ -61,10 +61,17 @@ function query(q, project) {
 // without a project), issue opens in the panel when it is in the list.
 const view = (project, v, issue) => withQuery(project ? '/board/' + project : '/board', { sprint: 'jql:' + v.jql, vname: v.name, issue });
 
-// route maps a Jira URL to a laneway hash route ('/board/ABC/12'), or null.
+// route maps a Jira URL to a laneway hash route ('/board/ABC/12'), or null. An issue's comment link
+// (?focusedCommentId=, Server's #comment-) keeps its comment: /issue/ABC-1?comment=10001.
 export function route(href) {
   const u = http(href);
   if (!u) return null;
+  const r = jiraRoute(u);
+  const c = u.searchParams.get('focusedCommentId') || (u.hash.match(/^#comment-(\d+)$/) || [])[1] || '';
+  return r && /^\/issue\/[^/?]+$/.test(r) && /^\d+$/.test(c) ? r + '?comment=' + c : r;
+}
+
+function jiraRoute(u) {
   const q = u.searchParams, seg = u.pathname.split('/').filter(Boolean).map(decodeURIComponent);
   const sel = KEY.test(q.get('selectedIssue') || '') ? q.get('selectedIssue') : '';
 

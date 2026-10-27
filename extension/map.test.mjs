@@ -9,7 +9,10 @@ const jqlView = (path, jql, vname, issue) => path + '?' + new URLSearchParams(Ob
 test('route', () => {
   const cases = [
     ['/browse/ABC-12', '/issue/ABC-12'],
-    ['/browse/ABC-12?focusedCommentId=1', '/issue/ABC-12'],
+    ['/browse/ABC-12?focusedCommentId=1', '/issue/ABC-12?comment=1'],
+    ['/browse/ABC-12?focusedCommentId=1&page=com.atlassian.jira.plugin.system.issuetabpanels:comment-tabpanel#comment-1', '/issue/ABC-12?comment=1'],
+    ['/browse/ABC-12?focusedCommentId=x', '/issue/ABC-12'],
+    ['/browse/ABC?focusedCommentId=1', '/board/ABC'],
     ['/browse/ABC', '/board/ABC'],
     ['/jira/browse/ABC-12', '/issue/ABC-12'],
     ['/projects/ABC/issues/ABC-3', '/issue/ABC-3'],

@@ -211,7 +211,7 @@ export function mountIssue(el, key, { app, full, card }) {
     renderTabs();
     if (t === 'history') loadHistory();
     if (t === 'comments' && st.focusId == null) focusComment(null);
-    if (t === 'comments' && was !== 'comments' && !newest()) { // oldest first: the latest is at the end
+    if (t === 'comments' && was !== 'comments' && !newest() && !wantComment) { // oldest first: the latest is at the end
       // Again each frame while content-visibility sizes the comments it scrolls past.
       let h = -1, n = 0;
       const end = () => { if (st.tab !== 'comments' || (scroll.scrollHeight === h && n > 1) || ++n > 20) return; h = scroll.scrollHeight; scroll.scrollTop = h; requestAnimationFrame(end); };
@@ -652,6 +652,24 @@ export function mountIssue(el, key, { app, full, card }) {
     else if (total > all.length && !st.pending.length) box.more.append(h('p.faint', Tn(total - all.length, '%d older comment not loaded. Open in Jira to read it.', '%d older comments not loaded. Open in Jira to read them.', total - all.length)));
     if (!all.length) box.list.dataset.empty = T('No comments yet.'); else delete box.list.dataset.empty;
   }
+  // ?comment= on the page (a Jira comment link, through the extension): that comment shown, in view and
+  // focused, once the issue has it.
+  let wantComment = full ? app.route.query.comment || null : null;
+  function showComment() {
+    const id = wantComment;
+    if (!id || !st.issue.Comments.some(c => c.ID === id)) return;
+    st.all = true; renderComments();
+    setTab('comments');
+    wantComment = null;
+    focusComment(id, false);
+    // Again each frame while content-visibility sizes the comments it scrolls past.
+    let n = 0;
+    const center = () => {
+      const node = st.tab === 'comments' && st.focusId === id && ++n <= 20 && box.list.querySelector('[data-id="' + CSS.escape(id) + '"]');
+      if (node) { node.scrollIntoView({ block: 'center' }); requestAnimationFrame(center); }
+    };
+    center();
+  }
   const commentEls = () => [...box.list.children].filter(n => n.dataset.id && !n.dataset.id.startsWith('tmp-'));
   function focusComment(id, scrollTo = true) {
     st.focusId = id;
@@ -893,6 +911,7 @@ export function mountIssue(el, key, { app, full, card }) {
   function paint() {
     panes.details.classList.remove('waiting');
     renderHead(); renderTabs(); renderFields(); renderRequest(); renderDesc(); renderDocs(); renderChildren(); renderLinks(); renderFiles(); renderComments();
+    showComment();
   }
 
   function loadFailed(e) {
